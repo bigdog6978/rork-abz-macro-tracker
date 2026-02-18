@@ -661,25 +661,14 @@ export default function OnboardingScreen() {
             <View style={styles.backButton} />
           )}
 
-          <View style={styles.footerActions}>
-            {isLastStep && (
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={handleSkipBaseline}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.skipButtonText}>Skip</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={styles.nextButton}
-              onPress={isLastStep ? handleComplete : goNext}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.nextButtonText}>{isLastStep ? 'Get Started' : 'Continue'}</Text>
-              {!isLastStep && <ChevronRight size={18} color={Colors.white} />}
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.nextButton}
+            onPress={isLastStep ? handleComplete : goNext}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.nextButtonText}>{isLastStep ? 'Get Started' : 'Continue'}</Text>
+            <ChevronRight size={18} color={Colors.white} />
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -1030,11 +1019,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  footerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
+
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1046,22 +1031,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500' as const,
   },
-  skipButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  skipButtonText: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600' as const,
-  },
   nextButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     backgroundColor: Colors.primary,
     paddingHorizontal: 28,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: 14,
   },
   nextButtonText: {
