@@ -921,6 +921,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 13,
     fontWeight: '600' as const,
+    textAlign: 'center' as const,
   },
   rateChipTextActive: {
     color: Colors.primary,
