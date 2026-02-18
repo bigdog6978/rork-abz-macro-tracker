@@ -518,12 +518,12 @@ export default function OnboardingScreen() {
 
   const renderStep4 = () => (
     <View style={styles.stepContainer}>
-      <View style={styles.baselineIconRow}>
+      <View style={styles.baselineTitleRow}>
+        <Text style={[styles.stepTitle, { marginBottom: 0 }]}>Baseline{"\n"}Measurements</Text>
         <View style={styles.baselineIconBg}>
           <Ruler size={24} color={Colors.success} />
         </View>
       </View>
-      <Text style={styles.stepTitle}>Baseline Measurements</Text>
       <Text style={styles.stepSubtitle}>
         Track progress beyond the scale. These help us show meaningful results based on your {GOAL_LABELS[goal].toLowerCase()} goal.
       </Text>
@@ -1047,8 +1047,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
   },
-  baselineIconRow: {
-    marginBottom: 16,
+  baselineTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   baselineIconBg: {
     width: 52,
