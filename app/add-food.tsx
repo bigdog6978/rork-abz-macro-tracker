@@ -19,8 +19,32 @@ import Colors from '../constants/colors';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { NormalizedFood } from '../features/food/types';
 import * as foodService from '../features/food/foodService';
+import SegmentedToggle from '../components/SegmentedToggle';
+import {
+  ServingUnit,
+  getPreferredServingUnit,
+  setPreferredServingUnit,
+} from '../storage/userSettingsRepo';
 
 const DEBOUNCE_MS = 300;
+const OZ_TO_GRAMS = 28.349523125;
+
+const UNIT_OPTIONS: { label: string; value: ServingUnit }[] = [
+  { label: 'g', value: 'g' },
+  { label: 'oz', value: 'oz' },
+];
+
+function gramsToDisplay(grams: number, unit: ServingUnit): string {
+  if (unit === 'oz') {
+    return String(Math.round((grams / OZ_TO_GRAMS) * 10) / 10);
+  }
+  return String(Math.round(grams));
+}
+
+function displayToGrams(input: string, unit: ServingUnit): number {
+  const value = parseFloat(input) || 0;
+  return unit === 'oz' ? value * OZ_TO_GRAMS : value;
+}
 
 export default function AddFoodScreen() {
   const { addEntry } = useDailyLog();
@@ -33,6 +57,7 @@ export default function AddFoodScreen() {
 
   const [name, setName] = useState('');
   const [servingGrams, setServingGrams] = useState('100');
+  const [servingUnit, setServingUnit] = useState<ServingUnit>('g');
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
@@ -67,6 +92,17 @@ export default function AddFoodScreen() {
       .getRecentFoodsList()
       .then(setRecentFoods)
       .catch((err) => console.log('[AddFood] Error loading recents:', err));
+  }, []);
+
+  useEffect(() => {
+    getPreferredServingUnit()
+      .then((unit) => {
+        if (unit !== 'g') {
+          setServingUnit(unit);
+          setServingGrams((prev) => gramsToDisplay(parseFloat(prev) || 100, unit));
+        }
+      })
+      .catch((err) => console.log('[AddFood] Error loading unit pref:', err));
   }, []);
 
   const computedCalories =
@@ -113,7 +149,7 @@ export default function AddFoodScreen() {
       setIsCustomized(false);
 
       const grams = 100;
-      setServingGrams(String(grams));
+      setServingGrams(gramsToDisplay(grams, servingUnit));
       const macros = foodService.computeMacrosForServing(food, grams);
       computedMacrosRef.current = macros;
       setProtein(String(macros.protein_g));
@@ -124,13 +160,13 @@ export default function AddFoodScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    []
+    [servingUnit]
   );
 
   const handleServingChange = useCallback(
     (text: string) => {
       setServingGrams(text);
-      const grams = parseFloat(text) || 0;
+      const grams = displayToGrams(text, servingUnit);
       if (selectedFood && grams > 0) {
         const macros = foodService.computeMacrosForServing(selectedFood, grams);
         computedMacrosRef.current = macros;
@@ -140,7 +176,7 @@ export default function AddFoodScreen() {
         setIsCustomized(false);
       }
     },
-    [selectedFood]
+    [selectedFood, servingUnit]
   );
 
   const handleMacroEdit = useCallback(
@@ -177,7 +213,7 @@ export default function AddFoodScreen() {
         fat_g: parseFloat(fat) || 0,
       };
 
-      const grams = parseFloat(servingGrams) || 100;
+      const grams = displayToGrams(servingGrams, servingUnit) || 100;
 
       const entry = foodService.createFoodEntry(
         selectedFood,
@@ -212,6 +248,7 @@ export default function AddFoodScreen() {
     fat,
     computedCalories,
     servingGrams,
+    servingUnit,
     selectedFood,
     isCustomized,
     addEntry,
@@ -232,11 +269,11 @@ export default function AddFoodScreen() {
     setProtein('');
     setCarbs('');
     setFat('');
-    setServingGrams('100');
+    setServingGrams(gramsToDisplay(100, servingUnit));
     setIsCustomized(false);
     computedMacrosRef.current = null;
     setShowSuggestions(false);
-  }, []);
+  }, [servingUnit]);
 
   const handleSelectRecent = useCallback(
     (food: NormalizedFood, lastGrams: number) => {
@@ -247,7 +284,7 @@ export default function AddFoodScreen() {
       setIsCustomized(false);
 
       const grams = lastGrams || 100;
-      setServingGrams(String(grams));
+      setServingGrams(gramsToDisplay(grams, servingUnit));
       const macros = foodService.computeMacrosForServing(food, grams);
       computedMacrosRef.current = macros;
       setProtein(String(macros.protein_g));
@@ -258,7 +295,22 @@ export default function AddFoodScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    []
+    [servingUnit]
+  );
+
+  const handleUnitChange = useCallback(
+    (newUnit: ServingUnit) => {
+      const currentGrams = displayToGrams(servingGrams, servingUnit);
+      setServingUnit(newUnit);
+      setServingGrams(gramsToDisplay(currentGrams, newUnit));
+      setPreferredServingUnit(newUnit).catch((err) =>
+        console.log('[AddFood] Error saving unit pref:', err)
+      );
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    },
+    [servingGrams, servingUnit]
   );
 
   return (
@@ -430,18 +482,28 @@ export default function AddFoodScreen() {
 
               <View style={styles.servingRow}>
                 <View style={styles.servingInput}>
-                  <Text style={styles.inputLabel}>Serving</Text>
+                  <View style={styles.servingLabelRow}>
+                    <Text style={[styles.inputLabel, styles.servingLabelText]}>
+                      Serving
+                    </Text>
+                    <SegmentedToggle
+                      options={UNIT_OPTIONS}
+                      value={servingUnit}
+                      onChange={handleUnitChange}
+                      accessibilityLabel={`Serving units: ${servingUnit === 'g' ? 'grams' : 'ounces'}`}
+                    />
+                  </View>
                   <View style={styles.servingInputRow}>
                     <TextInput
                       style={styles.servingTextInput}
                       value={servingGrams}
                       onChangeText={handleServingChange}
                       keyboardType="decimal-pad"
-                      placeholder="100"
+                      placeholder={servingUnit === 'oz' ? '3.5' : '100'}
                       placeholderTextColor={Colors.textTertiary}
                       testID="serving-input"
                     />
-                    <Text style={styles.servingUnit}>g</Text>
+                    <Text style={styles.servingUnit}>{servingUnit}</Text>
                   </View>
                 </View>
               </View>
@@ -736,6 +798,15 @@ const styles = StyleSheet.create({
   },
   servingInput: {
     flex: 1,
+  },
+  servingLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  servingLabelText: {
+    marginBottom: 0,
   },
   servingInputRow: {
     flexDirection: 'row',
