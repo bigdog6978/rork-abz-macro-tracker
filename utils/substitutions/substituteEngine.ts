@@ -2,12 +2,14 @@ import { MealSuggestion, MacroStrategy, DietaryModifier, FoodCategory, Measureme
 import { FOODS, formatPortionLabel } from '../../constants/foodDatabase';
 import { SUBSTITUTE_CATALOG } from './substituteCatalog';
 import { SubstituteCatalogItem, SubstituteResult } from './types';
+import { MealType, MEAL_TYPE_FOOD_IDS } from '../../constants/mealSwapCatalog';
 
 interface SubstituteOptions {
   strategy: MacroStrategy;
   modifiers: DietaryModifier[];
   measurementSystem?: MeasurementSystem;
   excludeFoodIds?: string[];
+  mealType?: MealType;
 }
 
 const DIET_EXCLUSION_TAGS: Record<string, string[]> = {
@@ -132,14 +134,15 @@ function formatSubstitutePortion(
 export function getSubstitutes(
   foodItem: MealSuggestion,
   options: SubstituteOptions,
-  count: number = 3
+  count: number = 12
 ): SubstituteResult[] {
-  const { strategy, modifiers, measurementSystem = 'us', excludeFoodIds = [] } = options;
+  const { strategy, modifiers, measurementSystem = 'us', excludeFoodIds = [], mealType } = options;
   const category = foodItem.category;
 
-  console.log('[SubstituteEngine] Finding substitutes for:', foodItem.name, 'category:', category);
+  console.log('[SubstituteEngine] Finding substitutes for:', foodItem.name, 'category:', category, 'mealType:', mealType);
 
   const allExcluded = new Set([foodItem.foodId, ...excludeFoodIds]);
+  const mealFoodIds = mealType ? new Set(MEAL_TYPE_FOOD_IDS[mealType]) : null;
 
   let candidates = SUBSTITUTE_CATALOG.filter((item) => {
     if (allExcluded.has(item.foodId)) return false;
@@ -147,49 +150,64 @@ export function getSubstitutes(
     return true;
   });
 
+  const mealTypeCandidates = mealFoodIds
+    ? candidates.filter((c) => mealFoodIds.has(c.foodId))
+    : [];
   const sameCategoryCandidates = candidates.filter((c) => c.category === category);
 
   let thresholdMultiplier = 1.0;
-  const maxRelaxSteps = 4;
+  const maxRelaxSteps = 5;
   let selected: SubstituteCatalogItem[] = [];
+  const selectedIds = new Set<string>();
+
+  const tryAdd = (items: SubstituteCatalogItem[]) => {
+    for (const item of items) {
+      if (selected.length >= count) break;
+      if (!selectedIds.has(item.foodId)) {
+        selectedIds.add(item.foodId);
+        selected.push(item);
+      }
+    }
+  };
 
   for (let step = 0; step < maxRelaxSteps && selected.length < count; step++) {
     const calThreshold = 0.2 * thresholdMultiplier;
     const macroThreshold = 0.25 * thresholdMultiplier;
 
-    const pool = step < 2 ? sameCategoryCandidates : candidates;
+    const pools = step < 2
+      ? [mealTypeCandidates, sameCategoryCandidates]
+      : [candidates];
 
-    const filtered = pool.filter((c) => {
-      if (selected.some((s) => s.foodId === c.foodId)) return false;
-      const oCal = foodItem.calories || 1;
-      const calDiff = Math.abs(oCal - c.macrosPerServing.calories) / oCal;
-      if (calDiff > calThreshold) return false;
+    for (const pool of pools) {
+      const filtered = pool.filter((c) => {
+        if (selectedIds.has(c.foodId)) return false;
+        const oCal = foodItem.calories || 1;
+        const calDiff = Math.abs(oCal - c.macrosPerServing.calories) / oCal;
+        if (calDiff > calThreshold) return false;
 
-      if (category === 'protein') {
-        const oP = foodItem.protein_g || 1;
-        if (Math.abs(oP - c.macrosPerServing.protein_g) / oP > macroThreshold) return false;
-      }
-      if (category === 'carb' || category === 'fruit') {
-        const oC = foodItem.carbs_g || 1;
-        if (Math.abs(oC - c.macrosPerServing.carbs_g) / oC > macroThreshold) return false;
-      }
-      if (category === 'fat') {
-        const oF = foodItem.fat_g || 1;
-        if (Math.abs(oF - c.macrosPerServing.fat_g) / oF > macroThreshold) return false;
-      }
+        if (category === 'protein') {
+          const oP = foodItem.protein_g || 1;
+          if (Math.abs(oP - c.macrosPerServing.protein_g) / oP > macroThreshold) return false;
+        }
+        if (category === 'carb' || category === 'fruit') {
+          const oC = foodItem.carbs_g || 1;
+          if (Math.abs(oC - c.macrosPerServing.carbs_g) / oC > macroThreshold) return false;
+        }
+        if (category === 'fat') {
+          const oF = foodItem.fat_g || 1;
+          if (Math.abs(oF - c.macrosPerServing.fat_g) / oF > macroThreshold) return false;
+        }
 
-      return true;
-    });
+        return true;
+      });
 
-    const sorted = filtered.sort((a, b) =>
-      macroDistance(foodItem, a, category) - macroDistance(foodItem, b, category)
-    );
-
-    for (const item of sorted) {
-      if (selected.length >= count) break;
-      if (!selected.some((s) => s.foodId === item.foodId)) {
-        selected.push(item);
-      }
+      const scored = filtered.map((c) => {
+        const base = macroDistance(foodItem, c, category);
+        const mealBonus = mealFoodIds && mealFoodIds.has(c.foodId) ? -0.1 : 0;
+        return { item: c, score: base + mealBonus };
+      });
+      scored.sort((a, b) => a.score - b.score);
+      tryAdd(scored.map((s) => s.item));
     }
 
     thresholdMultiplier *= 1.5;
@@ -197,13 +215,9 @@ export function getSubstitutes(
 
   if (selected.length < count) {
     const remaining = candidates
-      .filter((c) => !allExcluded.has(c.foodId) && !selected.some((s) => s.foodId === c.foodId))
+      .filter((c) => !allExcluded.has(c.foodId) && !selectedIds.has(c.foodId))
       .sort((a, b) => macroDistance(foodItem, a, category) - macroDistance(foodItem, b, category));
-
-    for (const item of remaining) {
-      if (selected.length >= count) break;
-      selected.push(item);
-    }
+    tryAdd(remaining);
   }
 
   const results: SubstituteResult[] = selected.map((item) => {

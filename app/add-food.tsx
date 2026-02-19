@@ -30,7 +30,7 @@ const DEBOUNCE_MS = 300;
 const OZ_TO_GRAMS = 28.349523125;
 
 const UNIT_OPTIONS: { label: string; value: ServingUnit }[] = [
-  { label: 'g', value: 'g' },
+  { label: 'gm', value: 'g' },
   { label: 'oz', value: 'oz' },
 ];
 
@@ -320,6 +320,15 @@ export default function AddFoodScreen() {
     >
       <Stack.Screen
         options={{
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              testID="close-add-food"
+            >
+              <X size={22} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <TouchableOpacity
               onPress={handleSave}
@@ -480,31 +489,25 @@ export default function AddFoodScreen() {
                 />
               </View>
 
-              <View style={styles.servingRow}>
-                <View style={styles.servingInput}>
-                  <View style={styles.servingLabelRow}>
-                    <Text style={[styles.inputLabel, styles.servingLabelText]}>
-                      Serving
-                    </Text>
-                    <SegmentedToggle
-                      options={UNIT_OPTIONS}
-                      value={servingUnit}
-                      onChange={handleUnitChange}
-                      accessibilityLabel={`Serving units: ${servingUnit === 'g' ? 'grams' : 'ounces'}`}
-                    />
-                  </View>
-                  <View style={styles.servingInputRow}>
-                    <TextInput
-                      style={styles.servingTextInput}
-                      value={servingGrams}
-                      onChangeText={handleServingChange}
-                      keyboardType="decimal-pad"
-                      placeholder={servingUnit === 'oz' ? '3.5' : '100'}
-                      placeholderTextColor={Colors.textTertiary}
-                      testID="serving-input"
-                    />
-                    <Text style={styles.servingUnit}>{servingUnit}</Text>
-                  </View>
+              <View style={styles.servingSection}>
+                <Text style={styles.inputLabel}>Serving Size</Text>
+                <View style={styles.servingControlRow}>
+                  <TextInput
+                    style={styles.servingTextInput}
+                    value={servingGrams}
+                    onChangeText={handleServingChange}
+                    keyboardType="decimal-pad"
+                    placeholder={servingUnit === 'oz' ? '3.5' : '100'}
+                    placeholderTextColor={Colors.textTertiary}
+                    testID="serving-input"
+                  />
+                  <SegmentedToggle
+                    options={UNIT_OPTIONS}
+                    value={servingUnit}
+                    onChange={handleUnitChange}
+                    accessibilityLabel={`Serving units: ${servingUnit === 'g' ? 'grams' : 'ounces'}`}
+                    style={styles.servingToggle}
+                  />
                 </View>
               </View>
 
@@ -793,27 +796,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500' as const,
   },
-  servingRow: {
+  servingSection: {
     marginBottom: 16,
   },
-  servingInput: {
+  servingControlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  servingToggle: {
     flex: 1,
-  },
-  servingLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  servingLabelText: {
-    marginBottom: 0,
-  },
-  servingInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   servingTextInput: {
-    flex: 1,
+    width: '66%',
     backgroundColor: Colors.inputBg,
     borderWidth: 1,
     borderColor: Colors.inputBorder,
@@ -823,6 +818,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
     fontWeight: '600' as const,
+    textAlign: 'center' as const,
   },
   servingUnit: {
     color: Colors.textSecondary,

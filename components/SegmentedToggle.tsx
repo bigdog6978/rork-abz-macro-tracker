@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import Colors from '../constants/colors';
 
 export interface SegmentOption<T extends string = string> {
@@ -12,6 +12,7 @@ interface SegmentedToggleProps<T extends string = string> {
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel?: string;
+  style?: ViewStyle;
 }
 
 function SegmentedToggle<T extends string = string>({
@@ -19,9 +20,10 @@ function SegmentedToggle<T extends string = string>({
   value,
   onChange,
   accessibilityLabel,
+  style,
 }: SegmentedToggleProps<T>) {
   return (
-    <View style={styles.track} accessibilityLabel={accessibilityLabel}>
+    <View style={[styles.track, style]} accessibilityLabel={accessibilityLabel}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -54,8 +56,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
   },
   segment: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flex: 1,
+    paddingVertical: 13,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',

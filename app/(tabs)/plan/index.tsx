@@ -13,7 +13,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { Sunrise, Sun, Moon, Cookie, ArrowLeftRight, RefreshCw, X, Check, Save, Bookmark, ShoppingCart, Copy, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
+import { Sunrise, Sun, Moon, Cookie, ArrowLeftRight, X, Check, Save, Bookmark, ShoppingCart, Copy, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -33,6 +33,7 @@ import {
 } from '../../../types';
 import { getSubstitutes, applySubstitution } from '../../../utils/substitutions/substituteEngine';
 import { SubstituteResult } from '../../../utils/substitutions/types';
+import { mealNameToType } from '../../../constants/mealSwapCatalog';
 import {
   getAllSavedMealPlans,
   saveMealPlan,
@@ -816,6 +817,7 @@ export default function PlanScreen() {
   const [selectedMealIdx, setSelectedMealIdx] = useState(0);
   const [selectedFoodIdx, setSelectedFoodIdx] = useState(0);
   const [substitutes, setSubstitutes] = useState<SubstituteResult[]>([]);
+  const [swapPageIndex, setSwapPageIndex] = useState(0);
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
 
   const [saveModalVisible, setSaveModalVisible] = useState(false);
@@ -893,7 +895,9 @@ export default function PlanScreen() {
     setSelectedFood(food);
     setSelectedMealIdx(mealIndex);
     setSelectedFoodIdx(foodIndex);
+    setSwapPageIndex(0);
 
+    const mealType = mealNameToType(plan.meals[mealIndex].name);
     const results = getSubstitutes(food, {
       strategy: profile.macro_strategy ?? 'balanced',
       modifiers: profile.dietary_modifiers ?? [],
@@ -901,6 +905,7 @@ export default function PlanScreen() {
       excludeFoodIds: plan.meals[mealIndex].suggestions
         .filter((_, i) => i !== foodIndex)
         .map((s) => s.foodId),
+      mealType,
     });
     setSubstitutes(results);
     setSheetVisible(true);
@@ -922,6 +927,7 @@ export default function PlanScreen() {
       setSheetVisible(false);
       setSelectedFood(null);
       setSubstitutes([]);
+      setSwapPageIndex(0);
     });
   }, [slideAnim]);
 
@@ -944,28 +950,17 @@ export default function PlanScreen() {
     closeSheet();
   }, [selectedFood, selectedMealIdx, selectedFoodIdx, closeSheet]);
 
-  const handleRegenerate = useCallback(() => {
-    if (!selectedFood) return;
-
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-
-    const currentExcludes = [
-      ...plan.meals[selectedMealIdx].suggestions
-        .filter((_, i) => i !== selectedFoodIdx)
-        .map((s) => s.foodId),
-      ...substitutes.map((s) => s.catalogItem.foodId),
-    ];
-
-    const results = getSubstitutes(selectedFood, {
-      strategy: profile.macro_strategy ?? 'balanced',
-      modifiers: profile.dietary_modifiers ?? [],
-      measurementSystem: profile.measurement_system ?? 'us',
-      excludeFoodIds: currentExcludes,
-    });
-    setSubstitutes(results);
-  }, [selectedFood, selectedMealIdx, selectedFoodIdx, substitutes, profile, plan]);
+  const SWAP_PAGE_SIZE = 3;
+  const totalSwapPages = Math.ceil(substitutes.length / SWAP_PAGE_SIZE);
+  const visibleSubstitutes = substitutes.slice(
+    swapPageIndex * SWAP_PAGE_SIZE,
+    swapPageIndex * SWAP_PAGE_SIZE + SWAP_PAGE_SIZE
+  );
+  const swapRangeStart = swapPageIndex * SWAP_PAGE_SIZE + 1;
+  const swapRangeEnd = Math.min(
+    swapPageIndex * SWAP_PAGE_SIZE + SWAP_PAGE_SIZE,
+    substitutes.length
+  );
 
   const openSaveModal = useCallback(() => {
     const strategy = profile.macro_strategy ?? 'balanced';
@@ -1145,7 +1140,7 @@ export default function PlanScreen() {
                 contentContainerStyle={styles.sheetScrollContent}
                 showsVerticalScrollIndicator={false}
               >
-                {substitutes.map((result) => (
+                {visibleSubstitutes.map((result) => (
                   <SubstituteOption
                     key={result.catalogItem.id}
                     result={result}
@@ -1162,16 +1157,51 @@ export default function PlanScreen() {
                 )}
               </ScrollView>
 
-              <View style={styles.sheetFooter}>
-                <TouchableOpacity
-                  style={styles.regenerateButton}
-                  onPress={handleRegenerate}
-                  activeOpacity={0.7}
-                >
-                  <RefreshCw size={14} color={Colors.primary} />
-                  <Text style={styles.regenerateText}>Show different options</Text>
-                </TouchableOpacity>
-              </View>
+              {substitutes.length > SWAP_PAGE_SIZE && (
+                <View style={styles.pagingContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.pagingButton,
+                      swapPageIndex === 0 && styles.pagingButtonDisabled,
+                    ]}
+                    onPress={() => setSwapPageIndex((p) => Math.max(0, p - 1))}
+                    disabled={swapPageIndex === 0}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.pagingButtonText,
+                        swapPageIndex === 0 && styles.pagingButtonTextDisabled,
+                      ]}
+                    >
+                      Previous
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.pagingLabel}>
+                    {swapRangeStart}–{swapRangeEnd} of {substitutes.length}
+                  </Text>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.pagingButton,
+                      swapPageIndex >= totalSwapPages - 1 && styles.pagingButtonDisabled,
+                    ]}
+                    onPress={() => setSwapPageIndex((p) => Math.min(totalSwapPages - 1, p + 1))}
+                    disabled={swapPageIndex >= totalSwapPages - 1}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.pagingButtonText,
+                        swapPageIndex >= totalSwapPages - 1 && styles.pagingButtonTextDisabled,
+                      ]}
+                    >
+                      Next
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </Animated.View>
           </Pressable>
         </Pressable>
@@ -1682,20 +1712,36 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderTopWidth: 1,
     borderTopColor: Colors.cardBorder,
-    alignItems: 'center',
   },
-  regenerateButton: {
+  pagingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.cardBorder,
+  },
+  pagingButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
     backgroundColor: Colors.primaryMuted,
   },
-  regenerateText: {
+  pagingButtonDisabled: {
+    backgroundColor: Colors.cardElevated,
+  },
+  pagingButtonText: {
     color: Colors.primary,
     fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  pagingButtonTextDisabled: {
+    color: Colors.textTertiary,
+  },
+  pagingLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
     fontWeight: '600' as const,
   },
   saveFormArea: {

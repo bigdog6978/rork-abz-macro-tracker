@@ -43,6 +43,21 @@ export interface USDADetailNutrient {
   amount?: number;
 }
 
+const ALLOWED_DATA_TYPES = ['Foundation', 'SR Legacy'];
+
+const PREFERRED_TERMS = /\b(raw|meat only|skinless|boneless|cooked|roasted|grilled|baked)\b/i;
+const DEPRIORITIZED_TERMS = /\b(nugget|sandwich|roll|entree|orange|teriyaki|patty|strip|frozen|breaded)\b/i;
+
+function rankFoods(foods: USDASearchFood[]): USDASearchFood[] {
+  return [...foods].sort((a, b) => {
+    const scoreA = (PREFERRED_TERMS.test(a.description) ? -1 : 0)
+      + (DEPRIORITIZED_TERMS.test(a.description) ? 1 : 0);
+    const scoreB = (PREFERRED_TERMS.test(b.description) ? -1 : 0)
+      + (DEPRIORITIZED_TERMS.test(b.description) ? 1 : 0);
+    return scoreA - scoreB;
+  });
+}
+
 export async function searchFoods(
   query: string,
   pageSize: number = 10
@@ -58,7 +73,12 @@ export async function searchFoods(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, pageSize }),
+      body: JSON.stringify({
+        query,
+        pageSize,
+        pageNumber: 1,
+        dataType: ALLOWED_DATA_TYPES,
+      }),
     }
   );
 
@@ -68,9 +88,14 @@ export async function searchFoods(
     throw new Error(`USDA search failed: ${response.status}`);
   }
 
-  const data = await response.json();
-  console.log('[usdaClient] Search returned', data.foods?.length ?? 0, 'results');
-  return data;
+  const data: USDASearchResponse = await response.json();
+  const filtered = (data.foods ?? []).filter(
+    (f) => !f.brandOwner && ALLOWED_DATA_TYPES.includes(f.dataType)
+  );
+  const ranked = rankFoods(filtered);
+
+  console.log('[usdaClient] Search returned', ranked.length, 'generic results');
+  return { ...data, foods: ranked, totalHits: ranked.length };
 }
 
 export async function getFoodDetail(fdcId: string): Promise<USDAFoodDetail> {
