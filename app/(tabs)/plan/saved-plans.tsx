@@ -27,6 +27,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Colors from '../../../constants/colors';
+import { formatNumber } from '../../../utils/formatNumber';
 import {
   MACRO_STRATEGY_LABELS,
   DIETARY_MODIFIER_LABELS,
@@ -68,7 +69,7 @@ function MealPreview({ meal }: { meal: MealSlot }) {
             )}
           </View>
           <Text style={styles.foodPreviewName} numberOfLines={1}>{food.name}</Text>
-          <Text style={styles.foodPreviewCal}>{food.calories} cal</Text>
+          <Text style={styles.foodPreviewCal}>{formatNumber(food.calories)} cal</Text>
         </View>
       ))}
     </View>
@@ -138,7 +139,7 @@ function SavedPlanCard({
               </Text>
             </View>
             <Text style={styles.metaDot}>·</Text>
-            <Text style={styles.planCalories}>{totalCalories} cal</Text>
+            <Text style={styles.planCalories}>{formatNumber(totalCalories)} cal</Text>
             {totalSwaps > 0 && (
               <>
                 <Text style={styles.metaDot}>·</Text>
@@ -179,21 +180,21 @@ function SavedPlanCard({
           <View style={styles.macroSummary}>
             <View style={styles.macroItem}>
               <Text style={[styles.macroValue, { color: Colors.protein }]}>
-                {plan.macroTargets.protein_g}g
+                {formatNumber(plan.macroTargets.protein_g)}g
               </Text>
               <Text style={styles.macroLabel}>Protein</Text>
             </View>
             <View style={styles.macroDivider} />
             <View style={styles.macroItem}>
               <Text style={[styles.macroValue, { color: Colors.carbs }]}>
-                {plan.macroTargets.carbs_g}g
+                {formatNumber(plan.macroTargets.carbs_g)}g
               </Text>
               <Text style={styles.macroLabel}>Carbs</Text>
             </View>
             <View style={styles.macroDivider} />
             <View style={styles.macroItem}>
               <Text style={[styles.macroValue, { color: Colors.fat }]}>
-                {plan.macroTargets.fat_g}g
+                {formatNumber(plan.macroTargets.fat_g)}g
               </Text>
               <Text style={styles.macroLabel}>Fat</Text>
             </View>

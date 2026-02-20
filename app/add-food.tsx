@@ -16,6 +16,7 @@ import { router, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Check, Search, Clock, Pencil, X, ChevronRight } from 'lucide-react-native';
 import Colors from '../constants/colors';
+import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { NormalizedFood } from '../features/food/types';
 import * as foodService from '../features/food/foodService';
@@ -28,22 +29,33 @@ import {
 
 const DEBOUNCE_MS = 300;
 const OZ_TO_GRAMS = 28.349523125;
+const QTY_BASE_GRAMS = 100;
 
 const UNIT_OPTIONS: { label: string; value: ServingUnit }[] = [
+  { label: 'Qty', value: 'qty' },
   { label: 'gm', value: 'g' },
   { label: 'oz', value: 'oz' },
 ];
 
+const COUNT_FOOD_PATTERN =
+  /\b(egg|eggs|date|dates|banana|bananas|apple|apples|slice|slices|piece|pieces|bar|bars|scoop|scoops|wrap|wraps|patty|patties|muffin|muffins|bagel|bagels|roll|rolls|cookie|cookies|biscuit|biscuits)\b/i;
+
 function gramsToDisplay(grams: number, unit: ServingUnit): string {
   if (unit === 'oz') {
     return String(Math.round((grams / OZ_TO_GRAMS) * 10) / 10);
+  }
+  if (unit === 'qty') {
+    const qty = grams / QTY_BASE_GRAMS;
+    return String(Math.round(qty * 10) / 10);
   }
   return String(Math.round(grams));
 }
 
 function displayToGrams(input: string, unit: ServingUnit): number {
   const value = parseFloat(input) || 0;
-  return unit === 'oz' ? value * OZ_TO_GRAMS : value;
+  if (unit === 'oz') return value * OZ_TO_GRAMS;
+  if (unit === 'qty') return value * QTY_BASE_GRAMS;
+  return value;
 }
 
 export default function AddFoodScreen() {
@@ -99,7 +111,7 @@ export default function AddFoodScreen() {
       .then((unit) => {
         if (unit !== 'g') {
           setServingUnit(unit);
-          setServingGrams((prev) => gramsToDisplay(parseFloat(prev) || 100, unit));
+          setServingGrams(gramsToDisplay(100, unit));
         }
       })
       .catch((err) => console.log('[AddFood] Error loading unit pref:', err));
@@ -148,8 +160,11 @@ export default function AddFoodScreen() {
       setQuery(food.name);
       setIsCustomized(false);
 
+      const autoUnit = COUNT_FOOD_PATTERN.test(food.name) ? 'qty' : servingUnit;
+      if (autoUnit !== servingUnit) setServingUnit(autoUnit);
+
       const grams = 100;
-      setServingGrams(gramsToDisplay(grams, servingUnit));
+      setServingGrams(gramsToDisplay(grams, autoUnit));
       const macros = foodService.computeMacrosForServing(food, grams);
       computedMacrosRef.current = macros;
       setProtein(String(macros.protein_g));
@@ -413,8 +428,8 @@ export default function AddFoodScreen() {
                       </Text>
                     ) : null}
                     <Text style={styles.suggestionMacros}>
-                      {food.per100g.calories} cal · {food.per100g.protein_g}p ·{' '}
-                      {food.per100g.carbs_g}c · {food.per100g.fat_g}f per 100g
+                      {formatNumber(food.per100g.calories)} cal · {formatNumber(food.per100g.protein_g)}p ·{' '}
+                      {formatNumber(food.per100g.carbs_g)}c · {formatNumber(food.per100g.fat_g)}f per 100g
                     </Text>
                   </View>
                   <ChevronRight size={16} color={Colors.textTertiary} />
@@ -497,7 +512,7 @@ export default function AddFoodScreen() {
                     value={servingGrams}
                     onChangeText={handleServingChange}
                     keyboardType="decimal-pad"
-                    placeholder={servingUnit === 'oz' ? '3.5' : '100'}
+                    placeholder={servingUnit === 'oz' ? '3.5' : servingUnit === 'qty' ? '1' : '100'}
                     placeholderTextColor={Colors.textTertiary}
                     testID="serving-input"
                   />
@@ -505,10 +520,13 @@ export default function AddFoodScreen() {
                     options={UNIT_OPTIONS}
                     value={servingUnit}
                     onChange={handleUnitChange}
-                    accessibilityLabel={`Serving units: ${servingUnit === 'g' ? 'grams' : 'ounces'}`}
+                    accessibilityLabel={`Serving units: ${servingUnit}`}
                     style={styles.servingToggle}
                   />
                 </View>
+                {servingUnit === 'qty' && (
+                  <Text style={styles.servingHelper}>Based on: 100g serving</Text>
+                )}
               </View>
 
               <View style={styles.macroInputRow}>
@@ -559,7 +577,7 @@ export default function AddFoodScreen() {
               <View style={styles.caloriePreview}>
                 <Text style={styles.caloriePreviewLabel}>Estimated Calories</Text>
                 <Text style={styles.caloriePreviewValue}>
-                  {Math.round(computedCalories)}
+                  {formatNumber(computedCalories)}
                 </Text>
               </View>
 
@@ -603,7 +621,7 @@ export default function AddFoodScreen() {
                       </Text>
                       <Text style={styles.recentMeta}>
                         {item.lastServingGrams}g ·{' '}
-                        {Math.round(
+                        {formatNumber(
                           (item.food.per100g.calories * item.lastServingGrams) /
                             100
                         )}{' '}
@@ -805,20 +823,27 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   servingToggle: {
-    flex: 1,
+    flex: 3,
   },
   servingTextInput: {
-    width: '66%',
+    flex: 2,
+    minWidth: 80,
     backgroundColor: Colors.inputBg,
     borderWidth: 1,
     borderColor: Colors.inputBorder,
     borderRadius: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 14,
     color: Colors.text,
     fontSize: 16,
     fontWeight: '600' as const,
     textAlign: 'center' as const,
+  },
+  servingHelper: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    marginTop: 6,
   },
   servingUnit: {
     color: Colors.textSecondary,

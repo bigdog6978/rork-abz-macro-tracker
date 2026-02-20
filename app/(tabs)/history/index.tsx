@@ -15,6 +15,7 @@ import {
   Target, Plus, ArrowUpRight, ArrowDownRight, Minus, Ruler,
 } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
+import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
@@ -281,7 +282,7 @@ function DayRow({
           <Text style={styles.dayDate}>{dateLabel}</Text>
         </View>
         <View style={styles.dayCalories}>
-          <Text style={styles.dayCalValue}>{totals.calories}</Text>
+          <Text style={styles.dayCalValue}>{formatNumber(totals.calories)}</Text>
           <Text style={styles.dayCalLabel}>cal</Text>
         </View>
         <View style={[styles.adherenceBadge, { backgroundColor: adherenceColor + '20' }]}>
@@ -300,24 +301,24 @@ function DayRow({
               <View style={[styles.dayMacroDot, { backgroundColor: Colors.protein }]} />
               <Text style={styles.dayMacroLabel}>Protein</Text>
               <Text style={styles.dayMacroValue}>
-                {totals.protein_g}
-                <Text style={styles.dayMacroTarget}>/{targets.protein_g}g</Text>
+                {formatNumber(totals.protein_g)}
+                <Text style={styles.dayMacroTarget}>/{formatNumber(targets.protein_g)}g</Text>
               </Text>
             </View>
             <View style={styles.dayMacroItem}>
               <View style={[styles.dayMacroDot, { backgroundColor: Colors.carbs }]} />
               <Text style={styles.dayMacroLabel}>Carbs</Text>
               <Text style={styles.dayMacroValue}>
-                {totals.carbs_g}
-                <Text style={styles.dayMacroTarget}>/{targets.carbs_g}g</Text>
+                {formatNumber(totals.carbs_g)}
+                <Text style={styles.dayMacroTarget}>/{formatNumber(targets.carbs_g)}g</Text>
               </Text>
             </View>
             <View style={styles.dayMacroItem}>
               <View style={[styles.dayMacroDot, { backgroundColor: Colors.fat }]} />
               <Text style={styles.dayMacroLabel}>Fat</Text>
               <Text style={styles.dayMacroValue}>
-                {totals.fat_g}
-                <Text style={styles.dayMacroTarget}>/{targets.fat_g}g</Text>
+                {formatNumber(totals.fat_g)}
+                <Text style={styles.dayMacroTarget}>/{formatNumber(targets.fat_g)}g</Text>
               </Text>
             </View>
           </View>

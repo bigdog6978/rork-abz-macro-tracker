@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Colors from '../../../constants/colors';
+import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
@@ -181,22 +182,22 @@ export default function SettingsScreen() {
           <Text style={styles.macroSummaryTitle}>Current Targets</Text>
           <View style={styles.macroSummaryRow}>
             <View style={styles.macroSummaryItem}>
-              <Text style={[styles.macroSummaryValue, { color: Colors.calories }]}>{macros.calories}</Text>
+              <Text style={[styles.macroSummaryValue, { color: Colors.calories }]}>{formatNumber(macros.calories)}</Text>
               <Text style={styles.macroSummaryLabel}>Calories</Text>
             </View>
             <View style={styles.macroSummaryDivider} />
             <View style={styles.macroSummaryItem}>
-              <Text style={[styles.macroSummaryValue, { color: Colors.protein }]}>{macros.protein_g}g</Text>
+              <Text style={[styles.macroSummaryValue, { color: Colors.protein }]}>{formatNumber(macros.protein_g)}g</Text>
               <Text style={styles.macroSummaryLabel}>Protein</Text>
             </View>
             <View style={styles.macroSummaryDivider} />
             <View style={styles.macroSummaryItem}>
-              <Text style={[styles.macroSummaryValue, { color: Colors.carbs }]}>{macros.carbs_g}g</Text>
+              <Text style={[styles.macroSummaryValue, { color: Colors.carbs }]}>{formatNumber(macros.carbs_g)}g</Text>
               <Text style={styles.macroSummaryLabel}>Carbs</Text>
             </View>
             <View style={styles.macroSummaryDivider} />
             <View style={styles.macroSummaryItem}>
-              <Text style={[styles.macroSummaryValue, { color: Colors.fat }]}>{macros.fat_g}g</Text>
+              <Text style={[styles.macroSummaryValue, { color: Colors.fat }]}>{formatNumber(macros.fat_g)}g</Text>
               <Text style={styles.macroSummaryLabel}>Fat</Text>
             </View>
           </View>

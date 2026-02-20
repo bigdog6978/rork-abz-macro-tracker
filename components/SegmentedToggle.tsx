@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 44,
+    minWidth: 40,
   },
   segmentSelected: {
     backgroundColor: Colors.primary,

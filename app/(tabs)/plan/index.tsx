@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Colors from '../../../constants/colors';
+import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { getMealPlanForStrategy } from '../../../mocks/mealTemplates';
 import {
@@ -89,7 +90,7 @@ function FoodItemRow({
         </View>
         <Text style={styles.suggestionPortion}>{food.portion}</Text>
         <Text style={styles.suggestionMacros}>
-          {food.calories} cal · {food.protein_g}p · {food.carbs_g}c · {food.fat_g}f
+          {formatNumber(food.calories)} cal · {formatNumber(food.protein_g)}p · {formatNumber(food.carbs_g)}c · {formatNumber(food.fat_g)}f
         </Text>
       </View>
       {food.isSubstitutable && (
@@ -133,19 +134,19 @@ function MealCard({
           <Text style={styles.mealPercent}>{Math.round(meal.percentage * 100)}% of daily</Text>
         </View>
         <View style={styles.mealTargetBadge}>
-          <Text style={styles.mealTargetText}>{slotCalories} cal</Text>
+          <Text style={styles.mealTargetText}>{formatNumber(slotCalories)} cal</Text>
         </View>
       </View>
 
       <View style={styles.mealMacroRow}>
         <View style={[styles.mealMacroPill, { backgroundColor: Colors.proteinMuted }]}>
-          <Text style={[styles.mealMacroText, { color: Colors.protein }]}>{slotProtein}g P</Text>
+          <Text style={[styles.mealMacroText, { color: Colors.protein }]}>{formatNumber(slotProtein)}g P</Text>
         </View>
         <View style={[styles.mealMacroPill, { backgroundColor: Colors.carbsMuted }]}>
-          <Text style={[styles.mealMacroText, { color: Colors.carbs }]}>{slotCarbs}g C</Text>
+          <Text style={[styles.mealMacroText, { color: Colors.carbs }]}>{formatNumber(slotCarbs)}g C</Text>
         </View>
         <View style={[styles.mealMacroPill, { backgroundColor: Colors.fatMuted }]}>
-          <Text style={[styles.mealMacroText, { color: Colors.fat }]}>{slotFat}g F</Text>
+          <Text style={[styles.mealMacroText, { color: Colors.fat }]}>{formatNumber(slotFat)}g F</Text>
         </View>
       </View>
 
@@ -181,18 +182,18 @@ function SubstituteOption({
         <Text style={styles.substituteName}>{result.catalogItem.name}</Text>
         <Text style={styles.substitutePortion}>{result.adjustedPortion}</Text>
         <View style={styles.substituteMacroRow}>
-          <Text style={styles.substituteCalories}>{result.adjustedMacros.calories} cal</Text>
+          <Text style={styles.substituteCalories}>{formatNumber(result.adjustedMacros.calories)} cal</Text>
           <View style={styles.substituteMacroDot} />
           <Text style={[styles.substituteMacroChip, { color: Colors.protein }]}>
-            {Math.round(result.adjustedMacros.protein_g)}p
+            {formatNumber(result.adjustedMacros.protein_g)}p
           </Text>
           <View style={styles.substituteMacroDot} />
           <Text style={[styles.substituteMacroChip, { color: Colors.carbs }]}>
-            {Math.round(result.adjustedMacros.carbs_g)}c
+            {formatNumber(result.adjustedMacros.carbs_g)}c
           </Text>
           <View style={styles.substituteMacroDot} />
           <Text style={[styles.substituteMacroChip, { color: Colors.fat }]}>
-            {Math.round(result.adjustedMacros.fat_g)}f
+            {formatNumber(result.adjustedMacros.fat_g)}f
           </Text>
         </View>
       </View>
@@ -1017,7 +1018,7 @@ export default function PlanScreen() {
                 {MACRO_STRATEGY_LABELS[profile.macro_strategy ?? 'balanced']} Plan
               </Text>
               <Text style={styles.headerSubtitle}>
-                A typical day hitting your {macros.calories} cal target
+                A typical day hitting your {formatNumber(macros.calories)} cal target
               </Text>
             </View>
             <View style={styles.headerActions}>
@@ -1066,17 +1067,17 @@ export default function PlanScreen() {
           )}
           <View style={styles.headerMacros}>
             <View style={styles.headerMacroItem}>
-              <Text style={[styles.headerMacroValue, { color: Colors.protein }]}>{macros.protein_g}g</Text>
+              <Text style={[styles.headerMacroValue, { color: Colors.protein }]}>{formatNumber(macros.protein_g)}g</Text>
               <Text style={styles.headerMacroLabel}>Protein</Text>
             </View>
             <View style={styles.headerDivider} />
             <View style={styles.headerMacroItem}>
-              <Text style={[styles.headerMacroValue, { color: Colors.carbs }]}>{macros.carbs_g}g</Text>
+              <Text style={[styles.headerMacroValue, { color: Colors.carbs }]}>{formatNumber(macros.carbs_g)}g</Text>
               <Text style={styles.headerMacroLabel}>Carbs</Text>
             </View>
             <View style={styles.headerDivider} />
             <View style={styles.headerMacroItem}>
-              <Text style={[styles.headerMacroValue, { color: Colors.fat }]}>{macros.fat_g}g</Text>
+              <Text style={[styles.headerMacroValue, { color: Colors.fat }]}>{formatNumber(macros.fat_g)}g</Text>
               <Text style={styles.headerMacroLabel}>Fat</Text>
             </View>
           </View>

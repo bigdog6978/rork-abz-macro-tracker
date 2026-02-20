@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Plus, Flame, Beef, Wheat, Droplets, Trash2, Ruler, X } from 'lucide-react-native';
+import { Plus, Flame, Trash2, Ruler, X } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
+import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
@@ -80,64 +81,27 @@ function MacroRing({
   );
 }
 
-function MacroBar({
+function MacroDial({
   label,
   consumed,
   target,
   color,
-  mutedColor,
-  icon,
-  unit,
 }: {
   label: string;
   consumed: number;
   target: number;
   color: string;
-  mutedColor: string;
-  icon: React.ReactNode;
-  unit: string;
 }) {
-  const progress = target > 0 ? Math.min(consumed / target, 1) : 0;
-  const animWidth = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(animWidth, {
-      toValue: progress,
-      useNativeDriver: false,
-      tension: 40,
-      friction: 12,
-    }).start();
-  }, [progress, animWidth]);
-
-  const remaining = Math.max(target - consumed, 0);
-
   return (
-    <View style={styles.macroBarContainer}>
-      <View style={styles.macroBarHeader}>
-        <View style={styles.macroBarLeft}>
-          <View style={[styles.macroIcon, { backgroundColor: mutedColor }]}>{icon}</View>
-          <Text style={styles.macroBarLabel}>{label}</Text>
-        </View>
-        <View style={styles.macroBarRight}>
-          <Text style={[styles.macroBarConsumed, { color }]}>{consumed}{unit}</Text>
-          <Text style={styles.macroBarTarget}> / {target}{unit}</Text>
+    <View style={styles.dialItem}>
+      <View style={styles.dialRingWrap}>
+        <MacroRing consumed={consumed} target={target} color={color} size={72} strokeWidth={5} />
+        <View style={styles.dialCenter}>
+          <Text style={[styles.dialConsumed, { color }]}>{formatNumber(consumed)}</Text>
         </View>
       </View>
-      <View style={styles.macroBarTrack}>
-        <Animated.View
-          style={[
-            styles.macroBarFill,
-            {
-              backgroundColor: color,
-              width: animWidth.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
-            },
-          ]}
-        />
-      </View>
-      <Text style={styles.macroBarRemaining}>{remaining}{unit} remaining</Text>
+      <Text style={styles.dialLabel}>{label}</Text>
+      <Text style={styles.dialTarget}>{formatNumber(consumed)}/{formatNumber(target)}g</Text>
     </View>
   );
 }
@@ -221,19 +185,19 @@ export default function DashboardScreen() {
               strokeWidth={8}
             />
             <View style={styles.calorieCenter}>
-              <Text style={styles.calorieNumber}>{caloriesRemaining}</Text>
+              <Text style={styles.calorieNumber}>{formatNumber(caloriesRemaining)}</Text>
               <Text style={styles.calorieLabel}>cal left</Text>
             </View>
           </View>
           <View style={styles.calorieInfo}>
             <View style={styles.calorieRow}>
               <View style={styles.calorieStat}>
-                <Text style={styles.calorieStatValue}>{macros.calories}</Text>
+                <Text style={styles.calorieStatValue}>{formatNumber(macros.calories)}</Text>
                 <Text style={styles.calorieStatLabel}>Target</Text>
               </View>
               <View style={styles.calorieStat}>
                 <Text style={[styles.calorieStatValue, { color: Colors.primary }]}>
-                  {todayTotals.calories}
+                  {formatNumber(todayTotals.calories)}
                 </Text>
                 <Text style={styles.calorieStatLabel}>Consumed</Text>
               </View>
@@ -247,33 +211,24 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <View style={styles.macrosSection}>
-          <MacroBar
+        <View style={styles.macroDialCard}>
+          <MacroDial
             label="Protein"
             consumed={todayTotals.protein_g}
             target={macros.protein_g}
             color={Colors.protein}
-            mutedColor={Colors.proteinMuted}
-            icon={<Beef size={14} color={Colors.protein} />}
-            unit="g"
           />
-          <MacroBar
+          <MacroDial
             label="Carbs"
             consumed={todayTotals.carbs_g}
             target={macros.carbs_g}
             color={Colors.carbs}
-            mutedColor={Colors.carbsMuted}
-            icon={<Wheat size={14} color={Colors.carbs} />}
-            unit="g"
           />
-          <MacroBar
+          <MacroDial
             label="Fat"
             consumed={todayTotals.fat_g}
             target={macros.fat_g}
             color={Colors.fat}
-            mutedColor={Colors.fatMuted}
-            icon={<Droplets size={14} color={Colors.fat} />}
-            unit="g"
           />
         </View>
 
@@ -319,7 +274,7 @@ export default function DashboardScreen() {
                 <View style={styles.entryInfo}>
                   <Text style={styles.entryName}>{entry.name}</Text>
                   <Text style={styles.entryMacros}>
-                    {entry.calories} cal · {entry.protein_g}p · {entry.carbs_g}c · {entry.fat_g}f
+                    {formatNumber(entry.calories)} cal · {formatNumber(entry.protein_g)}p · {formatNumber(entry.carbs_g)}c · {formatNumber(entry.fat_g)}f
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -455,68 +410,47 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
   },
-  macrosSection: {
-    marginTop: 16,
-    gap: 12,
-  },
-  macroBarContainer: {
+  macroDialCard: {
+    flexDirection: 'row',
     backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-  },
-  macroBarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    gap: 12,
   },
-  macroBarLeft: {
-    flexDirection: 'row',
+  dialItem: {
+    flex: 1,
     alignItems: 'center',
-    gap: 8,
   },
-  macroIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+  dialRingWrap: {
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  macroBarLabel: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '600' as const,
+  dialCenter: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  macroBarRight: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  macroBarConsumed: {
+  dialConsumed: {
     fontSize: 16,
-    fontWeight: '700' as const,
+    fontWeight: '800' as const,
   },
-  macroBarTarget: {
+  dialLabel: {
+    color: Colors.text,
     fontSize: 13,
+    fontWeight: '600' as const,
+    marginTop: 8,
+  },
+  dialTarget: {
     color: Colors.textSecondary,
+    fontSize: 11,
     fontWeight: '500' as const,
-  },
-  macroBarTrack: {
-    height: 6,
-    backgroundColor: Colors.cardElevated,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  macroBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  macroBarRemaining: {
-    color: Colors.textTertiary,
-    fontSize: 12,
-    marginTop: 6,
-    fontWeight: '500' as const,
+    marginTop: 2,
   },
   entriesSection: {
     marginTop: 24,

@@ -16,6 +16,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ChevronRight, ChevronLeft, Zap, Ruler, TrendingUp } from 'lucide-react-native';
 import Colors from '../constants/colors';
+import { formatNumber } from '../utils/formatNumber';
 import { useUser } from '../providers/UserProvider';
 import {
   Sex,
@@ -492,22 +493,22 @@ export default function OnboardingScreen() {
           </View>
           <View style={styles.previewMacros}>
             <View style={styles.previewMacro}>
-              <Text style={[styles.previewValue, { color: Colors.calories }]}>{macros.calories}</Text>
+              <Text style={[styles.previewValue, { color: Colors.calories }]}>{formatNumber(macros.calories)}</Text>
               <Text style={styles.previewLabel}>cal</Text>
             </View>
             <View style={styles.previewDivider} />
             <View style={styles.previewMacro}>
-              <Text style={[styles.previewValue, { color: Colors.protein }]}>{macros.protein_g}g</Text>
+              <Text style={[styles.previewValue, { color: Colors.protein }]}>{formatNumber(macros.protein_g)}g</Text>
               <Text style={styles.previewLabel}>protein</Text>
             </View>
             <View style={styles.previewDivider} />
             <View style={styles.previewMacro}>
-              <Text style={[styles.previewValue, { color: Colors.carbs }]}>{macros.carbs_g}g</Text>
+              <Text style={[styles.previewValue, { color: Colors.carbs }]}>{formatNumber(macros.carbs_g)}g</Text>
               <Text style={styles.previewLabel}>carbs</Text>
             </View>
             <View style={styles.previewDivider} />
             <View style={styles.previewMacro}>
-              <Text style={[styles.previewValue, { color: Colors.fat }]}>{macros.fat_g}g</Text>
+              <Text style={[styles.previewValue, { color: Colors.fat }]}>{formatNumber(macros.fat_g)}g</Text>
               <Text style={styles.previewLabel}>fat</Text>
             </View>
           </View>
