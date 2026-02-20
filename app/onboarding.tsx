@@ -1032,7 +1032,7 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
   nextButton: {
-    flex: 1,
+    width: '50%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
