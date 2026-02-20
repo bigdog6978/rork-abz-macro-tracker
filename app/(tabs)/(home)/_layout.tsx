@@ -13,7 +13,7 @@ export default function HomeLayout() {
     >
       <Stack.Screen
         name="index"
-        options={{ title: "Abz" }}
+        options={{ title: "Physiq" }}
       />
     </Stack>
   );

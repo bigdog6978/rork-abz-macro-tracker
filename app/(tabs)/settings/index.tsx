@@ -565,7 +565,7 @@ export default function SettingsScreen() {
             <Shield size={14} color={Colors.textTertiary} />
             <Text style={styles.footerText}>For general fitness guidance only</Text>
           </View>
-          <Text style={styles.footerVersion}>Abz v1.0</Text>
+          <Text style={styles.footerVersion}>Physiq v1.0</Text>
         </View>
       </ScrollView>
     </View>

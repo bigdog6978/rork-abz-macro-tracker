@@ -64,11 +64,11 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const completeOnboarding = useCallback(
     (profileData: Omit<UserProfile, 'onboarding_complete'>) => {
-      const updated = { ...profileData, onboarding_complete: true };
+      const updated = { ...profile, ...profileData, onboarding_complete: true };
       setProfile(updated);
       saveMutation.mutate(updated);
     },
-    [saveMutation]
+    [profile, saveMutation]
   );
 
   const resetProfile = useCallback(async () => {

@@ -35,7 +35,7 @@ When reporting a bug, please include:
 • Your device model and OS version
 • Screenshots if applicable
 
-We appreciate your feedback and are committed to making Abz the best fitness tracking experience possible.`,
+We appreciate your feedback and are committed to making Physiq the best fitness tracking experience possible.`,
   },
 };
 

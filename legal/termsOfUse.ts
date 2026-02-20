@@ -6,11 +6,11 @@ Last Updated: ${TERMS_OF_USE_LAST_UPDATED}
 
 1. ACCEPTANCE OF TERMS
 
-By downloading, installing, or using the Abz mobile application (the "App"), you agree to be bound by these Terms of Use ("Terms"). If you do not agree to these Terms, do not use the App.
+By downloading, installing, or using the Physiq mobile application (the "App"), you agree to be bound by these Terms of Use ("Terms"). If you do not agree to these Terms, do not use the App.
 
 2. DESCRIPTION OF SERVICE
 
-Abz is a fitness and nutrition application that provides:
+Physiq is a fitness and nutrition application that provides:
 • Macro nutrient tracking and daily logging.
 • Personalized meal plan generation based on your goals and preferences.
 • Food lookup powered by the USDA FoodData Central database.
@@ -70,7 +70,7 @@ d) Price Changes
 
 7. INTELLECTUAL PROPERTY
 
-• The App, including its design, code, content, features, and branding, is owned by Abz and protected by intellectual property laws.
+• The App, including its design, code, content, features, and branding, is owned by Physiq and protected by intellectual property laws.
 • You are granted a limited, non-exclusive, non-transferable, revocable license to use the App for personal, non-commercial purposes.
 • You may not copy, modify, distribute, sell, or create derivative works based on the App or its content without our prior written consent.
 • USDA food data is provided by the U.S. Department of Agriculture and is in the public domain.
@@ -89,7 +89,7 @@ YOU USE THE APP AT YOUR OWN RISK.
 
 9. INDEMNIFICATION
 
-You agree to indemnify and hold harmless Abz and its officers, directors, employees, and agents from any claims, losses, damages, liabilities, and expenses (including reasonable legal fees) arising from your use of the App or violation of these Terms.
+You agree to indemnify and hold harmless Physiq and its officers, directors, employees, and agents from any claims, losses, damages, liabilities, and expenses (including reasonable legal fees) arising from your use of the App or violation of these Terms.
 
 10. TERMINATION
 

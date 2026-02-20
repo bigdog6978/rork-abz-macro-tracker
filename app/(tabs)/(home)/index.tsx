@@ -8,7 +8,7 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Plus, Flame, Beef, Wheat, Droplets, Trash2, Ruler, X } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
@@ -149,10 +149,13 @@ export default function DashboardScreen() {
   const streak = getStreak();
 
   useEffect(() => {
-    if (!userLoading && !profile.onboarding_complete) {
+    if (userLoading) return;
+    if (!profile.first_name) {
+      router.replace('/welcome' as never);
+    } else if (!profile.onboarding_complete) {
       router.replace('/onboarding' as never);
     }
-  }, [userLoading, profile.onboarding_complete]);
+  }, [userLoading, profile.first_name, profile.onboarding_complete]);
 
   const handleAddFood = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -171,7 +174,7 @@ export default function DashboardScreen() {
     [removeEntry]
   );
 
-  if (userLoading || !profile.onboarding_complete) {
+  if (userLoading || !profile.first_name || !profile.onboarding_complete) {
     return <View style={styles.container} />;
   }
 
@@ -179,9 +182,18 @@ export default function DashboardScreen() {
     ? Math.round((todayTotals.calories / macros.calories) * 100)
     : 0;
   const caloriesRemaining = Math.max(macros.calories - todayTotals.calories, 0);
+  const greeting = (() => {
+    const name = profile.first_name?.trim();
+    if (!name) return 'Welcome to Physiq!';
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return `Good morning, ${name}!`;
+    if (hour >= 12 && hour < 17) return `Good afternoon, ${name}!`;
+    return `Good evening, ${name}!`;
+  })();
 
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ title: greeting }} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

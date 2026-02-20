@@ -6,9 +6,9 @@ Last Updated: ${PRIVACY_POLICY_LAST_UPDATED}
 
 1. INTRODUCTION
 
-This Privacy Policy describes how Abz ("we," "us," or "our") collects, uses, and protects your information when you use the Abz mobile application (the "App"). Abz is a fitness and macro tracking application designed to help you manage your nutrition and meal planning goals.
+This Privacy Policy describes how Physiq ("we," "us," or "our") collects, uses, and protects your information when you use the Physiq mobile application (the "App"). Physiq is a fitness and macro tracking application designed to help you manage your nutrition and meal planning goals.
 
-Abz is not a medical service. The App provides general fitness and nutritional tracking tools and does not diagnose, treat, or prevent any medical condition.
+Physiq is not a medical service. The App provides general fitness and nutritional tracking tools and does not diagnose, treat, or prevent any medical condition.
 
 2. INFORMATION WE COLLECT
 
@@ -68,7 +68,7 @@ To exercise any of these rights, contact us at support@abzapp.com.
 
 8. CHILDREN'S PRIVACY
 
-Abz is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly. If you believe a child under 13 has provided us with personal information, please contact us at support@abzapp.com.
+Physiq is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly. If you believe a child under 13 has provided us with personal information, please contact us at support@abzapp.com.
 
 9. SUBSCRIPTION & PAYMENT DISCLOSURE
 

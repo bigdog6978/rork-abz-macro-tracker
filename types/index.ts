@@ -39,6 +39,7 @@ export type DietaryModifier =
   | 'intermittent_fasting';
 
 export interface UserProfile {
+  first_name?: string;
   age: number;
   sex: Sex;
   height_cm: number;
