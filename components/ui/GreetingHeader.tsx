@@ -39,7 +39,7 @@ export default function GreetingHeader({
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: 4,
+    paddingBottom: 2,
   },
   compact: {
     paddingBottom: 2,
@@ -56,12 +56,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500' as const,
     color: Colors.textTertiary,
-    marginTop: 4,
+    marginTop: 2,
   },
   status: {
     fontSize: 13,
     fontWeight: '600' as const,
     color: Colors.primary,
-    marginTop: 4,
+    marginTop: 2,
   },
 });

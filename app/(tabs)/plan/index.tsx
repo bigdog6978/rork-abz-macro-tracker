@@ -22,6 +22,7 @@ import Colors from '../../../constants/colors';
 import { Radius, Spacing, Shadows } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
+import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { getMealPlanForStrategy } from '../../../mocks/mealTemplates';
 import {
   MACRO_STRATEGY_LABELS,
@@ -32,6 +33,7 @@ import {
   DietaryModifier,
   DayPlan,
   SavedMealPlan,
+  FoodEntry,
 } from '../../../types';
 import { getSubstitutes, applySubstitution } from '../../../utils/substitutions/substituteEngine';
 import { SubstituteResult } from '../../../utils/substitutions/types';
@@ -63,11 +65,35 @@ function generateId(): string {
 
 function FoodItemRow({
   food,
+  mealName,
+  isLogged,
+  onLogPress,
   onSwapPress,
 }: {
   food: MealSuggestion;
+  mealName: string;
+  isLogged: boolean;
+  onLogPress: () => void;
   onSwapPress: () => void;
 }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.timing(scaleAnim, {
+      toValue: 1.05,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+  }, [scaleAnim]);
+
   return (
     <View style={styles.suggestionRow}>
       <View style={styles.suggestionDot}>
@@ -80,7 +106,7 @@ function FoodItemRow({
       </View>
       <View style={styles.suggestionInfo}>
         <View style={styles.suggestionNameRow}>
-          <Text style={styles.suggestionName} numberOfLines={1}>
+          <Text style={[styles.suggestionName, isLogged && styles.suggestionNameLogged]} numberOfLines={1}>
             {food.name}
           </Text>
           {food.isSwapped && (
@@ -94,6 +120,21 @@ function FoodItemRow({
           {formatNumber(food.calories)} cal · {formatNumber(food.protein_g)}p · {formatNumber(food.carbs_g)}c · {formatNumber(food.fat_g)}f
         </Text>
       </View>
+      <Pressable
+        style={styles.logToggleTouchTarget}
+        onPress={onLogPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityLabel={isLogged ? `Remove ${food.name} from today` : `Log ${food.name} to today`}
+        accessibilityRole="button"
+        accessibilityHint="Adds this food to your daily total"
+        testID={`log-btn-${food.id}`}
+      >
+        <Animated.View style={[styles.logToggleOuter, isLogged && styles.logToggleOuterActive, { transform: [{ scale: scaleAnim }] }]}>
+          <View style={[styles.logToggleInner, isLogged && styles.logToggleInnerActive]} />
+        </Animated.View>
+      </Pressable>
       {food.isSubstitutable && (
         <TouchableOpacity
           style={styles.swapButton}
@@ -113,11 +154,15 @@ function MealCard({
   macros,
   mealIndex,
   onSwapPress,
+  onLogPress,
+  isLogged,
 }: {
   meal: MealSlot;
   macros: MacroTargets;
   mealIndex: number;
   onSwapPress: (mealIndex: number, foodIndex: number, food: MealSuggestion) => void;
+  onLogPress: (food: MealSuggestion) => void;
+  isLogged: (planItemId: string) => boolean;
 }) {
   const slotCalories = Math.round(macros.calories * meal.percentage);
   const slotProtein = Math.round(macros.protein_g * meal.percentage);
@@ -152,11 +197,21 @@ function MealCard({
       </View>
 
       <View style={styles.suggestionsContainer}>
-        <Text style={styles.suggestionsLabel}>Ideas</Text>
+        <View style={styles.suggestionsHeaderRow}>
+          <View style={styles.headerDotSpacer} />
+          <Text style={[styles.suggestionsLabel, styles.suggestionsLabelFlex]}>Ideas</Text>
+          <View style={styles.logColumnHeader}>
+            <Text style={styles.logColumnLabel}>Log</Text>
+          </View>
+          <View style={styles.swapButtonSpacer} />
+        </View>
         {meal.suggestions.map((food, idx) => (
           <FoodItemRow
             key={food.id}
             food={food}
+            mealName={meal.name}
+            isLogged={isLogged(food.id)}
+            onLogPress={() => onLogPress(food)}
             onSwapPress={() => onSwapPress(mealIndex, idx, food)}
           />
         ))}
@@ -747,8 +802,25 @@ const groceryStyles = StyleSheet.create({
   },
 });
 
+function createFoodEntryFromPlanItem(food: MealSuggestion): FoodEntry {
+  return {
+    id: generateId(),
+    name: food.name,
+    protein_g: food.protein_g,
+    carbs_g: food.carbs_g,
+    fat_g: food.fat_g,
+    calories: food.calories,
+    timestamp: new Date().toISOString(),
+    providerId: 'manual',
+    servingGrams: food.portionGrams,
+    source: 'mealPlan',
+    sourceRefId: food.id,
+  };
+}
+
 export default function PlanScreen() {
   const { profile, macros } = useUser();
+  const { todayEntries, addEntry, removeEntry } = useDailyLog();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -840,6 +912,30 @@ export default function PlanScreen() {
       Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start(() => setToastVisible(false));
   }, [toastOpacity]);
+
+  const isLogged = useCallback(
+    (planItemId: string) =>
+      todayEntries.some((e) => e.source === 'mealPlan' && e.sourceRefId === planItemId),
+    [todayEntries]
+  );
+
+  const handleLogToggle = useCallback(
+    (food: MealSuggestion) => {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      const logged = todayEntries.find((e) => e.source === 'mealPlan' && e.sourceRefId === food.id);
+      if (logged) {
+        removeEntry(logged.id);
+        showToast('Removed from Today');
+      } else {
+        const entry = createFoodEntryFromPlanItem(food);
+        addEntry(entry);
+        showToast('Added to Today');
+      }
+    },
+    [todayEntries, addEntry, removeEntry, showToast]
+  );
 
   const savePlanMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -1091,6 +1187,8 @@ export default function PlanScreen() {
             macros={macros}
             mealIndex={idx}
             onSwapPress={openSheet}
+            onLogPress={handleLogToggle}
+            isLogged={isLogged}
           />
         ))}
 
@@ -1477,13 +1575,39 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
   },
   suggestionsContainer: {},
+  suggestionsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
   suggestionsLabel: {
     color: Colors.textTertiary,
     fontSize: 11,
     fontWeight: '700' as const,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 10,
+  },
+  headerDotSpacer: {
+    width: 18,
+  },
+  suggestionsLabelFlex: {
+    flex: 1,
+  },
+  logColumnHeader: {
+    width: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swapButtonSpacer: {
+    width: 32,
+  },
+  logColumnLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    opacity: 0.6,
+    letterSpacing: 0.5,
+    fontWeight: '500' as const,
   },
   suggestionRow: {
     flexDirection: 'row',
@@ -1524,6 +1648,9 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     flexShrink: 1,
   },
+  suggestionNameLogged: {
+    opacity: 0.65,
+  },
   swappedBadge: {
     backgroundColor: Colors.successMuted,
     paddingHorizontal: 6,
@@ -1548,6 +1675,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500' as const,
     marginTop: 2,
+  },
+  logToggleTouchTarget: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logToggleOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    borderColor: Colors.cardBorder,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logToggleOuterActive: {
+    borderColor: Colors.primary,
+  },
+  logToggleInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(115, 115, 115, 0.45)',
+  },
+  logToggleInnerActive: {
+    backgroundColor: Colors.primary,
   },
   swapButton: {
     width: 32,

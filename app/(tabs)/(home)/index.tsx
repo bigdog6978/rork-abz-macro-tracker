@@ -22,6 +22,7 @@ import { useMeasurements } from '../../../providers/MeasurementsProvider';
 import { MACRO_STRATEGY_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier } from '../../../types';
 import PremiumCard from '../../../components/ui/PremiumCard';
 import GreetingHeader from '../../../components/ui/GreetingHeader';
+import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import EmptyState from '../../../components/ui/EmptyState';
 import MacroRingComponent, { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
@@ -80,8 +81,9 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <DashboardBrandHeader />
         {/* Greeting */}
-        <Animated.View style={{ opacity: stagger[0], transform: [{ translateY: stagger[0].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+        <Animated.View style={[styles.greetingBlock, { opacity: stagger[0], transform: [{ translateY: stagger[0].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
           <GreetingHeader
             firstName={profile.first_name}
             progress={progress}
@@ -244,11 +246,14 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: 100,
   },
+  greetingBlock: {
+    marginTop: 10,
+  },
   strategyRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
     marginBottom: Spacing.lg,
   },
   strategyTag: {

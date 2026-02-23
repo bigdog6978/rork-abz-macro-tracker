@@ -91,6 +91,8 @@ export interface FoodEntry {
   providerId?: 'usda' | 'manual';
   externalId?: string;
   servingGrams?: number;
+  source?: 'mealPlan' | 'manual';
+  sourceRefId?: string;
   customization?: {
     isCustomized: boolean;
     reason?: 'user_edit';
