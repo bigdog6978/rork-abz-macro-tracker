@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Colors from '../../../constants/colors';
+import { Radius, Spacing, Shadows } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { getMealPlanForStrategy } from '../../../mocks/mealTemplates';
@@ -1300,11 +1301,12 @@ const styles = StyleSheet.create({
   },
   headerCard: {
     backgroundColor: Colors.card,
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+    marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    ...(Shadows.cardElevated as Record<string, unknown>),
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -1414,11 +1416,12 @@ const styles = StyleSheet.create({
   },
   mealCard: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 12,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg + 2,
+    marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    ...(Shadows.card as Record<string, unknown>),
   },
   mealHeader: {
     flexDirection: 'row',

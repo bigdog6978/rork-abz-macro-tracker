@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,107 +10,28 @@ import {
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Plus, Flame, Trash2, Ruler, X } from 'lucide-react-native';
+import { Flame, Trash2, Ruler, X } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
+import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
+import { getGreeting, getProgressLevel } from '../../../utils/greeting';
+import { useStaggerFadeIn } from '../../../utils/motion';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
 import { MACRO_STRATEGY_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier } from '../../../types';
-
-function MacroRing({
-  consumed,
-  target,
-  color,
-  size,
-  strokeWidth,
-}: {
-  consumed: number;
-  target: number;
-  color: string;
-  size: number;
-  strokeWidth: number;
-}) {
-  const progress = target > 0 ? Math.min(consumed / target, 1) : 0;
-  const animValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(animValue, {
-      toValue: progress,
-      useNativeDriver: false,
-      tension: 40,
-      friction: 12,
-    }).start();
-  }, [progress, animValue]);
-
-  const circumference = 2 * Math.PI * ((size - strokeWidth) / 2);
-
-  return (
-    <View style={{ width: size, height: size }}>
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: Colors.cardElevated,
-          position: 'absolute',
-        }}
-      />
-      <Animated.View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: color,
-          borderLeftColor: 'transparent',
-          borderBottomColor: 'transparent',
-          position: 'absolute',
-          transform: [
-            {
-              rotate: animValue.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['-45deg', '315deg'],
-              }),
-            },
-          ],
-        }}
-      />
-    </View>
-  );
-}
-
-function MacroDial({
-  label,
-  consumed,
-  target,
-  color,
-}: {
-  label: string;
-  consumed: number;
-  target: number;
-  color: string;
-}) {
-  return (
-    <View style={styles.dialItem}>
-      <View style={styles.dialRingWrap}>
-        <MacroRing consumed={consumed} target={target} color={color} size={72} strokeWidth={5} />
-        <View style={styles.dialCenter}>
-          <Text style={[styles.dialConsumed, { color }]}>{formatNumber(consumed)}</Text>
-        </View>
-      </View>
-      <Text style={styles.dialLabel}>{label}</Text>
-      <Text style={styles.dialTarget}>{formatNumber(consumed)}/{formatNumber(target)}g</Text>
-    </View>
-  );
-}
+import PremiumCard from '../../../components/ui/PremiumCard';
+import GreetingHeader from '../../../components/ui/GreetingHeader';
+import EmptyState from '../../../components/ui/EmptyState';
+import MacroRingComponent, { MacroDial } from '../../../components/ui/MacroRing';
+import Fab from '../../../components/ui/Fab';
 
 export default function DashboardScreen() {
   const { profile, macros, isLoading: userLoading } = useUser();
   const { todayEntries, todayTotals, removeEntry, getStreak } = useDailyLog();
   const { showPrompt, hasBaseline, dismissPrompt } = useMeasurements();
   const streak = getStreak();
+  const stagger = useStaggerFadeIn(5);
 
   useEffect(() => {
     if (userLoading) return;
@@ -142,169 +63,173 @@ export default function DashboardScreen() {
     return <View style={styles.container} />;
   }
 
-  const caloriePercent = macros.calories > 0
-    ? Math.round((todayTotals.calories / macros.calories) * 100)
-    : 0;
   const caloriesRemaining = Math.max(macros.calories - todayTotals.calories, 0);
-  const greeting = (() => {
-    const name = profile.first_name?.trim();
-    if (!name) return 'Welcome to Physiq!';
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return `Good morning, ${name}!`;
-    if (hour >= 12 && hour < 17) return `Good afternoon, ${name}!`;
-    return `Good evening, ${name}!`;
+  const greeting = getGreeting(profile.first_name);
+  const progress = getProgressLevel(todayTotals.calories, macros.calories);
+
+  const statusText = (() => {
+    if (streak > 1) return `Day ${streak} streak`;
+    if (todayEntries.length > 0) return 'On track today';
+    return undefined;
   })();
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: greeting }} />
+      <Stack.Screen options={{ title: greeting, headerShown: false }} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.strategyRow}>
-          <View style={styles.strategyTag}>
-            <Text style={styles.strategyTagText}>
-              {MACRO_STRATEGY_LABELS[profile.macro_strategy ?? 'balanced']}
-            </Text>
-          </View>
-          {(profile.dietary_modifiers ?? []).map((mod: DietaryModifier) => (
-            <View key={mod} style={styles.modifierTag}>
-              <Text style={styles.modifierTagText}>{DIETARY_MODIFIER_LABELS[mod]}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.calorieCard}>
-          <View style={styles.calorieRingSection}>
-            <MacroRing
-              consumed={todayTotals.calories}
-              target={macros.calories}
-              color={Colors.primary}
-              size={120}
-              strokeWidth={8}
-            />
-            <View style={styles.calorieCenter}>
-              <Text style={styles.calorieNumber}>{formatNumber(caloriesRemaining)}</Text>
-              <Text style={styles.calorieLabel}>cal left</Text>
-            </View>
-          </View>
-          <View style={styles.calorieInfo}>
-            <View style={styles.calorieRow}>
-              <View style={styles.calorieStat}>
-                <Text style={styles.calorieStatValue}>{formatNumber(macros.calories)}</Text>
-                <Text style={styles.calorieStatLabel}>Target</Text>
-              </View>
-              <View style={styles.calorieStat}>
-                <Text style={[styles.calorieStatValue, { color: Colors.primary }]}>
-                  {formatNumber(todayTotals.calories)}
-                </Text>
-                <Text style={styles.calorieStatLabel}>Consumed</Text>
-              </View>
-            </View>
-            {streak > 0 && (
-              <View style={styles.streakBadge}>
-                <Flame size={14} color={Colors.primary} />
-                <Text style={styles.streakText}>{streak} day streak</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.macroDialCard}>
-          <MacroDial
-            label="Protein"
-            consumed={todayTotals.protein_g}
-            target={macros.protein_g}
-            color={Colors.protein}
+        {/* Greeting */}
+        <Animated.View style={{ opacity: stagger[0], transform: [{ translateY: stagger[0].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+          <GreetingHeader
+            firstName={profile.first_name}
+            progress={progress}
+            statusText={statusText}
           />
-          <MacroDial
-            label="Carbs"
-            consumed={todayTotals.carbs_g}
-            target={macros.carbs_g}
-            color={Colors.carbs}
-          />
-          <MacroDial
-            label="Fat"
-            consumed={todayTotals.fat_g}
-            target={macros.fat_g}
-            color={Colors.fat}
-          />
-        </View>
-
-        {showPrompt && (
-          <View style={styles.promptBanner}>
-            <View style={styles.promptLeft}>
-              <View style={styles.promptIcon}>
-                <Ruler size={16} color={Colors.success} />
-              </View>
-              <View style={styles.promptTextCol}>
-                <Text style={styles.promptTitle}>
-                  {hasBaseline ? 'Update Measurements' : 'Add Baseline Measurements'}
-                </Text>
-                <Text style={styles.promptSubtitle}>
-                  {hasBaseline ? 'Track your progress beyond the scale' : 'Start tracking progress beyond weight'}
-                </Text>
-              </View>
+          <View style={styles.strategyRow}>
+            <View style={styles.strategyTag}>
+              <Text style={styles.strategyTagText}>
+                {MACRO_STRATEGY_LABELS[profile.macro_strategy ?? 'balanced']} Protocol
+              </Text>
             </View>
-            <View style={styles.promptActions}>
-              <TouchableOpacity
-                style={styles.promptCta}
-                onPress={() => router.push('/add-measurement' as never)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.promptCtaText}>Go</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.promptDismiss}
-                onPress={() => dismissPrompt()}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <X size={14} color={Colors.textTertiary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {todayEntries.length > 0 && (
-          <View style={styles.entriesSection}>
-            <Text style={styles.sectionTitle}>Today's Log</Text>
-            {todayEntries.map((entry) => (
-              <View key={entry.id} style={styles.entryCard}>
-                <View style={styles.entryInfo}>
-                  <Text style={styles.entryName}>{entry.name}</Text>
-                  <Text style={styles.entryMacros}>
-                    {formatNumber(entry.calories)} cal · {formatNumber(entry.protein_g)}p · {formatNumber(entry.carbs_g)}c · {formatNumber(entry.fat_g)}f
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.entryDelete}
-                  onPress={() => handleRemoveEntry(entry.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Trash2 size={16} color={Colors.textTertiary} />
-                </TouchableOpacity>
+            {(profile.dietary_modifiers ?? []).map((mod: DietaryModifier) => (
+              <View key={mod} style={styles.modifierTag}>
+                <Text style={styles.modifierTagText}>{DIETARY_MODIFIER_LABELS[mod]}</Text>
               </View>
             ))}
           </View>
+        </Animated.View>
+
+        {/* Calorie Hero */}
+        <Animated.View style={{ opacity: stagger[1], transform: [{ translateY: stagger[1].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+          <PremiumCard style={styles.calorieCard} variant="hero">
+            <View style={styles.calorieRingSection}>
+              <MacroRingComponent
+                consumed={todayTotals.calories}
+                target={macros.calories}
+                color={Colors.primary}
+                size={128}
+                strokeWidth={10}
+                showLabel
+              />
+              <View style={styles.calorieCenter}>
+                <Text style={styles.calorieNumber}>{formatNumber(caloriesRemaining)}</Text>
+                <Text style={styles.calorieLabel}>cal left</Text>
+              </View>
+            </View>
+            <View style={styles.calorieInfo}>
+              <View style={styles.calorieStatRow}>
+                <Text style={styles.calorieStatLabel}>Target</Text>
+                <Text style={styles.calorieStatValue}>{formatNumber(macros.calories)}</Text>
+              </View>
+              <View style={styles.calorieStatRow}>
+                <Text style={styles.calorieStatLabel}>Consumed</Text>
+                <Text style={[styles.calorieStatValue, { color: Colors.primary }]}>
+                  {formatNumber(todayTotals.calories)}
+                </Text>
+              </View>
+              {streak > 0 && (
+                <View style={styles.streakBadge}>
+                  <Flame size={14} color={Colors.primary} />
+                  <Text style={styles.streakText}>{streak} day streak</Text>
+                </View>
+              )}
+            </View>
+          </PremiumCard>
+        </Animated.View>
+
+        {/* Macro Dials */}
+        <Animated.View style={{ opacity: stagger[2], transform: [{ translateY: stagger[2].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+          <PremiumCard style={styles.macroDialCard}>
+            <MacroDial
+              label="Protein"
+              consumed={todayTotals.protein_g}
+              target={macros.protein_g}
+              color={Colors.protein}
+            />
+            <MacroDial
+              label="Carbs"
+              consumed={todayTotals.carbs_g}
+              target={macros.carbs_g}
+              color={Colors.carbs}
+            />
+            <MacroDial
+              label="Fat"
+              consumed={todayTotals.fat_g}
+              target={macros.fat_g}
+              color={Colors.fat}
+            />
+          </PremiumCard>
+        </Animated.View>
+
+        {/* Measurement Prompt */}
+        {showPrompt && (
+          <Animated.View style={{ opacity: stagger[3] }}>
+            <View style={styles.promptBanner}>
+              <View style={styles.promptLeft}>
+                <View style={styles.promptIcon}>
+                  <Ruler size={16} color={Colors.success} />
+                </View>
+                <View style={styles.promptTextCol}>
+                  <Text style={styles.promptTitle}>
+                    {hasBaseline ? 'Update Measurements' : 'Add Baseline Measurements'}
+                  </Text>
+                  <Text style={styles.promptSubtitle}>
+                    {hasBaseline ? 'Track your progress beyond the scale' : 'Start tracking progress beyond weight'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.promptActions}>
+                <TouchableOpacity
+                  style={styles.promptCta}
+                  onPress={() => router.push('/add-measurement' as never)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.promptCtaText}>Go</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.promptDismiss}
+                  onPress={() => dismissPrompt()}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <X size={14} color={Colors.textTertiary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Animated.View>
         )}
 
-        {todayEntries.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No entries yet</Text>
-            <Text style={styles.emptySubtitle}>Tap + to log your first meal</Text>
-          </View>
-        )}
+        {/* Today's Log */}
+        <Animated.View style={{ opacity: stagger[4] }}>
+          {todayEntries.length > 0 ? (
+            <View style={styles.entriesSection}>
+              <Text style={styles.sectionTitle}>Today's Log</Text>
+              {todayEntries.map((entry) => (
+                <PremiumCard key={entry.id} style={styles.entryCard}>
+                  <View style={styles.entryInfo}>
+                    <Text style={styles.entryName}>{entry.name}</Text>
+                    <Text style={styles.entryMacros}>
+                      {formatNumber(entry.calories)} cal · {formatNumber(entry.protein_g)}p · {formatNumber(entry.carbs_g)}c · {formatNumber(entry.fat_g)}f
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.entryDelete}
+                    onPress={() => handleRemoveEntry(entry.id)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Trash2 size={16} color={Colors.textTertiary} />
+                  </TouchableOpacity>
+                </PremiumCard>
+              ))}
+            </View>
+          ) : (
+            <EmptyState />
+          )}
+        </Animated.View>
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleAddFood}
-        activeOpacity={0.85}
-        testID="add-food-button"
-      >
-        <Plus size={26} color={Colors.white} />
-      </TouchableOpacity>
+      <Fab onPress={handleAddFood} testID="add-food-button" />
     </View>
   );
 }
@@ -313,32 +238,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   scrollContent: {
-    padding: 16,
+    padding: Spacing.lg,
     paddingBottom: 100,
   },
   strategyRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 12,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   strategyTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: Colors.primaryMuted,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
   },
   strategyTagText: {
     color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '700' as const,
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
   modifierTag: {
     paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     backgroundColor: Colors.cardElevated,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
@@ -349,14 +277,10 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   calorieCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: 24,
+    padding: Spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    gap: Spacing.xl,
   },
   calorieRingSection: {
     alignItems: 'center',
@@ -367,7 +291,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   calorieNumber: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800' as const,
     color: Colors.text,
   },
@@ -378,22 +302,22 @@ const styles = StyleSheet.create({
   },
   calorieInfo: {
     flex: 1,
-    gap: 14,
+    gap: 10,
   },
-  calorieRow: {
-    gap: 12,
+  calorieStatRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  calorieStat: {},
   calorieStatValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700' as const,
     color: Colors.text,
   },
   calorieStatLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: '500' as const,
-    marginTop: 1,
   },
   streakBadge: {
     flexDirection: 'row',
@@ -402,8 +326,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryMuted,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     alignSelf: 'flex-start',
+    marginTop: 4,
   },
   streakText: {
     color: Colors.primary,
@@ -412,64 +337,25 @@ const styles = StyleSheet.create({
   },
   macroDialCard: {
     flexDirection: 'row',
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 18,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    padding: Spacing.lg,
+    marginTop: Spacing.lg,
     justifyContent: 'space-between',
-    gap: 12,
-  },
-  dialItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  dialRingWrap: {
-    width: 72,
-    height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialCenter: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dialConsumed: {
-    fontSize: 16,
-    fontWeight: '800' as const,
-  },
-  dialLabel: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: '600' as const,
-    marginTop: 8,
-  },
-  dialTarget: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '500' as const,
-    marginTop: 2,
+    gap: Spacing.md,
   },
   entriesSection: {
-    marginTop: 24,
+    marginTop: Spacing.xxl,
   },
   sectionTitle: {
     color: Colors.text,
     fontSize: 18,
     fontWeight: '700' as const,
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   entryCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    marginBottom: Spacing.sm,
   },
   entryInfo: {
     flex: 1,
@@ -488,44 +374,14 @@ const styles = StyleSheet.create({
   entryDelete: {
     padding: 8,
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyTitle: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600' as const,
-  },
-  emptySubtitle: {
-    color: Colors.textTertiary,
-    fontSize: 14,
-    marginTop: 4,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
   promptBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: Colors.successMuted,
-    borderRadius: 14,
+    borderRadius: Radius.lg,
     padding: 14,
-    marginBottom: 16,
+    marginTop: Spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(52, 211, 153, 0.25)',
   },
@@ -566,7 +422,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.success,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
   },
   promptCtaText: {
     color: Colors.white,

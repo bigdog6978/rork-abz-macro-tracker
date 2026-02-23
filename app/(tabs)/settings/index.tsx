@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Colors from '../../../constants/colors';
+import { Radius, Spacing, Shadows } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
@@ -584,11 +585,12 @@ const styles = StyleSheet.create({
   },
   macroSummary: {
     backgroundColor: Colors.card,
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+    marginBottom: Spacing.xl,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    ...(Shadows.card as Record<string, unknown>),
   },
   macroSummaryTitle: {
     color: Colors.text,
@@ -621,11 +623,12 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
+    ...(Shadows.card as Record<string, unknown>),
   },
   settingsRow: {
     flexDirection: 'row',
@@ -754,11 +757,12 @@ const styles = StyleSheet.create({
   },
   dangerSection: {
     backgroundColor: Colors.card,
-    borderRadius: 16,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
     overflow: 'hidden',
-    marginBottom: 24,
+    marginBottom: Spacing.xxl,
+    ...(Shadows.card as Record<string, unknown>),
   },
   dangerRow: {
     flexDirection: 'row',

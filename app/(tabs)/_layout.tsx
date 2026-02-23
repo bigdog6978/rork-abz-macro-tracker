@@ -1,7 +1,22 @@
 import { Tabs } from "expo-router";
 import { Home, UtensilsCrossed, TrendingUp, Settings } from "lucide-react-native";
 import React from "react";
+import { View, StyleSheet, Platform } from "react-native";
 import Colors from "../../constants/colors";
+
+function TabIcon({ icon: Icon, color, size, focused }: {
+  icon: typeof Home;
+  color: string;
+  size: number;
+  focused: boolean;
+}) {
+  return (
+    <View style={styles.iconWrap}>
+      <Icon size={size} color={color} strokeWidth={focused ? 2.5 : 1.8} />
+      {focused && <View style={styles.activeBar} />}
+    </View>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -14,6 +29,7 @@ export default function TabLayout() {
           backgroundColor: Colors.tabBar,
           borderTopColor: Colors.border,
           borderTopWidth: 0.5,
+          paddingTop: Platform.OS === 'ios' ? 8 : 4,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -25,30 +41,52 @@ export default function TabLayout() {
         name="(home)"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon icon={Home} color={color} size={size} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="plan"
         options={{
           title: "Meal Plan",
-          tabBarIcon: ({ color, size }) => <UtensilsCrossed size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon icon={UtensilsCrossed} color={color} size={size} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: "Progress",
-          tabBarIcon: ({ color, size }) => <TrendingUp size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon icon={TrendingUp} color={color} size={size} focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon icon={Settings} color={color} size={size} focused={focused} />
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeBar: {
+    width: 20,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: Colors.primary,
+    marginTop: 4,
+  },
+});

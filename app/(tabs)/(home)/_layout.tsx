@@ -9,6 +9,7 @@ export default function HomeLayout() {
         headerStyle: { backgroundColor: Colors.background },
         headerTintColor: Colors.text,
         headerTitleStyle: { fontWeight: '700' as const },
+        headerShown: false,
       }}
     >
       <Stack.Screen

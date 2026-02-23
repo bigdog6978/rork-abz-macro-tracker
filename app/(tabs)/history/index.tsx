@@ -15,6 +15,7 @@ import {
   Target, Plus, ArrowUpRight, ArrowDownRight, Minus, Ruler,
 } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
+import { Radius, Spacing, Shadows } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
@@ -595,11 +596,12 @@ const styles = StyleSheet.create({
   },
   scoreCard: {
     backgroundColor: Colors.card,
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    ...(Shadows.cardElevated as Record<string, unknown>),
   },
   scoreHeader: {
     flexDirection: 'row',
@@ -667,11 +669,12 @@ const styles = StyleSheet.create({
   },
   insightsCard: {
     backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    ...(Shadows.card as Record<string, unknown>),
   },
   insightsTitle: {
     color: Colors.text,
@@ -700,11 +703,12 @@ const styles = StyleSheet.create({
   },
   trendsCard: {
     backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    ...(Shadows.card as Record<string, unknown>),
   },
   trendsTitle: {
     color: Colors.text,
@@ -720,11 +724,12 @@ const styles = StyleSheet.create({
   },
   breakdownCard: {
     backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    ...(Shadows.card as Record<string, unknown>),
   },
   breakdownTitle: {
     color: Colors.text,
@@ -770,11 +775,12 @@ const styles = StyleSheet.create({
   },
   timelineCard: {
     backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
+    ...(Shadows.card as Record<string, unknown>),
   },
   timelineTitle: {
     color: Colors.text,
