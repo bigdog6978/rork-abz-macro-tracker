@@ -1,11 +1,9 @@
 import createContextHook from '@nkzw/create-context-hook';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserProfile, MacroTargets } from '../types';
 import { calculateMacros } from '../utils/macroEngine';
-
-const PROFILE_KEY = 'abz_user_profile';
+import { loadData, saveData, removeData, STORAGE_KEYS } from '../services/storage';
 
 const DEFAULT_PROFILE: UserProfile = {
   age: 30,
@@ -29,11 +27,16 @@ export const [UserProvider, useUser] = createContextHook(() => {
   const profileQuery = useQuery({
     queryKey: ['user_profile'],
     queryFn: async () => {
-      const stored = await AsyncStorage.getItem(PROFILE_KEY);
-      if (stored) {
-        return JSON.parse(stored) as UserProfile;
+      let stored = await loadData<UserProfile>(STORAGE_KEYS.USER_PROFILE);
+      if (!stored) {
+        const legacy = await loadData<UserProfile>('abz_user_profile');
+        if (legacy) {
+          stored = legacy;
+          await saveData(STORAGE_KEYS.USER_PROFILE, stored);
+          await removeData('abz_user_profile');
+        }
       }
-      return DEFAULT_PROFILE;
+      return stored ?? DEFAULT_PROFILE;
     },
   });
 
@@ -45,7 +48,10 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const saveMutation = useMutation({
     mutationFn: async (updated: UserProfile) => {
-      await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(updated));
+      await saveData(STORAGE_KEYS.USER_PROFILE, updated);
+      const macros = calculateMacros(updated);
+      await saveData(STORAGE_KEYS.MACRO_TARGETS, macros);
+      await saveData(STORAGE_KEYS.PROTOCOL, updated.macro_strategy ?? 'balanced');
       return updated;
     },
     onSuccess: (data) => {
@@ -72,7 +78,9 @@ export const [UserProvider, useUser] = createContextHook(() => {
   );
 
   const resetProfile = useCallback(async () => {
-    await AsyncStorage.removeItem(PROFILE_KEY);
+    await removeData(STORAGE_KEYS.USER_PROFILE);
+    await removeData(STORAGE_KEYS.MACRO_TARGETS);
+    await removeData(STORAGE_KEYS.PROTOCOL);
     setProfile(DEFAULT_PROFILE);
     queryClient.setQueryData(['user_profile'], DEFAULT_PROFILE);
   }, [queryClient]);

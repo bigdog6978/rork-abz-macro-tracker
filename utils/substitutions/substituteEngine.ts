@@ -242,8 +242,9 @@ export function applySubstitution(
   mealIndex: number,
   foodIndex: number
 ): MealSuggestion {
+  const planItemId = originalItem.id;
   return {
-    id: `${mealIndex}-${foodIndex}-${substituteResult.catalogItem.foodId}`,
+    id: planItemId,
     foodId: substituteResult.catalogItem.foodId,
     name: substituteResult.catalogItem.name,
     portion: substituteResult.adjustedPortion,

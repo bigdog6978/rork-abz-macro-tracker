@@ -1,6 +1,7 @@
-import { USDA_API_KEY } from '../../../../config/env';
+import { USDA_API_KEY, USDA_BASE_URL } from '../../../../config/env';
 
-const BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
+const isDev =
+  typeof global !== 'undefined' && (global as any).__DEV__ === true;
 
 export interface USDASearchResponse {
   foods: USDASearchFood[];
@@ -58,18 +59,40 @@ function rankFoods(foods: USDASearchFood[]): USDASearchFood[] {
   });
 }
 
+export class USDARequestError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public isRateLimit: boolean = false
+  ) {
+    super(message);
+    this.name = 'USDARequestError';
+  }
+}
+
 export async function searchFoods(
   query: string,
   pageSize: number = 10
 ): Promise<USDASearchResponse> {
   if (!USDA_API_KEY) {
-    throw new Error('USDA API key not configured');
+    if (isDev) {
+      console.log('[usdaClient] hasApiKey: false');
+    }
+    throw new USDARequestError(0, 'USDA API key not configured');
   }
 
-  console.log('[usdaClient] Searching for:', query);
+  const url = `${USDA_BASE_URL}/foods/search`;
+  if (isDev) {
+    console.log('[usdaClient] hasApiKey: true');
+    console.log('[usdaClient] request URL:', url, '(key omitted)');
+  }
+
+  if (!url.startsWith('https://') || USDA_BASE_URL.includes('localhost')) {
+    throw new USDARequestError(0, 'Invalid USDA endpoint');
+  }
 
   const response = await fetch(
-    `${BASE_URL}/foods/search?api_key=${USDA_API_KEY}`,
+    `${USDA_BASE_URL}/foods/search?api_key=${USDA_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -82,10 +105,22 @@ export async function searchFoods(
     }
   );
 
+  if (isDev) {
+    console.log('[usdaClient] response status:', response.status);
+  }
+
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    console.log('[usdaClient] Search failed:', response.status, text);
-    throw new Error(`USDA search failed: ${response.status}`);
+    if (isDev) {
+      console.log('[usdaClient] error body snippet:', text.slice(0, 200));
+    }
+    if (response.status === 429) {
+      throw new USDARequestError(429, 'Rate limit exceeded', true);
+    }
+    throw new USDARequestError(
+      response.status,
+      `USDA search failed: ${response.status}`
+    );
   }
 
   const data: USDASearchResponse = await response.json();
@@ -94,28 +129,39 @@ export async function searchFoods(
   );
   const ranked = rankFoods(filtered);
 
-  console.log('[usdaClient] Search returned', ranked.length, 'generic results');
+  if (isDev) {
+    console.log('[usdaClient] Search returned', ranked.length, 'generic results');
+  }
   return { ...data, foods: ranked, totalHits: ranked.length };
 }
 
 export async function getFoodDetail(fdcId: string): Promise<USDAFoodDetail> {
   if (!USDA_API_KEY) {
-    throw new Error('USDA API key not configured');
+    throw new USDARequestError(0, 'USDA API key not configured');
   }
 
-  console.log('[usdaClient] Getting details for fdcId:', fdcId);
+  if (isDev) {
+    console.log('[usdaClient] Getting details for fdcId:', fdcId);
+  }
 
   const response = await fetch(
-    `${BASE_URL}/food/${fdcId}?api_key=${USDA_API_KEY}`
+    `${USDA_BASE_URL}/food/${fdcId}?api_key=${USDA_API_KEY}`
   );
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    console.log('[usdaClient] Detail failed:', response.status, text);
-    throw new Error(`USDA detail failed: ${response.status}`);
+    if (isDev) {
+      console.log('[usdaClient] Detail failed:', response.status, text.slice(0, 200));
+    }
+    if (response.status === 429) {
+      throw new USDARequestError(429, 'Rate limit exceeded', true);
+    }
+    throw new USDARequestError(response.status, `USDA detail failed: ${response.status}`);
   }
 
   const data = await response.json();
-  console.log('[usdaClient] Detail returned for:', data.description);
+  if (isDev) {
+    console.log('[usdaClient] Detail returned for:', data.description);
+  }
   return data;
 }

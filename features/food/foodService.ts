@@ -5,6 +5,12 @@ import { normalizeSearchResult, normalizeDetailResult } from './providers/usda/u
 import * as foodRepo from '../../storage/foodRepo';
 import { FoodEntry } from '../../types';
 
+export type SearchResult =
+  | { status: 'ok'; results: NormalizedFood[] }
+  | { status: 'empty'; results: [] }
+  | { status: 'error' }
+  | { status: 'rate_limited' };
+
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 }
@@ -26,72 +32,43 @@ export function isApiAvailable(): boolean {
   return !!USDA_API_KEY;
 }
 
-export async function searchSuggestions(
-  query: string
-): Promise<NormalizedFood[]> {
-  if (!query.trim()) return [];
-
-  const results: NormalizedFood[] = [];
-  const seen = new Set<string>();
-
-  try {
-    const [recents, saved] = await Promise.all([
-      foodRepo.getRecentFoods(),
-      foodRepo.getSavedFoods(),
-    ]);
-    const q = query.toLowerCase();
-
-    for (const f of saved) {
-      if (f.name.toLowerCase().includes(q) && !seen.has(f.id)) {
-        seen.add(f.id);
-        results.push(f);
-      }
-    }
-    for (const r of recents) {
-      if (r.food.name.toLowerCase().includes(q) && !seen.has(r.food.id)) {
-        seen.add(r.food.id);
-        results.push(r.food);
-      }
-    }
-  } catch (err) {
-    console.log('[foodService] Error loading local foods:', err);
+export async function searchSuggestions(query: string): Promise<SearchResult> {
+  if (!query.trim()) {
+    return { status: 'empty', results: [] };
   }
 
   if (!USDA_API_KEY) {
-    console.log('[foodService] No USDA API key, returning local results only');
-    return results;
+    return { status: 'error' };
   }
 
   try {
     const cached = await foodRepo.getCachedSearch(query);
-    if (cached) {
-      for (const f of cached.results) {
-        if (!seen.has(f.id)) {
-          seen.add(f.id);
-          results.push(f);
-        }
+    if (cached && !cached.expired) {
+      const results = cached.results ?? [];
+      if (results.length > 0) {
+        return { status: 'ok', results };
       }
-      if (cached.expired) {
-        refreshSearchInBackground(query);
-      }
-      return results;
+      return { status: 'empty', results: [] };
     }
 
     const response = await usdaClient.searchFoods(query, 10);
     const normalized = (response.foods ?? []).map(normalizeSearchResult);
     await foodRepo.setCachedSearch(query, normalized);
 
-    for (const f of normalized) {
-      if (!seen.has(f.id)) {
-        seen.add(f.id);
-        results.push(f);
-      }
+    if (cached?.expired) {
+      refreshSearchInBackground(query);
     }
-  } catch (err) {
-    console.log('[foodService] USDA search error:', err);
-  }
 
-  return results;
+    if (normalized.length > 0) {
+      return { status: 'ok', results: normalized };
+    }
+    return { status: 'empty', results: [] };
+  } catch (err) {
+    if (err instanceof usdaClient.USDARequestError && err.isRateLimit) {
+      return { status: 'rate_limited' };
+    }
+    return { status: 'error' };
+  }
 }
 
 function refreshSearchInBackground(query: string): void {
@@ -100,11 +77,8 @@ function refreshSearchInBackground(query: string): void {
     .then((response) => {
       const normalized = (response.foods ?? []).map(normalizeSearchResult);
       foodRepo.setCachedSearch(query, normalized);
-      console.log('[foodService] Background search refreshed for:', query);
     })
-    .catch((err) =>
-      console.log('[foodService] Background refresh failed:', err)
-    );
+    .catch(() => {});
 }
 
 export async function getFood(
@@ -120,8 +94,8 @@ export async function getFood(
       }
       return cached.food;
     }
-  } catch (err) {
-    console.log('[foodService] Cache read error:', err);
+  } catch {
+    // ignore cache read errors
   }
 
   try {
@@ -129,8 +103,7 @@ export async function getFood(
     const normalized = normalizeDetailResult(detail);
     await foodRepo.setCachedDetail(normalized);
     return normalized;
-  } catch (err) {
-    console.log('[foodService] USDA detail error:', err);
+  } catch {
     return null;
   }
 }
@@ -141,11 +114,8 @@ function refreshDetailInBackground(externalId: string): void {
     .then((detail) => {
       const normalized = normalizeDetailResult(detail);
       foodRepo.setCachedDetail(normalized);
-      console.log('[foodService] Background detail refreshed for:', externalId);
     })
-    .catch((err) =>
-      console.log('[foodService] Background detail refresh failed:', err)
-    );
+    .catch(() => {});
 }
 
 export async function addToRecent(

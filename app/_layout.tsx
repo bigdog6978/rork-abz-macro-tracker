@@ -4,14 +4,33 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { UserProvider } from "../providers/UserProvider";
-import { DailyLogProvider } from "../providers/DailyLogProvider";
+import { UserProvider, useUser } from "../providers/UserProvider";
+import { DailyLogProvider, useDailyLog } from "../providers/DailyLogProvider";
 import { MeasurementsProvider } from "../providers/MeasurementsProvider";
 import Colors from "../constants/colors";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+
+function AppContent() {
+  const { isLoading: userLoading } = useUser();
+  const { isLoading: logsLoading } = useDailyLog();
+  const hydrated = !userLoading && !logsLoading;
+
+  useEffect(() => {
+    if (hydrated) {
+      SplashScreen.hideAsync();
+    }
+  }, [hydrated]);
+
+  return (
+    <>
+      <StatusBar style="light" />
+      <RootLayoutNav />
+    </>
+  );
+}
 
 function RootLayoutNav() {
   return (
@@ -69,18 +88,13 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <UserProvider>
           <DailyLogProvider>
             <MeasurementsProvider>
-              <StatusBar style="light" />
-              <RootLayoutNav />
+              <AppContent />
             </MeasurementsProvider>
           </DailyLogProvider>
         </UserProvider>

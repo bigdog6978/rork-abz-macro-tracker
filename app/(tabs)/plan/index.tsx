@@ -48,6 +48,9 @@ import {
 import { generateGroceryList, formatGroceryListAsText } from '../../../utils/grocery/groceryListEngine';
 import { loadChecklist, saveChecklist } from '../../../storage/groceryRepo';
 import { GroceryList, GroceryChecklist, GroceryCategoryGroup } from '../../../utils/grocery/types';
+import { loadData, saveData, STORAGE_KEYS } from '../../../services/storage';
+import { getQuantityInfo, scaleMacros, formatQuantityDisplay } from '../../../utils/quantityUtils';
+import EditQuantitySheet from '../../../components/ui/EditQuantitySheet';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = 420;
@@ -69,12 +72,14 @@ function FoodItemRow({
   isLogged,
   onLogPress,
   onSwapPress,
+  onEditQuantityPress,
 }: {
   food: MealSuggestion;
   mealName: string;
   isLogged: boolean;
   onLogPress: () => void;
   onSwapPress: () => void;
+  onEditQuantityPress?: () => void;
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -115,7 +120,13 @@ function FoodItemRow({
             </View>
           )}
         </View>
-        <Text style={styles.suggestionPortion}>{food.portion}</Text>
+        <Pressable
+          onPress={onEditQuantityPress}
+          style={({ pressed }) => [styles.suggestionPortionWrap, pressed && styles.suggestionPortionPressed]}
+          disabled={!onEditQuantityPress}
+        >
+          <Text style={styles.suggestionPortion}>{food.portion}</Text>
+        </Pressable>
         <Text style={styles.suggestionMacros}>
           {formatNumber(food.calories)} cal · {formatNumber(food.protein_g)}p · {formatNumber(food.carbs_g)}c · {formatNumber(food.fat_g)}f
         </Text>
@@ -155,6 +166,7 @@ function MealCard({
   mealIndex,
   onSwapPress,
   onLogPress,
+  onEditQuantityPress,
   isLogged,
 }: {
   meal: MealSlot;
@@ -162,6 +174,7 @@ function MealCard({
   mealIndex: number;
   onSwapPress: (mealIndex: number, foodIndex: number, food: MealSuggestion) => void;
   onLogPress: (food: MealSuggestion) => void;
+  onEditQuantityPress?: (mealIndex: number, foodIndex: number, food: MealSuggestion) => void;
   isLogged: (planItemId: string) => boolean;
 }) {
   const slotCalories = Math.round(macros.calories * meal.percentage);
@@ -213,6 +226,7 @@ function MealCard({
             isLogged={isLogged(food.id)}
             onLogPress={() => onLogPress(food)}
             onSwapPress={() => onSwapPress(mealIndex, idx, food)}
+            onEditQuantityPress={onEditQuantityPress ? () => onEditQuantityPress(mealIndex, idx, food) : undefined}
           />
         ))}
       </View>
@@ -820,7 +834,7 @@ function createFoodEntryFromPlanItem(food: MealSuggestion): FoodEntry {
 
 export default function PlanScreen() {
   const { profile, macros } = useUser();
-  const { todayEntries, addEntry, removeEntry } = useDailyLog();
+  const { todayEntries, addEntry, removeEntry, updateEntry } = useDailyLog();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -847,44 +861,85 @@ export default function PlanScreen() {
     Record<string, MealSuggestion>
   >({});
 
+  const [quantityMap, setQuantityMap] = useState<Record<string, number>>({});
   const [activePlanLoaded, setActivePlanLoaded] = useState(false);
 
   useEffect(() => {
     if (activePlanQuery.data && !activePlanLoaded) {
       const saved = activePlanQuery.data;
       console.log('[PlanScreen] Loading active plan:', saved.name);
-      setSubstitutionMap(saved.substitutionMap ?? {});
+      const migrated: Record<string, MealSuggestion> = {};
+      (saved.meals ?? []).forEach((meal, mealIdx) => {
+        (meal.suggestions ?? []).forEach((food, foodIdx) => {
+          const slotKey = `plan-${mealIdx}-${foodIdx}`;
+          migrated[slotKey] = { ...food, id: slotKey };
+        });
+      });
+      setSubstitutionMap(migrated);
       setActivePlanLoaded(true);
     }
   }, [activePlanQuery.data, activePlanLoaded]);
 
+  const planKey = activePlanQuery.data?.id ?? 'base';
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const stored = await loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES);
+      if (cancelled) return;
+      const map = stored?.[planKey] ?? {};
+      setQuantityMap(map);
+    })();
+    return () => { cancelled = true; };
+  }, [planKey]);
+
   const activePlanMeals = activePlanQuery.data?.meals;
   const isUsingActivePlan = !!activePlanQuery.data && activePlanLoaded;
 
+  const measurementSystem = profile.measurement_system ?? 'us';
   const plan: DayPlan = useMemo(() => {
-    if (isUsingActivePlan && activePlanMeals) {
-      const meals = activePlanMeals.map((meal) => ({
+    const applySubstitutionsAndQuantity = (meals: MealSlot[]) =>
+      meals.map((meal, mealIdx) => ({
         ...meal,
-        suggestions: meal.suggestions.map((food) => {
-          return substitutionMap[food.id] ?? food;
+        suggestions: meal.suggestions.map((food, foodIdx) => {
+          const slotKey = `plan-${mealIdx}-${foodIdx}`;
+          const item = substitutionMap[slotKey] ?? food;
+          const baseItem = { ...item, id: slotKey };
+          const qtyOverride = quantityMap[slotKey];
+          if (qtyOverride == null) return baseItem;
+          const qtyInfo = getQuantityInfo(item.foodId, item.portionGrams, measurementSystem);
+          if (!qtyInfo) return baseItem;
+          const { unit } = qtyInfo;
+          const baseQty = qtyInfo.qty;
+          const scale = baseQty > 0 ? qtyOverride / baseQty : 1;
+          const { calories, protein_g, carbs_g, fat_g } = scaleMacros(
+            item.calories,
+            item.protein_g,
+            item.carbs_g,
+            item.fat_g,
+            scale
+          );
+          return {
+            ...baseItem,
+            portion: formatQuantityDisplay(qtyOverride, unit),
+            portionGrams: Math.round(item.portionGrams * scale),
+            calories,
+            protein_g,
+            carbs_g,
+            fat_g,
+          };
         }),
       }));
+
+    if (isUsingActivePlan && activePlanMeals) {
       return {
         preference: basePlan.preference,
         strategy: basePlan.strategy,
         tags: basePlan.tags,
-        meals,
+        meals: applySubstitutionsAndQuantity(activePlanMeals),
       };
     }
-
-    const meals = basePlan.meals.map((meal) => ({
-      ...meal,
-      suggestions: meal.suggestions.map((food) => {
-        return substitutionMap[food.id] ?? food;
-      }),
-    }));
-    return { ...basePlan, meals };
-  }, [basePlan, substitutionMap, isUsingActivePlan, activePlanMeals]);
+    return { ...basePlan, meals: applySubstitutionsAndQuantity(basePlan.meals) };
+  }, [basePlan, substitutionMap, quantityMap, isUsingActivePlan, activePlanMeals, measurementSystem]);
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [selectedFood, setSelectedFood] = useState<MealSuggestion | null>(null);
@@ -897,6 +952,10 @@ export default function PlanScreen() {
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [planName, setPlanName] = useState('');
   const saveSlideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+
+  const [editQtyVisible, setEditQtyVisible] = useState(false);
+  const [editQtyFood, setEditQtyFood] = useState<MealSuggestion | null>(null);
+  const [editQtySlotKey, setEditQtySlotKey] = useState<string | null>(null);
 
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -1029,6 +1088,61 @@ export default function PlanScreen() {
     });
   }, [slideAnim]);
 
+  const openEditQuantity = useCallback((mealIndex: number, foodIndex: number, _food: MealSuggestion) => {
+    const slotKey = `plan-${mealIndex}-${foodIndex}`;
+    const rawMeals = isUsingActivePlan && activePlanMeals ? activePlanMeals : basePlan.meals;
+    const rawFood = rawMeals[mealIndex].suggestions[foodIndex];
+    const baseItem = substitutionMap[slotKey] ?? { ...rawFood, id: slotKey };
+    const qtyInfo = getQuantityInfo(baseItem.foodId, baseItem.portionGrams, measurementSystem);
+    if (!qtyInfo) return;
+    setEditQtyFood(baseItem);
+    setEditQtySlotKey(slotKey);
+    setEditQtyVisible(true);
+  }, [substitutionMap, isUsingActivePlan, activePlanMeals, basePlan.meals, measurementSystem]);
+
+  const handleQuantitySave = useCallback((slotKey: string, newQty: number) => {
+    const baseItem = editQtyFood;
+    if (!baseItem) return;
+    const qtyInfo = getQuantityInfo(baseItem.foodId, baseItem.portionGrams, measurementSystem);
+    if (!qtyInfo) return;
+    const baseQty = qtyInfo.qty;
+    const scale = baseQty > 0 ? newQty / baseQty : 1;
+    const { calories, protein_g, carbs_g, fat_g } = scaleMacros(
+      baseItem.calories,
+      baseItem.protein_g,
+      baseItem.carbs_g,
+      baseItem.fat_g,
+      scale
+    );
+    const scaledItem: MealSuggestion = {
+      ...baseItem,
+      portion: formatQuantityDisplay(newQty, qtyInfo.unit),
+      portionGrams: Math.round(baseItem.portionGrams * scale),
+      calories,
+      protein_g,
+      carbs_g,
+      fat_g,
+    };
+    setQuantityMap((prev) => {
+      const next = { ...prev, [slotKey]: newQty };
+      loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES).then((existing) => {
+        const merged = { ...(existing ?? {}), [planKey]: next };
+        saveData(STORAGE_KEYS.MEAL_PLAN_QUANTITIES, merged);
+      });
+      return next;
+    });
+    const logged = todayEntries.find((e) => e.source === 'mealPlan' && e.sourceRefId === slotKey);
+    if (logged) {
+      updateEntry(logged.id, {
+        calories,
+        protein_g,
+        carbs_g,
+        fat_g,
+        servingGrams: scaledItem.portionGrams,
+      });
+    }
+  }, [editQtyFood, measurementSystem, planKey, todayEntries, updateEntry]);
+
   const handleSelectSubstitute = useCallback((result: SubstituteResult) => {
     if (!selectedFood) return;
 
@@ -1037,12 +1151,21 @@ export default function PlanScreen() {
     }
 
     const newItem = applySubstitution(selectedFood, result, selectedMealIdx, selectedFoodIdx);
-    const key = selectedFood.id;
+    const slotKey = `plan-${selectedMealIdx}-${selectedFoodIdx}`;
 
     setSubstitutionMap((prev) => ({
       ...prev,
-      [key]: newItem,
+      [slotKey]: newItem,
     }));
+    setQuantityMap((prev) => {
+      const next = { ...prev };
+      delete next[slotKey];
+      loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES).then((existing) => {
+        const merged = { ...(existing ?? {}), [planKey]: next };
+        saveData(STORAGE_KEYS.MEAL_PLAN_QUANTITIES, merged);
+      });
+      return next;
+    });
 
     console.log('[PlanScreen] Swapped', selectedFood.name, '->', result.catalogItem.name);
     closeSheet();
@@ -1188,6 +1311,7 @@ export default function PlanScreen() {
             mealIndex={idx}
             onSwapPress={openSheet}
             onLogPress={handleLogToggle}
+            onEditQuantityPress={openEditQuantity}
             isLogged={isLogged}
           />
         ))}
@@ -1204,6 +1328,31 @@ export default function PlanScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Edit Quantity Sheet */}
+      {editQtyFood && editQtySlotKey && (() => {
+        const qtyInfo = getQuantityInfo(editQtyFood.foodId, editQtyFood.portionGrams, measurementSystem);
+        if (!qtyInfo) return null;
+        const baseQty = quantityMap[editQtySlotKey] ?? qtyInfo.qty;
+        return (
+          <EditQuantitySheet
+            visible={editQtyVisible}
+            foodName={editQtyFood.name}
+            baseQty={baseQty}
+            baseCalories={editQtyFood.calories}
+            baseProtein={editQtyFood.protein_g}
+            baseCarbs={editQtyFood.carbs_g}
+            baseFat={editQtyFood.fat_g}
+            quantityInfo={qtyInfo}
+            onSave={(newQty) => handleQuantitySave(editQtySlotKey, newQty)}
+            onCancel={() => {
+              setEditQtyVisible(false);
+              setEditQtyFood(null);
+              setEditQtySlotKey(null);
+            }}
+          />
+        );
+      })()}
 
       {/* Swap Sheet */}
       <Modal
@@ -1664,11 +1813,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
+  suggestionPortionWrap: {
+    alignSelf: 'flex-start',
+    marginTop: 1,
+  },
+  suggestionPortionPressed: {
+    opacity: 0.7,
+  },
   suggestionPortion: {
     color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: '500' as const,
-    marginTop: 1,
   },
   suggestionMacros: {
     color: Colors.textTertiary,

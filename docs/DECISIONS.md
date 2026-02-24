@@ -15,12 +15,23 @@ To add a new provider:
 
 ### USDA API Key Setup
 
-Set the environment variable `EXPO_PUBLIC_USDA_API_KEY` with your USDA FoodData
-Central API key. Get one free at https://fdc.nal.usda.gov/api-key-signup.html
+Get a free API key at https://fdc.nal.usda.gov/api-key-signup.html
 
-If the key is missing, the app degrades gracefully:
-- Manual entry and recent foods still work
-- Search shows "Food lookup unavailable" message
+**Local development:** Add to `.env`:
+```
+EXPO_PUBLIC_USDA_API_KEY=your-key-here
+```
+
+**EAS production builds:** Create an EAS secret (required for TestFlight):
+```bash
+eas secret:create --name usda_api_key --value "your-key-here" --scope project
+```
+
+The key is embedded at build time via `app.config.ts` → `extra.USDA_API_KEY` and read at runtime via `Constants.expoConfig?.extra?.USDA_API_KEY`. Do not rely on `process.env` at runtime in standalone builds.
+
+If the key is missing:
+- Search shows "Search unavailable. You can still enter macros manually."
+- Manual entry remains available
 
 ### Caching Strategy
 

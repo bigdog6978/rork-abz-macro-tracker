@@ -63,6 +63,7 @@ export default function AddFoodScreen() {
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<NormalizedFood[]>([]);
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'error' | 'rate_limited'>('idle');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<NormalizedFood | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -131,18 +132,32 @@ export default function AddFoodScreen() {
 
       if (!text.trim()) {
         setSuggestions([]);
+        setSearchStatus('idle');
         setIsSearching(false);
         return;
       }
 
       setIsSearching(true);
+      setSearchStatus('loading');
       debounceRef.current = setTimeout(async () => {
         try {
-          const results = await foodService.searchSuggestions(text);
-          setSuggestions(results);
-        } catch (err) {
-          console.log('[AddFood] Search error:', err);
+          const result = await foodService.searchSuggestions(text);
+          if (result.status === 'ok') {
+            setSuggestions(result.results);
+            setSearchStatus('idle');
+          } else if (result.status === 'empty') {
+            setSuggestions([]);
+            setSearchStatus('idle');
+          } else if (result.status === 'rate_limited') {
+            setSuggestions([]);
+            setSearchStatus('rate_limited');
+          } else {
+            setSuggestions([]);
+            setSearchStatus('error');
+          }
+        } catch {
           setSuggestions([]);
+          setSearchStatus('error');
         } finally {
           setIsSearching(false);
         }
@@ -399,10 +414,10 @@ export default function AddFoodScreen() {
               )}
             </View>
 
-            {!apiAvailable && query.length === 0 && (
+            {!apiAvailable && (
               <View style={styles.apiNotice}>
                 <Text style={styles.apiNoticeText}>
-                  Food lookup unavailable — enter macros manually
+                  Search unavailable. You can still enter macros manually.
                 </Text>
               </View>
             )}
@@ -454,7 +469,13 @@ export default function AddFoodScreen() {
             query.length > 0 &&
             suggestions.length === 0 && (
               <View style={styles.noResults}>
-                <Text style={styles.noResultsText}>No results found</Text>
+                <Text style={styles.noResultsText}>
+                  {searchStatus === 'rate_limited'
+                    ? 'Search temporarily rate-limited. Try again in a minute.'
+                    : searchStatus === 'error'
+                      ? 'Search unavailable. You can still enter macros manually.'
+                      : 'No results found'}
+                </Text>
                 <TouchableOpacity
                   style={styles.manualFallback}
                   onPress={handleManualMode}

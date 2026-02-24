@@ -1,12 +1,9 @@
 import createContextHook from '@nkzw/create-context-hook';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FoodEntry, MacroTargets } from '../types';
 import { getTodayDateString } from '../utils/macroEngine';
-
-const LOGS_KEY = 'abz_food_logs';
-const STREAK_KEY = 'abz_streak';
+import { loadData, saveData, removeData, STORAGE_KEYS } from '../services/storage';
 
 interface StoredLogs {
   [date: string]: FoodEntry[];
@@ -20,11 +17,16 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
   const logsQuery = useQuery({
     queryKey: ['food_logs'],
     queryFn: async () => {
-      const stored = await AsyncStorage.getItem(LOGS_KEY);
-      if (stored) {
-        return JSON.parse(stored) as StoredLogs;
+      let stored = await loadData<StoredLogs>(STORAGE_KEYS.DAILY_LOGS);
+      if (!stored) {
+        const legacy = await loadData<StoredLogs>('abz_food_logs');
+        if (legacy) {
+          stored = legacy;
+          await saveData(STORAGE_KEYS.DAILY_LOGS, stored);
+          await removeData('abz_food_logs');
+        }
       }
-      return {} as StoredLogs;
+      return stored ?? {};
     },
   });
 
@@ -36,7 +38,7 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
 
   const saveMutation = useMutation({
     mutationFn: async (updated: StoredLogs) => {
-      await AsyncStorage.setItem(LOGS_KEY, JSON.stringify(updated));
+      await saveData(STORAGE_KEYS.DAILY_LOGS, updated);
       return updated;
     },
     onSuccess: (data) => {
@@ -69,6 +71,22 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
     [logs, today, saveMutation]
   );
 
+  const updateEntry = useCallback(
+    (entryId: string, updates: Partial<FoodEntry>) => {
+      const updated = { ...logs };
+      if (updated[today]) {
+        const idx = updated[today].findIndex((e) => e.id === entryId);
+        if (idx !== -1) {
+          updated[today] = [...updated[today]];
+          updated[today][idx] = { ...updated[today][idx], ...updates };
+          setLogs(updated);
+          saveMutation.mutate(updated);
+        }
+      }
+    },
+    [logs, today, saveMutation]
+  );
+
   const clearToday = useCallback(() => {
     const updated = { ...logs };
     delete updated[today];
@@ -77,7 +95,7 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
   }, [logs, today, saveMutation]);
 
   const clearAll = useCallback(async () => {
-    await AsyncStorage.removeItem(LOGS_KEY);
+    await removeData(STORAGE_KEYS.DAILY_LOGS);
     setLogs({});
     queryClient.setQueryData(['food_logs'], {});
   }, [queryClient]);
@@ -146,6 +164,7 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
     todayTotals,
     addEntry,
     removeEntry,
+    updateEntry,
     clearToday,
     clearAll,
     getEntriesForDate,
