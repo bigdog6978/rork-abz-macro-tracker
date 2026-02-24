@@ -11,6 +11,10 @@ import Colors from "../constants/colors";
 
 SplashScreen.preventAutoHideAsync();
 
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
+
 const queryClient = new QueryClient();
 
 function AppContent() {
@@ -41,7 +45,9 @@ function RootLayoutNav() {
         headerTintColor: Colors.text,
         contentStyle: { backgroundColor: Colors.background },
       }}
+      initialRouteName="index"
     >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen
         name="welcome"
@@ -72,6 +78,15 @@ function RootLayoutNav() {
           presentation: "modal",
           title: "Add Food",
           headerStyle: { backgroundColor: Colors.card },
+          headerTintColor: Colors.text,
+        }}
+      />
+      <Stack.Screen
+        name="barcode-scanner"
+        options={{
+          presentation: "modal",
+          title: "Scan Barcode",
+          headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
         }}
       />

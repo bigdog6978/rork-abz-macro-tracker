@@ -3,7 +3,16 @@ import { USDA_API_KEY } from '../../config/env';
 import * as usdaClient from './providers/usda/usdaClient';
 import { normalizeSearchResult, normalizeDetailResult } from './providers/usda/usdaNormalizer';
 import * as foodRepo from '../../storage/foodRepo';
+import * as foodsRepo from '../../src/data/foodsRepo';
+import { openDb } from '../../src/data/db';
 import { FoodEntry } from '../../types';
+import {
+  rankFoods,
+  FoodItem,
+  FoodStats,
+} from '../../src/search/foodSearch';
+
+const SEARCH_PAGE_SIZE = 50;
 
 export type SearchResult =
   | { status: 'ok'; results: NormalizedFood[] }
@@ -32,12 +41,80 @@ export function isApiAvailable(): boolean {
   return !!USDA_API_KEY;
 }
 
+function toFoodItem(f: NormalizedFood): FoodItem {
+  return {
+    id: f.id,
+    name: f.name,
+    brand: f.brand ?? null,
+    calories: f.per100g?.calories,
+    protein: f.per100g?.protein_g,
+    carbs: f.per100g?.carbs_g,
+    fat: f.per100g?.fat_g,
+  };
+}
+
+async function getFoodStatsMap(): Promise<Record<string, FoodStats>> {
+  const recents = await foodRepo.getRecentFoods();
+  const map: Record<string, FoodStats> = {};
+  for (const r of recents) {
+    const id = r.food.id;
+    const existing = map[id];
+    const lastAt = new Date(r.lastUsedAt).getTime();
+    if (existing) {
+      existing.selectionCount += 1;
+      existing.lastSelectedAt = Math.max(existing.lastSelectedAt, lastAt);
+    } else {
+      map[id] = { selectionCount: 1, lastSelectedAt: lastAt };
+    }
+  }
+  try {
+    const db = await openDb();
+    const stats = await db.getAllAsync<{ food_id: string; selection_count: number; last_selected_at: number }>(
+      'SELECT food_id, selection_count, last_selected_at FROM food_stats'
+    );
+    for (const s of stats) {
+      const existing = map[s.food_id];
+      if (existing) {
+        existing.selectionCount = Math.max(existing.selectionCount, s.selection_count);
+        existing.lastSelectedAt = Math.max(existing.lastSelectedAt, s.last_selected_at * 1000);
+      } else {
+        map[s.food_id] = {
+          selectionCount: s.selection_count,
+          lastSelectedAt: s.last_selected_at * 1000,
+        };
+      }
+    }
+  } catch {
+    // SQLite may not be ready
+  }
+  return map;
+}
+
 export async function searchSuggestions(query: string): Promise<SearchResult> {
   if (!query.trim()) {
     return { status: 'empty', results: [] };
   }
 
+  const q = query.trim();
+
+  // Always fetch local (SQLite) foods for search — available offline
+  let localResults: NormalizedFood[] = [];
+  try {
+    const localFoods = await foodsRepo.searchLocalFoods(q);
+    localResults = localFoods.map(foodsRepo.localFoodToNormalizedFood);
+  } catch {
+    // SQLite may not be ready
+  }
+
   if (!USDA_API_KEY) {
+    if (localResults.length > 0) {
+      const items = localResults.map(toFoodItem);
+      const statsMap = await getFoodStatsMap();
+      const ranked = rankFoods(items, q, statsMap);
+      const byId = new Map(localResults.map((f) => [f.id, f]));
+      const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
+      return { status: 'ok', results: reordered };
+    }
     return { status: 'error' };
   }
 
@@ -45,13 +122,19 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
     const cached = await foodRepo.getCachedSearch(query);
     if (cached && !cached.expired) {
       const results = cached.results ?? [];
-      if (results.length > 0) {
-        return { status: 'ok', results };
+      const merged = mergeAndDedupe(localResults, results);
+      if (merged.length > 0) {
+        const items = merged.map(toFoodItem);
+        const statsMap = await getFoodStatsMap();
+        const ranked = rankFoods(items, q, statsMap);
+        const byId = new Map(merged.map((f) => [f.id, f]));
+        const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
+        return { status: 'ok', results: reordered };
       }
       return { status: 'empty', results: [] };
     }
 
-    const response = await usdaClient.searchFoods(query, 10);
+    const response = await usdaClient.searchFoods(query, SEARCH_PAGE_SIZE);
     const normalized = (response.foods ?? []).map(normalizeSearchResult);
     await foodRepo.setCachedSearch(query, normalized);
 
@@ -59,21 +142,64 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
       refreshSearchInBackground(query);
     }
 
-    if (normalized.length > 0) {
-      return { status: 'ok', results: normalized };
+    const merged = mergeAndDedupe(localResults, normalized);
+    if (merged.length > 0) {
+      const items = merged.map(toFoodItem);
+      const statsMap = await getFoodStatsMap();
+      const ranked = rankFoods(items, q, statsMap);
+      const byId = new Map(merged.map((f) => [f.id, f]));
+      const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
+      return { status: 'ok', results: reordered };
     }
     return { status: 'empty', results: [] };
   } catch (err) {
     if (err instanceof usdaClient.USDARequestError && err.isRateLimit) {
+      if (localResults.length > 0) {
+        const items = localResults.map(toFoodItem);
+        const statsMap = await getFoodStatsMap();
+        const ranked = rankFoods(items, q, statsMap);
+        const byId = new Map(localResults.map((f) => [f.id, f]));
+        const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
+        return { status: 'ok', results: reordered };
+      }
       return { status: 'rate_limited' };
+    }
+    if (localResults.length > 0) {
+      const items = localResults.map(toFoodItem);
+      const statsMap = await getFoodStatsMap();
+      const ranked = rankFoods(items, q, statsMap);
+      const byId = new Map(localResults.map((f) => [f.id, f]));
+      const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
+      return { status: 'ok', results: reordered };
     }
     return { status: 'error' };
   }
 }
 
+function mergeAndDedupe(
+  local: NormalizedFood[],
+  usda: NormalizedFood[]
+): NormalizedFood[] {
+  const seen = new Set<string>();
+  const out: NormalizedFood[] = [];
+  for (const f of local) {
+    if (!seen.has(f.id)) {
+      seen.add(f.id);
+      out.push(f);
+    }
+  }
+  for (const f of usda) {
+    if (!seen.has(f.id)) {
+      seen.add(f.id);
+      out.push(f);
+    }
+  }
+  return out;
+}
+
 function refreshSearchInBackground(query: string): void {
   usdaClient
-    .searchFoods(query, 10)
+    .searchFoods(query, SEARCH_PAGE_SIZE)
     .then((response) => {
       const normalized = (response.foods ?? []).map(normalizeSearchResult);
       foodRepo.setCachedSearch(query, normalized);

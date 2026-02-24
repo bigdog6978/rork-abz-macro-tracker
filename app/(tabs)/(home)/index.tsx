@@ -24,7 +24,8 @@ import PremiumCard from '../../../components/ui/PremiumCard';
 import GreetingHeader from '../../../components/ui/GreetingHeader';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import EmptyState from '../../../components/ui/EmptyState';
-import MacroRingComponent, { MacroDial } from '../../../components/ui/MacroRing';
+import CalorieGauge from '../../../components/ui/CalorieGauge';
+import { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
 
 export default function DashboardScreen() {
@@ -107,13 +108,12 @@ export default function DashboardScreen() {
         <Animated.View style={{ opacity: stagger[1], transform: [{ translateY: stagger[1].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
           <PremiumCard style={styles.calorieCard} variant="hero">
             <View style={styles.calorieRingSection}>
-              <MacroRingComponent
+              <CalorieGauge
                 consumed={todayTotals.calories}
                 target={macros.calories}
                 color={Colors.primary}
                 size={128}
                 strokeWidth={10}
-                showLabel
               />
               <View style={styles.calorieCenter}>
                 <Text style={styles.calorieNumber}>{formatNumber(caloriesRemaining)}</Text>

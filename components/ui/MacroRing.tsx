@@ -1,7 +1,24 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import Colors from '../../constants/colors';
 import { formatNumber } from '../../utils/formatNumber';
+
+const TRACK_COLOR = 'rgba(255,255,255,0.06)';
+
+function polarToCartesian(cx: number, cy: number, r: number, deg: number) {
+  const rad = (deg * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg: number, clockwise = true) {
+  const start = polarToCartesian(cx, cy, r, startDeg);
+  const end = polarToCartesian(cx, cy, r, endDeg);
+  const sweep = clockwise ? 1 : 0;
+  const diff = endDeg - startDeg;
+  const largeArc = (diff > 0 ? diff : diff + 360) <= 180 ? 0 : 1;
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} ${sweep} ${end.x} ${end.y}`;
+}
 
 interface MacroRingProps {
   consumed: number;
@@ -22,6 +39,7 @@ export default function MacroRing({
 }: MacroRingProps) {
   const progress = target > 0 ? Math.min(consumed / target, 1) : 0;
   const animValue = useRef(new Animated.Value(0)).current;
+  const [displayProgress, setDisplayProgress] = useState(0);
 
   useEffect(() => {
     Animated.spring(animValue, {
@@ -32,55 +50,52 @@ export default function MacroRing({
     }).start();
   }, [progress, animValue]);
 
+  useEffect(() => {
+    const listener = animValue.addListener(({ value }) => setDisplayProgress(value));
+    return () => animValue.removeListener(listener);
+  }, [animValue]);
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - strokeWidth / 2;
+
+  const topArcPath = useMemo(() => describeArc(cx, cy, r, 180, 360, true), [cx, cy, r]);
+  const bottomArcPath = useMemo(() => describeArc(cx, cy, r, 0, 180, true), [cx, cy, r]);
+  const progressArcPath = useMemo(() => {
+    const endDeg = 0 + 180 * displayProgress;
+    return endDeg > 0 ? describeArc(cx, cy, r, 0, endDeg, true) : '';
+  }, [cx, cy, r, displayProgress]);
+
   return (
     <View style={{ width: size, height: size }}>
-      <View
-        style={[
-          styles.trackRing,
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: strokeWidth,
-          },
-        ]}
-      />
-      <Animated.View
-        style={[
-          styles.progressRing,
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: strokeWidth,
-            borderColor: color,
-            transform: [
-              {
-                rotate: animValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['-45deg', '315deg'],
-                }),
-              },
-            ],
-          },
-        ]}
-      />
-      {showLabel && (
-        <View style={styles.glowOverlay}>
-          <Animated.View
-            style={[
-              styles.glowDot,
-              {
-                backgroundColor: color,
-                opacity: animValue.interpolate({
-                  inputRange: [0, 0.5, 1],
-                  outputRange: [0, 0.2, 0.35],
-                }),
-              },
-            ]}
+      <Svg width={size} height={size}>
+        {/* Bottom half: grey track (always visible) */}
+        <Path
+          d={bottomArcPath}
+          stroke={TRACK_COLOR}
+          strokeWidth={strokeWidth}
+          strokeLinecap="butt"
+          fill="none"
+        />
+        {/* Top half: locked, always visible in macro color */}
+        <Path
+          d={topArcPath}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="butt"
+          fill="none"
+        />
+        {/* Bottom half: progress fills clockwise from upper arc (0° → 90° → 180°) */}
+        {progressArcPath ? (
+          <Path
+            d={progressArcPath}
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeLinecap="butt"
+            fill="none"
           />
-        </View>
-      )}
+        ) : null}
+      </Svg>
     </View>
   );
 }
@@ -126,28 +141,6 @@ export function MacroDial({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  trackRing: {
-    borderColor: 'rgba(255,255,255,0.06)',
-    position: 'absolute',
-  },
-  progressRing: {
-    borderLeftColor: 'transparent',
-    borderBottomColor: 'transparent',
-    position: 'absolute',
-  },
-  glowOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glowDot: {
-    width: '80%',
-    height: '80%',
-    borderRadius: 999,
-  },
-});
 
 const dialStyles = StyleSheet.create({
   item: {

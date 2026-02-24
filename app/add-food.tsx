@@ -12,14 +12,15 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Check, Search, Clock, Pencil, X, ChevronRight } from 'lucide-react-native';
+import { Check, Search, Clock, Pencil, X, ChevronRight, Scan } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { NormalizedFood } from '../features/food/types';
 import * as foodService from '../features/food/foodService';
+import * as foodsRepo from '../src/data/foodsRepo';
 import SegmentedToggle from '../components/SegmentedToggle';
 import {
   ServingUnit,
@@ -60,6 +61,7 @@ function displayToGrams(input: string, unit: ServingUnit): number {
 
 export default function AddFoodScreen() {
   const { addEntry } = useDailyLog();
+  const params = useLocalSearchParams<{ fromBarcode?: string }>();
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<NormalizedFood[]>([]);
@@ -80,6 +82,7 @@ export default function AddFoodScreen() {
   const [recentFoods, setRecentFoods] = useState<
     { food: NormalizedFood; lastServingGrams: number }[]
   >([]);
+  const [savedFoods, setSavedFoods] = useState<NormalizedFood[]>([]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const computedMacrosRef = useRef<{
@@ -108,6 +111,14 @@ export default function AddFoodScreen() {
   }, []);
 
   useEffect(() => {
+    foodsRepo
+      .getSavedFoods('openfoodfacts')
+      .then((local) => local.map(foodsRepo.localFoodToNormalizedFood))
+      .then(setSavedFoods)
+      .catch((err) => console.log('[AddFood] Error loading saved foods:', err));
+  }, [params.fromBarcode]);
+
+  useEffect(() => {
     getPreferredServingUnit()
       .then((unit) => {
         if (unit !== 'g') {
@@ -116,6 +127,40 @@ export default function AddFoodScreen() {
         }
       })
       .catch((err) => console.log('[AddFood] Error loading unit pref:', err));
+  }, []);
+
+  useEffect(() => {
+    const id = params.fromBarcode;
+    if (!id || typeof id !== 'string') return;
+    foodsRepo
+      .getFoodById(id)
+      .then((local) => {
+        if (local) {
+          const norm = foodsRepo.localFoodToNormalizedFood(local);
+          setSelectedFood(norm);
+          setName(norm.name);
+          setQuery(norm.name);
+          setShowSuggestions(false);
+          setProtein(String(norm.per100g.protein_g));
+          setCarbs(String(norm.per100g.carbs_g));
+          setFat(String(norm.per100g.fat_g));
+          setServingGrams(gramsToDisplay(100, servingUnit || 'g'));
+          computedMacrosRef.current = {
+            calories: norm.per100g.calories,
+            protein_g: norm.per100g.protein_g,
+            carbs_g: norm.per100g.carbs_g,
+            fat_g: norm.per100g.fat_g,
+          };
+        }
+      })
+      .catch((err) => console.log('[AddFood] Error loading barcode food:', err));
+  }, [params.fromBarcode, servingUnit]);
+
+  const handleScanBarcode = useCallback(() => {
+    router.push('/barcode-scanner');
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   }, []);
 
   const computedCalories =
@@ -259,6 +304,9 @@ export default function AddFoodScreen() {
         selectedFood ??
         foodService.createManualNormalizedFood(foodName, macros, grams);
       await foodService.addToRecent(normalizedForRecent, grams);
+      if (selectedFood?.providerId === 'openfoodfacts') {
+        foodsRepo.recordFoodSelection(selectedFood.id).catch(() => {});
+      }
 
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -421,6 +469,16 @@ export default function AddFoodScreen() {
                 </Text>
               </View>
             )}
+
+            <TouchableOpacity
+              style={styles.scanBarcodeBtn}
+              onPress={handleScanBarcode}
+              activeOpacity={0.7}
+              testID="scan-barcode-button"
+            >
+              <Scan size={18} color={Colors.primary} />
+              <Text style={styles.scanBarcodeText}>Scan Barcode</Text>
+            </TouchableOpacity>
           </View>
 
           {showSuggestions && suggestions.length > 0 && (
@@ -621,37 +679,70 @@ export default function AddFoodScreen() {
           {!showSuggestions &&
             !selectedFood &&
             query.length === 0 &&
-            recentFoods.length > 0 && (
+            (recentFoods.length > 0 || savedFoods.length > 0) && (
               <View style={styles.recentsSection}>
-                <View style={styles.recentHeader}>
-                  <Clock size={14} color={Colors.textSecondary} />
-                  <Text style={styles.recentTitle}>Recent</Text>
-                </View>
-                {recentFoods.slice(0, 10).map((item) => (
-                  <TouchableOpacity
-                    key={item.food.id}
-                    style={styles.recentCard}
-                    onPress={() =>
-                      handleSelectRecent(item.food, item.lastServingGrams)
-                    }
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.recentInfo}>
-                      <Text style={styles.recentName} numberOfLines={1}>
-                        {item.food.name}
-                      </Text>
-                      <Text style={styles.recentMeta}>
-                        {item.lastServingGrams}g ·{' '}
-                        {formatNumber(
-                          (item.food.per100g.calories * item.lastServingGrams) /
-                            100
-                        )}{' '}
-                        cal
-                      </Text>
+                {recentFoods.length > 0 && (
+                  <>
+                    <View style={styles.recentHeader}>
+                      <Clock size={14} color={Colors.textSecondary} />
+                      <Text style={styles.recentTitle}>Recent</Text>
                     </View>
-                    <ChevronRight size={16} color={Colors.textTertiary} />
-                  </TouchableOpacity>
-                ))}
+                    {recentFoods.slice(0, 10).map((item) => (
+                      <TouchableOpacity
+                        key={item.food.id}
+                        style={styles.recentCard}
+                        onPress={() =>
+                          handleSelectRecent(item.food, item.lastServingGrams)
+                        }
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.recentInfo}>
+                          <Text style={styles.recentName} numberOfLines={1}>
+                            {item.food.name}
+                          </Text>
+                          <Text style={styles.recentMeta}>
+                            {item.lastServingGrams}g ·{' '}
+                            {formatNumber(
+                              (item.food.per100g.calories * item.lastServingGrams) /
+                                100
+                            )}{' '}
+                            cal
+                          </Text>
+                        </View>
+                        <ChevronRight size={16} color={Colors.textTertiary} />
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
+                {savedFoods.length > 0 && (
+                  <>
+                    <View style={[styles.recentHeader, { marginTop: recentFoods.length > 0 ? 20 : 0 }]}>
+                      <Scan size={14} color={Colors.textSecondary} />
+                      <Text style={styles.recentTitle}>Saved Foods</Text>
+                    </View>
+                    {savedFoods.slice(0, 10).map((food) => (
+                      <TouchableOpacity
+                        key={food.id}
+                        style={styles.recentCard}
+                        onPress={() => handleSelectSuggestion(food)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.recentInfo}>
+                          <Text style={styles.recentName} numberOfLines={1}>
+                            {food.name}
+                          </Text>
+                          <Text style={styles.recentMeta}>
+                            {formatNumber(food.per100g.calories)} cal ·{' '}
+                            {formatNumber(food.per100g.protein_g)}p ·{' '}
+                            {formatNumber(food.per100g.carbs_g)}c ·{' '}
+                            {formatNumber(food.per100g.fat_g)}f per 100g
+                          </Text>
+                        </View>
+                        <ChevronRight size={16} color={Colors.textTertiary} />
+                      </TouchableOpacity>
+                    ))}
+                  </>
+                )}
               </View>
             )}
         </ScrollView>
@@ -705,6 +796,22 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     fontSize: 12,
     fontWeight: '500' as const,
+  },
+  scanBarcodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  scanBarcodeText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
   suggestionsSection: {
     marginBottom: 8,

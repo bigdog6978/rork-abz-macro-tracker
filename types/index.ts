@@ -88,7 +88,7 @@ export interface FoodEntry {
   fat_g: number;
   calories: number;
   timestamp: string;
-  providerId?: 'usda' | 'manual';
+  providerId?: 'usda' | 'manual' | 'openfoodfacts';
   externalId?: string;
   servingGrams?: number;
   source?: 'mealPlan' | 'manual';
