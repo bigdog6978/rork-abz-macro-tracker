@@ -17,7 +17,7 @@ You are building a production release of the Physiq Macro Tracker app.
 
 ## PRE-BUILD CHECKLIST
 
-1. **Version bump:** Ensure `app.json` has correct `version` and `ios.buildNumber` / `android.versionCode`.
+1. **Version bump:** Ensure `app.config.ts` has correct `version` and `ios.buildNumber` / `android.versionCode`.
 2. **Environment:** Verify `app.json` has correct `bundleIdentifier` (iOS) and `package` (Android).
 3. **Assets:** Confirm `icon.png`, `splash-icon.png`, and `adaptive-icon` exist in `assets/images/`.
 4. **No debug code:** Remove or gate any `console.log`, debug toasts, or dev-only features.

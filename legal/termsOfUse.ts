@@ -1,116 +1,115 @@
-export const TERMS_OF_USE_LAST_UPDATED = 'February 18, 2026';
+export const TERMS_LAST_UPDATED = 'February 24, 2026';
 
 export const TERMS_OF_USE = `TERMS OF USE
 
-Last Updated: ${TERMS_OF_USE_LAST_UPDATED}
+Last Updated: ${TERMS_LAST_UPDATED}
 
-1. ACCEPTANCE OF TERMS
+1. AGREEMENT TO TERMS
 
-By downloading, installing, or using the Physiq mobile application (the "App"), you agree to be bound by these Terms of Use ("Terms"). If you do not agree to these Terms, do not use the App.
+These Terms of Use ("Terms") govern your use of the Physiq mobile application (the "App"), owned and operated by ALOA LLC ("Company," "we," "us," or "our").
 
-2. DESCRIPTION OF SERVICE
+By downloading, installing, or using the App through the Apple App Store or Google Play Store, you agree to be bound by these Terms. If you do not agree, do not use the App.
 
-Physiq is a fitness and nutrition application that provides:
-• Macro nutrient tracking and daily logging.
-• Personalized meal plan generation based on your goals and preferences.
-• Food lookup powered by the USDA FoodData Central database.
-• Smart food substitution suggestions.
-• Progress history and analytics.
-• Optional premium features available through paid subscription.
+2. LICENSE
 
-The App is a tool to assist you in organizing and tracking your nutrition. It is not a healthcare service.
+The App is licensed, not sold, to you.
 
-3. NO MEDICAL ADVICE DISCLAIMER
+Subject to your compliance with these Terms, ALOA LLC grants you a limited, non-exclusive, non-transferable, revocable license to download and use the App for personal, non-commercial purposes on devices you own or control.
 
-THE APP DOES NOT PROVIDE MEDICAL ADVICE.
+For users who download the App through Apple's App Store:
 
-All information provided by the App — including macro targets, meal plans, calorie calculations, and food suggestions — is for general informational and educational purposes only. This information is not intended to be, and should not be construed as, medical advice, diagnosis, or treatment.
+Your use of the App is also subject to the Apple Standard Licensed Application End User License Agreement (EULA). In the event of any conflict between these Terms and the Apple Standard EULA, the Apple Standard EULA will govern.
 
-You should:
-• Consult a qualified healthcare professional before starting any new diet, exercise program, or making significant changes to your eating habits.
-• Not rely solely on the App for health-related decisions.
-• Seek immediate medical attention for any health concerns.
+For users who download the App through Google Play:
 
-The macro calculations, meal plans, and nutritional information provided by the App are estimates based on general formulas and the data you input. Individual results may vary significantly based on factors the App cannot account for, including but not limited to medical conditions, medications, metabolism, and genetics.
+Your use of the App is subject to Google Play's Terms of Service in addition to these Terms.
 
-4. USER RESPONSIBILITIES
+3. NO MEDICAL ADVICE
 
-By using the App, you agree to:
-• Provide accurate information when setting up your profile (age, weight, height, activity level, etc.).
-• Use the App safely and responsibly as a supplemental tracking tool.
-• Not rely exclusively on the App for health, dietary, or medical decisions.
-• Comply with all applicable laws and regulations in your use of the App.
-• Not attempt to reverse engineer, decompile, or disassemble the App.
-• Not use the App for any unlawful or unauthorized purpose.
+Physiq is a nutrition and macro tracking tool for informational and educational purposes only.
 
-5. ACCOUNT RESPONSIBILITY
+The App:
+• Does not provide medical advice
+• Does not diagnose, treat, cure, or prevent any disease
+• Is not a substitute for professional medical guidance
 
-• You are responsible for maintaining the confidentiality of your account credentials.
-• You are responsible for all activities that occur under your account.
-• You must notify us immediately at support@abzapp.com if you become aware of any unauthorized use of your account.
-• We reserve the right to suspend or terminate accounts that violate these Terms.
+Always consult a qualified healthcare provider before making dietary or fitness changes.
 
-6. SUBSCRIPTION TERMS
+You assume full responsibility for your health decisions.
 
-a) Premium Features
-Certain features of the App may require a paid subscription ("Premium"). Premium features and pricing will be clearly identified within the App.
+4. LOCAL DATA STORAGE
 
-b) Billing & Renewal
-• Subscriptions are billed through the Apple App Store or Google Play Store.
-• Subscriptions automatically renew at the end of each billing period unless canceled.
-• Renewal charges are processed within 24 hours before the end of the current billing period.
+All food logs, macro tracking data, weight entries, and related information entered into the App are stored locally on your device.
 
-c) Cancellation
-• You may cancel your subscription at any time through your Apple App Store or Google Play Store account settings.
-• Cancellation takes effect at the end of the current billing period. You will retain access to Premium features until then.
-• We do not process refunds directly. For refund requests, please contact Apple or Google through their respective platforms.
+ALOA LLC:
+• Does not collect personal data
+• Does not store your health data
+• Does not maintain cloud backups of your tracking information
 
-d) Price Changes
-• We reserve the right to change subscription pricing. Any price changes will be communicated in advance and will apply to the next billing cycle after notice.
+If you delete the App, your locally stored data may be permanently removed unless backed up by your device's operating system.
 
-7. INTELLECTUAL PROPERTY
+5. ACCEPTABLE USE
 
-• The App, including its design, code, content, features, and branding, is owned by Physiq and protected by intellectual property laws.
-• You are granted a limited, non-exclusive, non-transferable, revocable license to use the App for personal, non-commercial purposes.
-• You may not copy, modify, distribute, sell, or create derivative works based on the App or its content without our prior written consent.
-• USDA food data is provided by the U.S. Department of Agriculture and is in the public domain.
+You agree not to:
+
+• Reverse engineer, decompile, or disassemble the App
+• Modify or create derivative works
+• Use the App for unlawful purposes
+• Attempt to interfere with the App's functionality or security
+
+6. THIRD-PARTY SERVICES
+
+The App may retrieve nutritional data from third-party sources such as USDA FoodData Central.
+
+ALOA LLC is not responsible for:
+• The accuracy of third-party data
+• Changes made by third-party providers
+• The availability of third-party services
+
+Use of third-party services may be subject to their respective terms and policies.
+
+7. DISCLAIMER OF WARRANTIES
+
+The App is provided "AS IS" and "AS AVAILABLE" without warranties of any kind, express or implied.
+
+To the fullest extent permitted by law, ALOA LLC disclaims all warranties, including:
+
+• Accuracy of nutritional data
+• Fitness for a particular purpose
+• Non-infringement
+• Availability or uninterrupted operation
 
 8. LIMITATION OF LIABILITY
 
-TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW:
+To the maximum extent permitted by law, ALOA LLC shall not be liable for:
 
-• THE APP IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS OR IMPLIED.
-• WE DO NOT GUARANTEE THAT USE OF THE APP WILL RESULT IN WEIGHT LOSS, MUSCLE GAIN, OR ANY SPECIFIC FITNESS OUTCOME.
-• WE ARE NOT LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF THE APP.
-• OUR TOTAL LIABILITY FOR ANY CLAIMS ARISING FROM YOUR USE OF THE APP SHALL NOT EXCEED THE AMOUNT YOU PAID FOR THE APP IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.
-• WE ARE NOT RESPONSIBLE FOR THE ACCURACY OF THIRD-PARTY NUTRITIONAL DATA, INCLUDING DATA PROVIDED BY THE USDA.
+• Any indirect, incidental, special, consequential, or punitive damages
+• Loss of data
+• Health outcomes related to use of the App
+• Device-related issues arising from App use
 
-YOU USE THE APP AT YOUR OWN RISK.
+Your use of the App is at your own risk.
 
-9. INDEMNIFICATION
+9. TERMINATION
 
-You agree to indemnify and hold harmless Physiq and its officers, directors, employees, and agents from any claims, losses, damages, liabilities, and expenses (including reasonable legal fees) arising from your use of the App or violation of these Terms.
+These Terms remain in effect until terminated.
 
-10. TERMINATION
+Your rights under these Terms automatically terminate if you fail to comply with them.
 
-• We may suspend or terminate your access to the App at any time, with or without cause, and with or without notice.
-• You may stop using the App at any time.
-• Upon termination, your right to use the App ceases immediately. Locally stored data on your device will remain until you delete the App or clear it manually.
+You may stop using the App at any time by uninstalling it.
 
-11. GOVERNING LAW
+10. GOVERNING LAW
 
-These Terms shall be governed by and construed in accordance with the laws of the State of Delaware, United States, without regard to its conflict of law provisions. Any disputes arising from these Terms or your use of the App shall be resolved in the courts located in Delaware.
+These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to conflict of law principles.
 
-12. SEVERABILITY
+11. CHANGES TO THESE TERMS
 
-If any provision of these Terms is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary, and the remaining provisions shall remain in full force and effect.
+We may update these Terms from time to time. When updated, the "Last Updated" date will be revised.
 
-13. CHANGES TO THESE TERMS
+Continued use of the App after changes constitutes acceptance of the updated Terms.
 
-We may update these Terms from time to time. When we do, we will revise the "Last Updated" date at the top. Continued use of the App after changes constitutes your acceptance of the updated Terms. If you do not agree with the changes, you must stop using the App.
+12. CONTACT INFORMATION
 
-14. CONTACT INFORMATION
-
-If you have questions about these Terms of Use, please contact us at:
-
-Email: support@abzapp.com`;
+ALOA LLC
+Email: physiqmacrotracker@yahoo.com
+`;

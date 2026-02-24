@@ -1,4 +1,4 @@
-export const PRIVACY_POLICY_LAST_UPDATED = 'February 18, 2026';
+export const PRIVACY_POLICY_LAST_UPDATED = 'February 24, 2026';
 
 export const PRIVACY_POLICY = `PRIVACY POLICY
 
@@ -6,82 +6,85 @@ Last Updated: ${PRIVACY_POLICY_LAST_UPDATED}
 
 1. INTRODUCTION
 
-This Privacy Policy describes how Physiq ("we," "us," or "our") collects, uses, and protects your information when you use the Physiq mobile application (the "App"). Physiq is a fitness and macro tracking application designed to help you manage your nutrition and meal planning goals.
+Physiq is owned and operated by ALOA LLC ("Company," "we," "us," or "our").
 
-Physiq is not a medical service. The App provides general fitness and nutritional tracking tools and does not diagnose, treat, or prevent any medical condition.
+This Privacy Policy explains how information is handled when you use the Physiq mobile application (the "App").
+
+Physiq is a food and macro tracking application designed to help users monitor nutrition and fitness goals. Physiq is not a medical service and does not provide medical advice, diagnosis, or treatment.
+
+IMPORTANT: Physiq does not collect, store, transmit, or process personal data.
 
 2. INFORMATION WE COLLECT
 
-We collect only the minimum information necessary to provide and improve our services:
+We do NOT collect any personal information.
 
-a) Account Information
-• Email address — used for account creation and login.
-• Encrypted authentication credentials — your password is securely hashed and never stored in plaintext.
+Specifically, we do NOT collect:
 
-b) Subscription Status
-• If you subscribe to premium features, we store your subscription status to manage access. We do not store or process payment details (see Section 9).
+• Names  
+• Email addresses  
+• Phone numbers  
+• Account credentials  
+• Health data  
+• Food logs  
+• Macro logs  
+• Weight entries  
+• Device identifiers  
+• Location data  
+• Contacts  
+• Photos  
+• Usage analytics  
+• Advertising identifiers  
 
-c) Information We Do NOT Collect on Our Servers
-• Macro logs, food logs, meal plans, weight entries, body measurements, and other health or fitness data you enter in the App are stored locally on your device only.
-• We do not upload, transmit, or store your personal health or nutrition data on our servers.
+The App does not require account creation or login.
 
-3. HOW WE USE YOUR INFORMATION
+3. LOCAL DATA STORAGE
 
-We use the limited information we collect to:
-• Provide and maintain your account access.
-• Manage your subscription status and premium feature access.
-• Respond to support requests if you contact us.
-• Send essential service communications (e.g., password reset).
+All food logs, macro data, weight entries, and meal plans you enter are stored locally on your device only.
 
-We do not use your information for advertising, profiling, or behavioral targeting.
+• Data is not transmitted to our servers.
+• We do not have access to your nutrition or health data.
+• If you delete the App, locally stored data may be permanently removed unless backed up by your device's operating system.
 
 4. FOOD DATABASE DISCLOSURE
 
-The App uses the USDA FoodData Central API to provide food lookup and nutritional information. When you search for foods:
-• Only your search query text is sent to the USDA API.
-• No personal information, account data, or identifiers are transmitted to the USDA or any third-party food database.
+The App uses the USDA FoodData Central API to retrieve nutritional information when you search for foods.
 
-5. DATA STORAGE & SECURITY
+When you perform a food search:
 
-• Authentication credentials are encrypted using industry-standard hashing algorithms.
-• We implement reasonable administrative, technical, and physical safeguards to protect the information we store.
-• All fitness and nutrition data remains on your device and is not transmitted to our servers.
-• No method of electronic storage or transmission is 100% secure. While we strive to protect your information, we cannot guarantee absolute security.
+• Only the food search text you enter is transmitted to the USDA API.
+• No personal information or device identifiers are transmitted.
+• We do not link food searches to any individual.
 
-6. DATA SHARING
+Please review the USDA FoodData Central privacy policy for more information about their data practices.
 
-We do not sell, rent, or trade your personal information to third parties.
+5. DATA SHARING
 
-We may share your information only in the following limited circumstances:
-• Legal Compliance — if required by law, regulation, legal process, or governmental request.
-• Service Providers — trusted third-party providers that assist with authentication and subscription processing, subject to confidentiality obligations.
+Because we do not collect personal data, we do not sell, rent, trade, or share user information.
 
-7. USER RIGHTS
+6. CHILDREN'S PRIVACY
 
-You have the right to:
-• Delete your account — you may request account deletion through the App or by contacting support.
-• Clear local data — you can clear all locally stored fitness and nutrition data at any time using the App's reset features in Settings.
-• Access your data — contact us to request information about the data we store.
-• Withdraw consent — you may stop using the App at any time.
+Physiq is not directed toward children under the age of 13 (or the minimum legal age in your jurisdiction). Since we do not collect personal information, we do not knowingly collect data from children.
 
-To exercise any of these rights, contact us at support@abzapp.com.
+7. DATA SECURITY
 
-8. CHILDREN'S PRIVACY
+Since user data is stored locally on your device and not transmitted to us, data security is primarily governed by your device's operating system and security settings.
 
-Physiq is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If we become aware that we have collected personal information from a child under 13, we will take steps to delete that information promptly. If you believe a child under 13 has provided us with personal information, please contact us at support@abzapp.com.
+We encourage users to enable device-level security protections such as passcodes and biometric authentication.
 
-9. SUBSCRIPTION & PAYMENT DISCLOSURE
+8. INTERNATIONAL USERS
 
-• Premium subscriptions are processed and managed entirely through the Apple App Store or Google Play Store.
-• We do not collect, store, or have access to your payment card details, billing address, or other financial information.
-• For questions about payments, refunds, or billing, please contact Apple or Google directly through their respective platforms.
+The App is operated by ALOA LLC. Because we do not collect or process personal data, cross-border data transfers do not apply.
 
-10. CHANGES TO THIS POLICY
+9. CHANGES TO THIS POLICY
 
-We may update this Privacy Policy from time to time. When we do, we will revise the "Last Updated" date at the top of this page. We encourage you to review this Privacy Policy periodically. Continued use of the App after changes constitutes acceptance of the updated policy.
+We may update this Privacy Policy from time to time. When we do, we will update the "Last Updated" date above.
 
-11. CONTACT INFORMATION
+Continued use of the App after changes constitutes acceptance of the revised policy.
 
-If you have questions or concerns about this Privacy Policy, please contact us at:
+10. CONTACT INFORMATION
 
-Email: support@abzapp.com`;
+If you have questions about this Privacy Policy, you may contact:
+
+ALOA LLC  
+Email: physiqmacrotracker@yahoo.com
+`;

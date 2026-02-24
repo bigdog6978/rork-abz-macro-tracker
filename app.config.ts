@@ -2,14 +2,53 @@ import type { ExpoConfig } from 'expo/config';
 
 const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 
-export default (): ExpoConfig => {
-  const base = require('./app.json').expo as ExpoConfig;
-  return {
-    ...base,
-    extra: {
-      ...base.extra,
-      USDA_API_KEY: process.env.USDA_API_KEY ?? process.env.EXPO_PUBLIC_USDA_API_KEY ?? '',
-      USDA_BASE_URL: process.env.USDA_BASE_URL ?? DEFAULT_USDA_BASE_URL,
+export default (): ExpoConfig => ({
+  name: 'Physiq Macro Tracker',
+  slug: 'abz-macro-tracker',
+  version: '1.0.2',
+  orientation: 'portrait',
+  icon: './assets/images/icon.png',
+  scheme: 'rork-app',
+  userInterfaceStyle: 'automatic',
+  newArchEnabled: true,
+  splash: {
+    image: './assets/images/splash_icon.png',
+    resizeMode: 'contain',
+    backgroundColor: '#0D0D0D',
+  },
+  ios: {
+    supportsTablet: false,
+    bundleIdentifier: 'app.rork.abz-macro-tracker',
+    buildNumber: '2',
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
     },
-  };
-};
+  },
+  android: {
+    adaptiveIcon: {
+      foregroundImage: './assets/images/adaptive-icon.png',
+      backgroundColor: '#ffffff',
+    },
+    package: 'app.rork.abz_macro_tracker',
+    versionCode: 2,
+  },
+  web: {
+    favicon: './assets/images/favicon.png',
+  },
+  plugins: [
+    ['expo-router', { origin: 'https://rork.com/' }],
+    'expo-font',
+    'expo-web-browser',
+    ['expo-camera', { cameraPermission: 'Allow $(PRODUCT_NAME) to scan barcodes' }],
+    'expo-sqlite',
+  ],
+  experiments: {
+    typedRoutes: true,
+  },
+  extra: {
+    router: { origin: 'https://rork.com/' },
+    eas: { projectId: 'd62f829f-f2e7-4bd9-9e05-12c2ca4f727f' },
+    USDA_API_KEY: process.env.USDA_API_KEY ?? process.env.EXPO_PUBLIC_USDA_API_KEY ?? '',
+    USDA_BASE_URL: process.env.USDA_BASE_URL ?? DEFAULT_USDA_BASE_URL,
+  },
+});

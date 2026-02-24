@@ -4,7 +4,10 @@ import Svg, { Path } from 'react-native-svg';
 import Colors from '../../constants/colors';
 import { formatNumber } from '../../utils/formatNumber';
 
-const TRACK_COLOR = 'rgba(255,255,255,0.06)';
+const TRACK_COLOR = 'rgba(255,255,255,0.14)';
+const DASH_COUNT = 20;
+const GAP_RATIO = 0.44;
+const DASH_RATIO = 0.56;
 
 function polarToCartesian(cx: number, cy: number, r: number, deg: number) {
   const rad = (deg * Math.PI) / 180;
@@ -60,23 +63,28 @@ export default function MacroRing({
   const r = size / 2 - strokeWidth / 2;
 
   const topArcPath = useMemo(() => describeArc(cx, cy, r, 180, 360, true), [cx, cy, r]);
-  const bottomArcPath = useMemo(() => describeArc(cx, cy, r, 0, 180, true), [cx, cy, r]);
-  const progressArcPath = useMemo(() => {
-    const endDeg = 0 + 180 * displayProgress;
-    return endDeg > 0 ? describeArc(cx, cy, r, 0, endDeg, true) : '';
-  }, [cx, cy, r, displayProgress]);
+
+  // Bottom half: radial dash segments (matches calorie dial)
+  const bottomDashPaths = useMemo(() => {
+    const paths: { path: string; index: number }[] = [];
+    const totalDeg = 180;
+    const gapSpan =
+      totalDeg / ((DASH_COUNT + 1) + DASH_COUNT * (DASH_RATIO / GAP_RATIO));
+    const dashSpan = gapSpan * (DASH_RATIO / GAP_RATIO);
+    for (let i = 0; i < DASH_COUNT; i++) {
+      const startDeg = gapSpan + i * (dashSpan + gapSpan);
+      const endDeg = startDeg + dashSpan;
+      paths.push({
+        path: describeArc(cx, cy, r, startDeg, endDeg, true),
+        index: i,
+      });
+    }
+    return paths;
+  }, [cx, cy, r]);
 
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
-        {/* Bottom half: grey track (always visible) */}
-        <Path
-          d={bottomArcPath}
-          stroke={TRACK_COLOR}
-          strokeWidth={strokeWidth}
-          strokeLinecap="butt"
-          fill="none"
-        />
         {/* Top half: locked, always visible in macro color */}
         <Path
           d={topArcPath}
@@ -85,16 +93,32 @@ export default function MacroRing({
           strokeLinecap="butt"
           fill="none"
         />
-        {/* Bottom half: progress fills clockwise from upper arc (0° → 90° → 180°) */}
-        {progressArcPath ? (
+        {/* Bottom half: inactive dash segments (matches calorie dial) */}
+        {bottomDashPaths.map(({ path, index }) => (
           <Path
-            d={progressArcPath}
-            stroke={color}
+            key={`inactive-${index}`}
+            d={path}
+            stroke={TRACK_COLOR}
             strokeWidth={strokeWidth}
             strokeLinecap="butt"
             fill="none"
           />
-        ) : null}
+        ))}
+        {/* Bottom half: active dashes (fill clockwise as progress increases) */}
+        {bottomDashPaths.map(({ path, index }) => {
+          const threshold = (index + 1) / DASH_COUNT;
+          const isActive = displayProgress >= threshold;
+          return isActive ? (
+            <Path
+              key={`active-${index}`}
+              d={path}
+              stroke={color}
+              strokeWidth={strokeWidth}
+              strokeLinecap="butt"
+              fill="none"
+            />
+          ) : null;
+        })}
       </Svg>
     </View>
   );
