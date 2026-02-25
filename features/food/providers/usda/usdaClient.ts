@@ -1,7 +1,6 @@
-import { USDA_API_KEY, USDA_BASE_URL } from '../../../../config/env';
+import { getUsdaApiKey, getUsdaBaseUrl } from '../../../../config/env';
 
-const isDev =
-  typeof global !== 'undefined' && (global as any).__DEV__ === true;
+const USDA_TIMEOUT_MS = 12000;
 
 export interface USDASearchResponse {
   foods: USDASearchFood[];
@@ -63,10 +62,23 @@ export class USDARequestError extends Error {
   constructor(
     public status: number,
     message: string,
-    public isRateLimit: boolean = false
+    public isRateLimit: boolean = false,
+    public code?: string
   ) {
     super(message);
     this.name = 'USDARequestError';
+  }
+}
+
+async function withTimeout<T>(ms: number, promise: Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+
+  try {
+    // fetch doesn't use AbortController from the promise - we pass it at call site
+    return await promise;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -74,94 +86,180 @@ export async function searchFoods(
   query: string,
   pageSize: number = 10
 ): Promise<USDASearchResponse> {
-  if (!USDA_API_KEY) {
-    if (isDev) {
-      console.log('[usdaClient] hasApiKey: false');
-    }
-    throw new USDARequestError(0, 'USDA API key not configured');
+  const apiKey = getUsdaApiKey();
+  const baseUrl = getUsdaBaseUrl();
+
+  if (!apiKey) {
+    console.log('[USDA] Search failed: USDA_API_KEY_MISSING');
+    throw new USDARequestError(0, 'USDA API key not configured', false, 'USDA_API_KEY_MISSING');
   }
 
-  const url = `${USDA_BASE_URL}/foods/search`;
-  if (isDev) {
-    console.log('[usdaClient] hasApiKey: true');
-    console.log('[usdaClient] request URL:', url, '(key omitted)');
+  const url = `${baseUrl}/foods/search`;
+  if (__DEV__) {
+    console.log('[USDA] Search request:', url, '(key omitted)');
   }
 
-  if (!url.startsWith('https://') || USDA_BASE_URL.includes('localhost')) {
-    throw new USDARequestError(0, 'Invalid USDA endpoint');
+  if (!baseUrl.startsWith('https://') || baseUrl.includes('localhost')) {
+    throw new USDARequestError(0, 'Invalid USDA endpoint', false, 'INVALID_ENDPOINT');
   }
 
-  const response = await fetch(
-    `${USDA_BASE_URL}/foods/search?api_key=${USDA_API_KEY}`,
-    {
+  const fullUrl = `${baseUrl}/foods/search?api_key=${encodeURIComponent(apiKey)}`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), USDA_TIMEOUT_MS);
+
+    const response = await fetch(fullUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         query,
         pageSize,
         pageNumber: 1,
         dataType: ALLOWED_DATA_TYPES,
       }),
-    }
-  );
+      signal: controller.signal,
+    });
 
-  if (isDev) {
-    console.log('[usdaClient] response status:', response.status);
-  }
+    clearTimeout(timeout);
 
-  if (!response.ok) {
     const text = await response.text().catch(() => '');
-    if (isDev) {
-      console.log('[usdaClient] error body snippet:', text.slice(0, 200));
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch (e) {
+      // ignore parse error
     }
-    if (response.status === 429) {
-      throw new USDARequestError(429, 'Rate limit exceeded', true);
+
+    if (!response.ok) {
+      const msg = json?.message ?? json?.error ?? text || `HTTP_${response.status}`;
+      console.log('[USDA] Search failed', {
+        status: response.status,
+        query,
+        message: msg,
+      });
+      if (response.status === 429) {
+        throw new USDARequestError(429, 'Rate limit exceeded', true, 'RATE_LIMIT');
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new USDARequestError(response.status, 'API key rejected', false, 'API_KEY_REJECTED');
+      }
+      throw new USDARequestError(response.status, `USDA_HTTP_ERROR_${response.status}: ${msg}`, false);
     }
-    throw new USDARequestError(
-      response.status,
-      `USDA search failed: ${response.status}`
+
+    const data: USDASearchResponse = json ?? { foods: [], totalHits: 0 };
+    const filtered = (data.foods ?? []).filter(
+      (f) => !f.brandOwner && ALLOWED_DATA_TYPES.includes(f.dataType)
     );
-  }
+    const ranked = rankFoods(filtered);
 
-  const data: USDASearchResponse = await response.json();
-  const filtered = (data.foods ?? []).filter(
-    (f) => !f.brandOwner && ALLOWED_DATA_TYPES.includes(f.dataType)
-  );
-  const ranked = rankFoods(filtered);
-
-  if (isDev) {
-    console.log('[usdaClient] Search returned', ranked.length, 'generic results');
+    if (__DEV__) {
+      console.log('[USDA] Search returned', ranked.length, 'generic results');
+    }
+    return { ...data, foods: ranked, totalHits: ranked.length };
+  } catch (err: any) {
+    const isAbort = err?.name === 'AbortError';
+    const message = isAbort ? 'Request timeout' : err?.message ?? 'Unknown error';
+    console.log('[USDA] Search failed', {
+      query,
+      message,
+      name: err?.name,
+      stack: err?.stack?.slice(0, 200),
+    });
+    if (isAbort) {
+      throw new USDARequestError(0, 'Network issue reaching USDA API (timeout)', false, 'NETWORK_TIMEOUT');
+    }
+    throw err;
   }
-  return { ...data, foods: ranked, totalHits: ranked.length };
 }
 
 export async function getFoodDetail(fdcId: string): Promise<USDAFoodDetail> {
-  if (!USDA_API_KEY) {
-    throw new USDARequestError(0, 'USDA API key not configured');
+  const apiKey = getUsdaApiKey();
+  const baseUrl = getUsdaBaseUrl();
+
+  if (!apiKey) {
+    throw new USDARequestError(0, 'USDA API key not configured', false, 'USDA_API_KEY_MISSING');
   }
 
-  if (isDev) {
-    console.log('[usdaClient] Getting details for fdcId:', fdcId);
+  if (__DEV__) {
+    console.log('[USDA] Getting details for fdcId:', fdcId);
   }
 
-  const response = await fetch(
-    `${USDA_BASE_URL}/food/${fdcId}?api_key=${USDA_API_KEY}`
-  );
+  const url = `${baseUrl}/food/${fdcId}?api_key=${encodeURIComponent(apiKey)}`;
 
-  if (!response.ok) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), USDA_TIMEOUT_MS);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
     const text = await response.text().catch(() => '');
-    if (isDev) {
-      console.log('[usdaClient] Detail failed:', response.status, text.slice(0, 200));
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch (e) {
+      // ignore
     }
-    if (response.status === 429) {
-      throw new USDARequestError(429, 'Rate limit exceeded', true);
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new USDARequestError(429, 'Rate limit exceeded', true, 'RATE_LIMIT');
+      }
+      throw new USDARequestError(response.status, `USDA detail failed: ${response.status}`);
     }
-    throw new USDARequestError(response.status, `USDA detail failed: ${response.status}`);
+
+    if (__DEV__) {
+      console.log('[USDA] Detail returned for:', json?.description);
+    }
+    return json;
+  } catch (err: any) {
+    if (err instanceof USDARequestError) throw err;
+    if (err?.name === 'AbortError') {
+      throw new USDARequestError(0, 'Network issue reaching USDA API (timeout)', false, 'NETWORK_TIMEOUT');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Dev-only health check for USDA API connectivity.
+ */
+export async function usdaHealthCheck(): Promise<{
+  ok: boolean;
+  error?: string;
+  status?: number;
+  keySuffix?: string;
+}> {
+  const apiKey = getUsdaApiKey();
+  if (!apiKey) {
+    return { ok: false, error: 'USDA_API_KEY_MISSING' };
   }
 
-  const data = await response.json();
-  if (isDev) {
-    console.log('[usdaClient] Detail returned for:', data.description);
+  const baseUrl = getUsdaBaseUrl();
+  const url = `${baseUrl}/foods/search?api_key=${encodeURIComponent(apiKey)}`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ query: 'egg', pageSize: 1, pageNumber: 1 }),
+    });
+    return {
+      ok: res.ok,
+      status: res.status,
+      keySuffix: apiKey.length >= 4 ? `...${apiKey.slice(-4)}` : undefined,
+    };
+  } catch (err: any) {
+    return {
+      ok: false,
+      error: err?.message ?? 'Unknown error',
+      keySuffix: apiKey.length >= 4 ? `...${apiKey.slice(-4)}` : undefined,
+    };
   }
-  return data;
 }

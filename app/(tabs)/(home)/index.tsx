@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -14,6 +15,7 @@ import { Flame, Trash2, Ruler, X } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
+import { scale } from '../../../utils/responsive';
 import { getGreeting, getProgressLevel } from '../../../utils/greeting';
 import { useStaggerFadeIn } from '../../../utils/motion';
 import { useUser } from '../../../providers/UserProvider';
@@ -28,8 +30,18 @@ import CalorieGauge from '../../../components/ui/CalorieGauge';
 import { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
 
+const { width: screenWidth } = Dimensions.get('window');
+
 export default function DashboardScreen() {
   const { profile, macros, isLoading: userLoading } = useUser();
+
+  const calorieDialLayout = useMemo(() => {
+    const dialSize = Math.min(screenWidth * 0.55, 260);
+    const strokeWidth = Math.round(dialSize * 0.078);
+    const calorieFontSize = Math.min(scale(42), 48);
+    const labelFontSize = Math.min(scale(14), 16);
+    return { dialSize, strokeWidth, calorieFontSize, labelFontSize };
+  }, []);
   const { todayEntries, todayTotals, removeEntry, getStreak } = useDailyLog();
   const { showPrompt, hasBaseline, dismissPrompt } = useMeasurements();
   const streak = getStreak();
@@ -107,17 +119,37 @@ export default function DashboardScreen() {
         {/* Calorie Hero */}
         <Animated.View style={{ opacity: stagger[1], transform: [{ translateY: stagger[1].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
           <PremiumCard style={styles.calorieCard} variant="hero">
-            <View style={styles.calorieRingSection}>
+            <View style={[styles.calorieRingSection, { width: calorieDialLayout.dialSize, height: calorieDialLayout.dialSize }]}>
               <CalorieGauge
                 consumed={todayTotals.calories}
                 target={macros.calories}
                 color={Colors.primary}
-                size={128}
-                strokeWidth={10}
+                size={calorieDialLayout.dialSize}
+                strokeWidth={calorieDialLayout.strokeWidth}
               />
-              <View style={styles.calorieCenter}>
-                <Text style={styles.calorieNumber}>{formatNumber(caloriesRemaining)}</Text>
-                <Text style={styles.calorieLabel}>cal left</Text>
+              <View style={[styles.calorieCenter, { transform: [{ translateY: -4 }] }]}>
+                <Text
+                  style={[
+                    styles.calorieNumber,
+                    {
+                      fontSize: calorieDialLayout.calorieFontSize,
+                      lineHeight: calorieDialLayout.calorieFontSize * 1.1,
+                    },
+                  ]}
+                >
+                  {formatNumber(caloriesRemaining)}
+                </Text>
+                <Text
+                  style={[
+                    styles.calorieLabel,
+                    {
+                      fontSize: calorieDialLayout.labelFontSize,
+                      marginTop: 2,
+                    },
+                  ]}
+                >
+                  cal left
+                </Text>
               </View>
             </View>
             <View style={styles.calorieInfo}>
@@ -292,17 +324,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   calorieCenter: {
-    position: 'absolute',
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   calorieNumber: {
-    fontSize: 28,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
     color: Colors.text,
+    textAlign: 'center' as const,
   },
   calorieLabel: {
-    fontSize: 12,
     color: Colors.textSecondary,
+    textAlign: 'center' as const,
     fontWeight: '500' as const,
   },
   calorieInfo: {

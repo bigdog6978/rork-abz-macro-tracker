@@ -1,5 +1,5 @@
 import { NormalizedFood } from './types';
-import { USDA_API_KEY } from '../../config/env';
+import { getUsdaApiKey } from '../../config/env';
 import * as usdaClient from './providers/usda/usdaClient';
 import { normalizeSearchResult, normalizeDetailResult } from './providers/usda/usdaNormalizer';
 import * as foodRepo from '../../storage/foodRepo';
@@ -17,7 +17,7 @@ const SEARCH_PAGE_SIZE = 50;
 export type SearchResult =
   | { status: 'ok'; results: NormalizedFood[] }
   | { status: 'empty'; results: [] }
-  | { status: 'error' }
+  | { status: 'error'; errorCode?: string }
   | { status: 'rate_limited' };
 
 function generateId(): string {
@@ -38,7 +38,7 @@ export function computeMacrosForServing(
 }
 
 export function isApiAvailable(): boolean {
-  return !!USDA_API_KEY;
+  return !!getUsdaApiKey();
 }
 
 function toFoodItem(f: NormalizedFood): FoodItem {
@@ -106,7 +106,7 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
     // SQLite may not be ready
   }
 
-  if (!USDA_API_KEY) {
+  if (!getUsdaApiKey()) {
     if (localResults.length > 0) {
       const items = localResults.map(toFoodItem);
       const statsMap = await getFoodStatsMap();
@@ -115,7 +115,7 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
       const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
       return { status: 'ok', results: reordered };
     }
-    return { status: 'error' };
+    return { status: 'error', errorCode: 'USDA_API_KEY_MISSING' };
   }
 
   try {
@@ -153,6 +153,8 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
     }
     return { status: 'empty', results: [] };
   } catch (err) {
+    const errorCode =
+      err instanceof usdaClient.USDARequestError ? err.code : undefined;
     if (err instanceof usdaClient.USDARequestError && err.isRateLimit) {
       if (localResults.length > 0) {
         const items = localResults.map(toFoodItem);
@@ -172,7 +174,7 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
       const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
       return { status: 'ok', results: reordered };
     }
-    return { status: 'error' };
+    return { status: 'error', errorCode: errorCode ?? 'UNKNOWN' };
   }
 }
 
@@ -308,6 +310,8 @@ export function createManualNormalizedFood(
     updatedAt: new Date().toISOString(),
   };
 }
+
+export { usdaHealthCheck } from './providers/usda/usdaClient';
 
 export async function getRecentFoodsList(): Promise<
   { food: NormalizedFood; lastServingGrams: number }[]

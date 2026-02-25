@@ -10,7 +10,6 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  Animated,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -41,6 +40,28 @@ const UNIT_OPTIONS: { label: string; value: ServingUnit }[] = [
 const COUNT_FOOD_PATTERN =
   /\b(egg|eggs|date|dates|banana|bananas|apple|apples|slice|slices|piece|pieces|bar|bars|scoop|scoops|wrap|wraps|patty|patties|muffin|muffins|bagel|bagels|roll|rolls|cookie|cookies|biscuit|biscuits)\b/i;
 
+function getSearchErrorMessage(
+  searchStatus: string,
+  errorCode?: string
+): string {
+  if (searchStatus === 'rate_limited') {
+    return 'Search temporarily rate-limited. Try again in a minute.';
+  }
+  if (searchStatus === 'error') {
+    switch (errorCode) {
+      case 'USDA_API_KEY_MISSING':
+        return 'USDA key not configured for this build. You can still enter macros manually.';
+      case 'API_KEY_REJECTED':
+        return 'API key rejected. Check your USDA FoodData Central key.';
+      case 'NETWORK_TIMEOUT':
+        return 'Network issue reaching USDA API. Check your connection.';
+      default:
+        return 'Search unavailable. You can still enter macros manually.';
+    }
+  }
+  return 'No results found';
+}
+
 function gramsToDisplay(grams: number, unit: ServingUnit): string {
   if (unit === 'oz') {
     return String(Math.round((grams / OZ_TO_GRAMS) * 10) / 10);
@@ -66,6 +87,7 @@ export default function AddFoodScreen() {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<NormalizedFood[]>([]);
   const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'error' | 'rate_limited'>('idle');
+  const [searchErrorCode, setSearchErrorCode] = useState<string | undefined>();
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<NormalizedFood | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -93,15 +115,6 @@ export default function AddFoodScreen() {
   } | null>(null);
 
   const apiAvailable = useMemo(() => foodService.isApiAvailable(), []);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [fadeAnim]);
 
   useEffect(() => {
     foodService
@@ -190,19 +203,24 @@ export default function AddFoodScreen() {
           if (result.status === 'ok') {
             setSuggestions(result.results);
             setSearchStatus('idle');
+            setSearchErrorCode(undefined);
           } else if (result.status === 'empty') {
             setSuggestions([]);
             setSearchStatus('idle');
+            setSearchErrorCode(undefined);
           } else if (result.status === 'rate_limited') {
             setSuggestions([]);
             setSearchStatus('rate_limited');
+            setSearchErrorCode(undefined);
           } else {
             setSuggestions([]);
             setSearchStatus('error');
+            setSearchErrorCode(result.status === 'error' ? result.errorCode : undefined);
           }
         } catch {
           setSuggestions([]);
           setSearchStatus('error');
+          setSearchErrorCode('UNKNOWN');
         } finally {
           setIsSearching(false);
         }
@@ -392,10 +410,7 @@ export default function AddFoodScreen() {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.container}>
       <Stack.Screen
         options={{
           headerLeft: () => (
@@ -423,8 +438,12 @@ export default function AddFoodScreen() {
           ),
         }}
       />
-      <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'height' : undefined}
+      >
         <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -465,7 +484,7 @@ export default function AddFoodScreen() {
             {!apiAvailable && (
               <View style={styles.apiNotice}>
                 <Text style={styles.apiNoticeText}>
-                  Search unavailable. You can still enter macros manually.
+                  USDA key not configured for this build. You can still enter macros manually.
                 </Text>
               </View>
             )}
@@ -528,11 +547,7 @@ export default function AddFoodScreen() {
             suggestions.length === 0 && (
               <View style={styles.noResults}>
                 <Text style={styles.noResultsText}>
-                  {searchStatus === 'rate_limited'
-                    ? 'Search temporarily rate-limited. Try again in a minute.'
-                    : searchStatus === 'error'
-                      ? 'Search unavailable. You can still enter macros manually.'
-                      : 'No results found'}
+                  {getSearchErrorMessage(searchStatus, searchErrorCode)}
                 </Text>
                 <TouchableOpacity
                   style={styles.manualFallback}
@@ -746,8 +761,8 @@ export default function AddFoodScreen() {
               </View>
             )}
         </ScrollView>
-      </Animated.View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -759,7 +774,11 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
+    flexGrow: 1,
     padding: 16,
     paddingBottom: 40,
   },

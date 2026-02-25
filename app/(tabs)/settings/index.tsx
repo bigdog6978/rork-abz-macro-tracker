@@ -19,6 +19,7 @@ import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
 import { PromptCadence, CADENCE_LABELS } from '../../../features/progress/types';
+import * as foodService from '../../../features/food/foodService';
 import {
   ACTIVITY_LABELS,
   GOAL_LABELS,
@@ -48,6 +49,12 @@ export default function SettingsScreen() {
   const { promptSettings, updateCadence, records } = useMeasurements();
   const router = useRouter();
   const [editMode, setEditMode] = useState<EditMode>('none');
+  const [usdaHealth, setUsdaHealth] = useState<{
+    ok: boolean;
+    error?: string;
+    status?: number;
+    keySuffix?: string;
+  } | null>(null);
 
   const [age, setAge] = useState(profile.age.toString());
   const [sex, setSex] = useState<Sex>(profile.sex);
@@ -124,6 +131,12 @@ export default function SettingsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }, [macroStrategy, dietaryModifiers, updateProfile]);
+
+  const handleUsdaHealthCheck = useCallback(async () => {
+    setUsdaHealth(null);
+    const result = await foodService.usdaHealthCheck();
+    setUsdaHealth(result);
+  }, []);
 
   const handleResetData = useCallback(() => {
     Alert.alert(
@@ -562,6 +575,32 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {__DEV__ && (
+          <View style={styles.devSection}>
+            <Text style={styles.devSectionTitle}>Developer</Text>
+            <TouchableOpacity
+              style={styles.devRow}
+              onPress={handleUsdaHealthCheck}
+              activeOpacity={0.7}
+            >
+              <RefreshCw size={16} color={Colors.primary} />
+              <Text style={styles.devRowText}>USDA Health Check</Text>
+            </TouchableOpacity>
+            {usdaHealth && (
+              <View style={styles.devResult}>
+                <Text style={styles.devResultText}>
+                  {usdaHealth.ok
+                    ? `OK (status ${usdaHealth.status})`
+                    : `Error: ${usdaHealth.error ?? usdaHealth.status ?? 'unknown'}`}
+                </Text>
+                {usdaHealth.keySuffix && (
+                  <Text style={styles.devResultText}>Key: {usdaHealth.keySuffix}</Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
         <View style={styles.footer}>
           <View style={styles.footerRow}>
             <Shield size={14} color={Colors.textTertiary} />
@@ -774,6 +813,47 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     fontSize: 15,
     fontWeight: '600' as const,
+  },
+  devSection: {
+    marginBottom: Spacing.xl,
+  },
+  devSectionTitle: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  devRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  devRowText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  devResult: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: Colors.cardElevated,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  devResultText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   footer: {
     alignItems: 'center',
