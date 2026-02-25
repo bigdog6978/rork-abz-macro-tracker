@@ -606,7 +606,7 @@ export default function SettingsScreen() {
             <Shield size={14} color={Colors.textTertiary} />
             <Text style={styles.footerText}>For general fitness guidance only</Text>
           </View>
-          <Text style={styles.footerVersion}>Physiq v1.0.3</Text>
+          <Text style={styles.footerVersion}>Physiq v1.0.4</Text>
         </View>
       </ScrollView>
     </View>

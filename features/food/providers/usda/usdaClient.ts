@@ -132,7 +132,7 @@ export async function searchFoods(
     }
 
     if (!response.ok) {
-      const msg = json?.message ?? json?.error ?? text || `HTTP_${response.status}`;
+      const msg = json?.message ?? json?.error ?? (text || `HTTP_${response.status}`);
       console.log('[USDA] Search failed', {
         status: response.status,
         query,
