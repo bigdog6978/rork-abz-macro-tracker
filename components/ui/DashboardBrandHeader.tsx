@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
-import { Zap } from 'lucide-react-native';
+import { Flame } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 
 const GRADIENT_COLORS = ['#FFC44D', '#FF6A1A', '#D84315'] as const;
@@ -29,11 +29,11 @@ export default function DashboardBrandHeader() {
             </Text>
           </LinearGradient>
         </MaskedView>
-        <View style={styles.zapWrapper}>
+        <View style={styles.iconWrapper}>
           <MaskedView
             maskElement={
-              <View style={styles.zapMask}>
-                <Zap size={18} color="black" fill="black" strokeWidth={0} />
+              <View style={styles.iconMask}>
+                <Flame size={22} color="black" fill="black" strokeWidth={0} />
               </View>
             }
           >
@@ -41,9 +41,9 @@ export default function DashboardBrandHeader() {
               colors={[...GRADIENT_COLORS]}
               start={{ x: 0.5, y: 0 }}
               end={{ x: 0.5, y: 1 }}
-              style={styles.zapGradient}
+              style={styles.iconGradient}
             >
-              <View style={styles.zapGradientInvisible} />
+              <View style={styles.iconGradientInvisible} />
             </LinearGradient>
           </MaskedView>
         </View>
@@ -76,25 +76,25 @@ const styles = StyleSheet.create({
   gradientFill: {
     paddingVertical: 2,
   },
-  zapWrapper: {
-    marginTop: 2,
+  iconWrapper: {
+    marginTop: -4,
   },
-  zapMask: {
-    width: 18,
-    height: 18,
+  iconMask: {
+    width: 22,
+    height: 22,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
-  zapGradient: {
-    width: 18,
-    height: 18,
+  iconGradient: {
+    width: 22,
+    height: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  zapGradientInvisible: {
-    width: 18,
-    height: 18,
+  iconGradientInvisible: {
+    width: 22,
+    height: 22,
     opacity: 0,
   },
   divider: {
