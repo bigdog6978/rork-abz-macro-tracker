@@ -110,7 +110,7 @@ In App Store Connect:
 2. **Pricing** — Free or paid
 3. **App Privacy** — Privacy nutrition labels (data collection, etc.)
 4. **Screenshots** — Required sizes (e.g. 6.7", 6.5", 5.5" iPhone)
-5. **Version** — Match `version` in `app.config.ts` (currently `1.0.6`)
+5. **Version** — Match `version` in `app.config.ts` (currently `1.1.0`)
 6. **Build** — Select the build you submitted
 7. **Submit for Review**
 

@@ -17,7 +17,7 @@ const SEARCH_PAGE_SIZE = 50;
 export type SearchResult =
   | { status: 'ok'; results: NormalizedFood[] }
   | { status: 'empty'; results: [] }
-  | { status: 'error'; errorCode?: string }
+  | { status: 'error'; errorCode?: string; errorDetail?: string }
   | { status: 'rate_limited' };
 
 function generateId(): string {
@@ -153,9 +153,10 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
     }
     return { status: 'empty', results: [] };
   } catch (err) {
-    const errorCode =
-      err instanceof usdaClient.USDARequestError ? err.code : undefined;
-    if (err instanceof usdaClient.USDARequestError && err.isRateLimit) {
+    const usdaErr = err instanceof usdaClient.USDARequestError ? err : null;
+    const errorCode = usdaErr?.code;
+    const errorDetail = usdaErr?.usdaMessage;
+    if (usdaErr?.isRateLimit) {
       if (localResults.length > 0) {
         const items = localResults.map(toFoodItem);
         const statsMap = await getFoodStatsMap();
@@ -174,7 +175,7 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
       const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
       return { status: 'ok', results: reordered };
     }
-    return { status: 'error', errorCode: errorCode ?? 'UNKNOWN' };
+    return { status: 'error', errorCode: errorCode ?? 'UNKNOWN', errorDetail };
   }
 }
 

@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   Platform,
+  InteractionManager,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell } from 'lucide-react-native';
@@ -54,6 +55,10 @@ export default function SettingsScreen() {
     error?: string;
     status?: number;
     keySuffix?: string;
+    keyLength?: number;
+    usdaMessage?: string;
+    source?: string;
+    baseUrl?: string;
   } | null>(null);
 
   const [age, setAge] = useState(profile.age.toString());
@@ -132,10 +137,30 @@ export default function SettingsScreen() {
     }
   }, [macroStrategy, dietaryModifiers, updateProfile]);
 
-  const handleUsdaHealthCheck = useCallback(async () => {
+  const handleUsdaHealthCheck = useCallback(() => {
     setUsdaHealth(null);
-    const result = await foodService.usdaHealthCheck();
-    setUsdaHealth(result);
+    InteractionManager.runAfterInteractions(() => {
+      foodService
+        .usdaHealthCheck()
+        .then((result) => {
+          setUsdaHealth({
+            ok: Boolean(result.ok),
+            error: typeof result.error === 'string' ? result.error : undefined,
+            status: typeof result.status === 'number' ? result.status : undefined,
+            keySuffix: typeof result.keySuffix === 'string' ? result.keySuffix : undefined,
+            keyLength: typeof result.keyLength === 'number' ? result.keyLength : undefined,
+            usdaMessage: typeof result.usdaMessage === 'string' ? result.usdaMessage : undefined,
+            source: typeof result.source === 'string' ? result.source : undefined,
+            baseUrl: typeof result.baseUrl === 'string' ? result.baseUrl : undefined,
+          });
+        })
+        .catch((err: any) => {
+          setUsdaHealth({
+            ok: false,
+            error: err?.message ?? 'Unexpected error during verification',
+          });
+        });
+    });
   }, []);
 
   const handleResetData = useCallback(() => {
@@ -593,7 +618,17 @@ export default function SettingsScreen() {
                   : `Error: ${usdaHealth.error ?? usdaHealth.status ?? 'unknown'}`}
               </Text>
               {usdaHealth.keySuffix && (
-                <Text style={styles.devResultText}>Key ends with: {usdaHealth.keySuffix}</Text>
+                <Text style={styles.devResultText}>Key: {usdaHealth.keySuffix} (len: {usdaHealth.keyLength ?? '?'})</Text>
+              )}
+              {usdaHealth.usdaMessage && (
+                <Text style={[styles.devResultText, { marginTop: 4 }]} numberOfLines={3}>
+                  USDA: {usdaHealth.usdaMessage}
+                </Text>
+              )}
+              {(usdaHealth.source || usdaHealth.baseUrl) && (
+                <Text style={[styles.devResultText, { marginTop: 4 }]}>
+                  {[usdaHealth.source && `source: ${usdaHealth.source}`, usdaHealth.baseUrl && `baseUrl: ${usdaHealth.baseUrl}`].filter(Boolean).join(' · ')}
+                </Text>
               )}
             </View>
           )}
@@ -604,7 +639,7 @@ export default function SettingsScreen() {
             <Shield size={14} color={Colors.textTertiary} />
             <Text style={styles.footerText}>For general fitness guidance only</Text>
           </View>
-          <Text style={styles.footerVersion}>Physiq v1.0.6</Text>
+          <Text style={styles.footerVersion}>Physiq v1.1.0</Text>
         </View>
       </ScrollView>
     </View>

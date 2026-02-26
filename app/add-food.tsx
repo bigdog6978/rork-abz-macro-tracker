@@ -42,22 +42,40 @@ const COUNT_FOOD_PATTERN =
 
 function getSearchErrorMessage(
   searchStatus: string,
-  errorCode?: string
+  errorCode?: string,
+  errorDetail?: string
 ): string {
   if (searchStatus === 'rate_limited') {
     return 'Search temporarily rate-limited. Try again in a minute.';
   }
   if (searchStatus === 'error') {
+    let msg: string;
     switch (errorCode) {
       case 'USDA_API_KEY_MISSING':
-        return 'USDA key not configured for this build. You can still enter macros manually.';
+        msg = 'USDA key not configured for this build. You can still enter macros manually.';
+        break;
       case 'API_KEY_REJECTED':
-        return 'API key rejected. Check your USDA FoodData Central key.';
+        msg = 'API key rejected. Check your USDA FoodData Central key.';
+        break;
       case 'NETWORK_TIMEOUT':
-        return 'Network issue reaching USDA API. Check your connection.';
+        msg = 'Network issue reaching USDA API. Check your connection.';
+        break;
+      case 'NETWORK_ERROR':
+        msg = 'Network error reaching USDA API. Check your connection.';
+        break;
+      case 'INVALID_ENDPOINT':
+        msg = 'Invalid USDA API configuration.';
+        break;
+      case 'RATE_LIMIT':
+        msg = 'Search temporarily rate-limited. Try again in a minute.';
+        break;
       default:
-        return 'Search unavailable. You can still enter macros manually.';
+        msg = 'Search unavailable. You can still enter macros manually.';
     }
+    if (errorDetail && errorDetail.length > 0 && errorDetail.length < 150) {
+      return `${msg} (USDA: ${errorDetail})`;
+    }
+    return msg;
   }
   return 'No results found';
 }
@@ -88,6 +106,7 @@ export default function AddFoodScreen() {
   const [suggestions, setSuggestions] = useState<NormalizedFood[]>([]);
   const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'error' | 'rate_limited'>('idle');
   const [searchErrorCode, setSearchErrorCode] = useState<string | undefined>();
+  const [searchErrorDetail, setSearchErrorDetail] = useState<string | undefined>();
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<NormalizedFood | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -204,23 +223,28 @@ export default function AddFoodScreen() {
             setSuggestions(result.results);
             setSearchStatus('idle');
             setSearchErrorCode(undefined);
+            setSearchErrorDetail(undefined);
           } else if (result.status === 'empty') {
             setSuggestions([]);
             setSearchStatus('idle');
             setSearchErrorCode(undefined);
+            setSearchErrorDetail(undefined);
           } else if (result.status === 'rate_limited') {
             setSuggestions([]);
             setSearchStatus('rate_limited');
             setSearchErrorCode(undefined);
+            setSearchErrorDetail(undefined);
           } else {
             setSuggestions([]);
             setSearchStatus('error');
             setSearchErrorCode(result.status === 'error' ? result.errorCode : undefined);
+            setSearchErrorDetail(result.status === 'error' ? result.errorDetail : undefined);
           }
         } catch {
           setSuggestions([]);
           setSearchStatus('error');
           setSearchErrorCode('UNKNOWN');
+          setSearchErrorDetail(undefined);
         } finally {
           setIsSearching(false);
         }
@@ -553,7 +577,7 @@ export default function AddFoodScreen() {
             suggestions.length === 0 && (
               <View style={styles.noResults}>
                 <Text style={styles.noResultsText}>
-                  {getSearchErrorMessage(searchStatus, searchErrorCode)}
+                  {getSearchErrorMessage(searchStatus, searchErrorCode, searchErrorDetail)}
                 </Text>
                 <TouchableOpacity
                   style={styles.manualFallback}

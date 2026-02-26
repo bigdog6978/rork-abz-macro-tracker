@@ -5,7 +5,7 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.0.6',
+  version: '1.1.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
@@ -19,7 +19,7 @@ export default (): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'app.rork.abz-macro-tracker',
-    buildNumber: '6',
+    buildNumber: '10',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
@@ -30,7 +30,7 @@ export default (): ExpoConfig => ({
       backgroundColor: '#ffffff',
     },
     package: 'app.rork.abz_macro_tracker',
-    versionCode: 6,
+    versionCode: 10,
   },
   web: {
     favicon: './assets/images/favicon.png',
@@ -48,7 +48,9 @@ export default (): ExpoConfig => ({
   extra: {
     router: { origin: 'https://rork.com/' },
     eas: { projectId: 'd62f829f-f2e7-4bd9-9e05-12c2ca4f727f' },
+    EXPO_PUBLIC_USDA_API_KEY: process.env.EXPO_PUBLIC_USDA_API_KEY ?? process.env.USDA_API_KEY ?? '',
     USDA_API_KEY: process.env.USDA_API_KEY ?? process.env.EXPO_PUBLIC_USDA_API_KEY ?? '',
+    usda_api_key: process.env.usda_api_key ?? process.env.USDA_API_KEY ?? process.env.EXPO_PUBLIC_USDA_API_KEY ?? '',
     USDA_BASE_URL: process.env.USDA_BASE_URL ?? DEFAULT_USDA_BASE_URL,
   },
 });

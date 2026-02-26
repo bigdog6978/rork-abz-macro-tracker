@@ -1,6 +1,12 @@
-import { getUsdaApiKey, getUsdaBaseUrl } from '../../../../config/env';
+import { getUsdaApiKey, getUsdaBaseUrl, getUsdaDebugInfo } from '../../../../config/env';
 
 const USDA_TIMEOUT_MS = 12000;
+
+const USDA_HEADERS: Record<string, string> = {
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+  'User-Agent': 'PhysiqMacroTracker/1.1.0 (food tracking)',
+};
 
 export interface USDASearchResponse {
   foods: USDASearchFood[];
@@ -63,7 +69,8 @@ export class USDARequestError extends Error {
     public status: number,
     message: string,
     public isRateLimit: boolean = false,
-    public code?: string
+    public code?: string,
+    public usdaMessage?: string
   ) {
     super(message);
     this.name = 'USDARequestError';
@@ -111,7 +118,7 @@ export async function searchFoods(
 
     const response = await fetch(fullUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: USDA_HEADERS,
       body: JSON.stringify({
         query,
         pageSize,
@@ -139,12 +146,12 @@ export async function searchFoods(
         message: msg,
       });
       if (response.status === 429) {
-        throw new USDARequestError(429, 'Rate limit exceeded', true, 'RATE_LIMIT');
+        throw new USDARequestError(429, 'Rate limit exceeded', true, 'RATE_LIMIT', msg);
       }
       if (response.status === 401 || response.status === 403) {
-        throw new USDARequestError(response.status, 'API key rejected', false, 'API_KEY_REJECTED');
+        throw new USDARequestError(response.status, 'API key rejected', false, 'API_KEY_REJECTED', msg);
       }
-      throw new USDARequestError(response.status, `USDA_HTTP_ERROR_${response.status}: ${msg}`, false);
+      throw new USDARequestError(response.status, `USDA_HTTP_ERROR_${response.status}: ${msg}`, false, undefined, msg);
     }
 
     const data: USDASearchResponse = json ?? { foods: [], totalHits: 0 };
@@ -169,7 +176,7 @@ export async function searchFoods(
     if (isAbort) {
       throw new USDARequestError(0, 'Network issue reaching USDA API (timeout)', false, 'NETWORK_TIMEOUT');
     }
-    throw err;
+    throw new USDARequestError(0, `Network error: ${message}`, false, 'NETWORK_ERROR', message);
   }
 }
 
@@ -193,7 +200,7 @@ export async function getFoodDetail(fdcId: string): Promise<USDAFoodDetail> {
 
     const response = await fetch(url, {
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'User-Agent': USDA_HEADERS['User-Agent'] },
       signal: controller.signal,
     });
 
@@ -208,10 +215,14 @@ export async function getFoodDetail(fdcId: string): Promise<USDAFoodDetail> {
     }
 
     if (!response.ok) {
+      const msg = json?.message ?? json?.error ?? (text ? text.slice(0, 200) : `HTTP ${response.status}`);
       if (response.status === 429) {
-        throw new USDARequestError(429, 'Rate limit exceeded', true, 'RATE_LIMIT');
+        throw new USDARequestError(429, 'Rate limit exceeded', true, 'RATE_LIMIT', msg);
       }
-      throw new USDARequestError(response.status, `USDA detail failed: ${response.status}`);
+      if (response.status === 401 || response.status === 403) {
+        throw new USDARequestError(response.status, 'API key rejected', false, 'API_KEY_REJECTED', msg);
+      }
+      throw new USDARequestError(response.status, `USDA detail failed: ${response.status}`, false, undefined, msg);
     }
 
     if (__DEV__) {
@@ -223,22 +234,35 @@ export async function getFoodDetail(fdcId: string): Promise<USDAFoodDetail> {
     if (err?.name === 'AbortError') {
       throw new USDARequestError(0, 'Network issue reaching USDA API (timeout)', false, 'NETWORK_TIMEOUT');
     }
-    throw err;
+    const networkMsg = err?.message ?? 'Unknown error';
+    throw new USDARequestError(0, `Network error: ${networkMsg}`, false, 'NETWORK_ERROR', networkMsg);
   }
 }
 
 /**
- * Dev-only health check for USDA API connectivity.
+ * Health check for USDA API connectivity. Used in Settings for troubleshooting.
+ * Includes source and baseUrl for diagnosing device builds.
  */
 export async function usdaHealthCheck(): Promise<{
   ok: boolean;
   error?: string;
   status?: number;
   keySuffix?: string;
+  keyLength?: number;
+  usdaMessage?: string;
+  source?: string;
+  baseUrl?: string;
 }> {
   const apiKey = getUsdaApiKey();
+  const debug = getUsdaDebugInfo();
+
   if (!apiKey) {
-    return { ok: false, error: 'USDA_API_KEY_MISSING' };
+    return {
+      ok: false,
+      error: 'USDA_API_KEY_MISSING',
+      source: debug.source,
+      baseUrl: debug.baseUrl,
+    };
   }
 
   const baseUrl = getUsdaBaseUrl();
@@ -247,19 +271,36 @@ export async function usdaHealthCheck(): Promise<{
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: USDA_HEADERS,
       body: JSON.stringify({ query: 'egg', pageSize: 1, pageNumber: 1 }),
     });
+
+    const text = await res.text().catch(() => '');
+    let usdaMessage: string | undefined;
+    try {
+      const json = text ? JSON.parse(text) : null;
+      usdaMessage = json?.message ?? json?.error ?? (text ? text.slice(0, 120) : undefined);
+    } catch {
+      usdaMessage = text ? text.slice(0, 120) : undefined;
+    }
+
     return {
       ok: res.ok,
       status: res.status,
-      keySuffix: apiKey.length >= 4 ? `...${apiKey.slice(-4)}` : undefined,
+      keySuffix: debug.keySuffix,
+      keyLength: debug.keyLength,
+      usdaMessage: !res.ok ? usdaMessage : undefined,
+      source: debug.source,
+      baseUrl: debug.baseUrl,
     };
   } catch (err: any) {
     return {
       ok: false,
       error: err?.message ?? 'Unknown error',
-      keySuffix: apiKey.length >= 4 ? `...${apiKey.slice(-4)}` : undefined,
+      keySuffix: debug.keySuffix,
+      keyLength: debug.keyLength,
+      source: debug.source,
+      baseUrl: debug.baseUrl,
     };
   }
 }
