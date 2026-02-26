@@ -5,7 +5,7 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.0.4',
+  version: '1.0.5',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
@@ -19,7 +19,7 @@ export default (): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'app.rork.abz-macro-tracker',
-    buildNumber: '4',
+    buildNumber: '5',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
@@ -30,7 +30,7 @@ export default (): ExpoConfig => ({
       backgroundColor: '#ffffff',
     },
     package: 'app.rork.abz_macro_tracker',
-    versionCode: 4,
+    versionCode: 5,
   },
   web: {
     favicon: './assets/images/favicon.png',
