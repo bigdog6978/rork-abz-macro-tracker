@@ -575,38 +575,36 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {__DEV__ && (
-          <View style={styles.devSection}>
-            <Text style={styles.devSectionTitle}>Developer</Text>
-            <TouchableOpacity
-              style={styles.devRow}
-              onPress={handleUsdaHealthCheck}
-              activeOpacity={0.7}
-            >
-              <RefreshCw size={16} color={Colors.primary} />
-              <Text style={styles.devRowText}>USDA Health Check</Text>
-            </TouchableOpacity>
-            {usdaHealth && (
-              <View style={styles.devResult}>
-                <Text style={styles.devResultText}>
-                  {usdaHealth.ok
-                    ? `OK (status ${usdaHealth.status})`
-                    : `Error: ${usdaHealth.error ?? usdaHealth.status ?? 'unknown'}`}
-                </Text>
-                {usdaHealth.keySuffix && (
-                  <Text style={styles.devResultText}>Key: {usdaHealth.keySuffix}</Text>
-                )}
-              </View>
-            )}
-          </View>
-        )}
+        <View style={styles.devSection}>
+          <Text style={styles.devSectionTitle}>Food Search</Text>
+          <TouchableOpacity
+            style={styles.devRow}
+            onPress={handleUsdaHealthCheck}
+            activeOpacity={0.7}
+          >
+            <RefreshCw size={16} color={Colors.primary} />
+            <Text style={styles.devRowText}>Verify USDA API</Text>
+          </TouchableOpacity>
+          {usdaHealth && (
+            <View style={styles.devResult}>
+              <Text style={styles.devResultText}>
+                {usdaHealth.ok
+                  ? `OK (status ${usdaHealth.status})`
+                  : `Error: ${usdaHealth.error ?? usdaHealth.status ?? 'unknown'}`}
+              </Text>
+              {usdaHealth.keySuffix && (
+                <Text style={styles.devResultText}>Key ends with: {usdaHealth.keySuffix}</Text>
+              )}
+            </View>
+          )}
+        </View>
 
         <View style={styles.footer}>
           <View style={styles.footerRow}>
             <Shield size={14} color={Colors.textTertiary} />
             <Text style={styles.footerText}>For general fitness guidance only</Text>
           </View>
-          <Text style={styles.footerVersion}>Physiq v1.0.5</Text>
+          <Text style={styles.footerVersion}>Physiq v1.0.6</Text>
         </View>
       </ScrollView>
     </View>
