@@ -11,7 +11,7 @@ import {
   InteractionManager,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell } from 'lucide-react-native';
+import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell, Bookmark } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing, Shadows } from '../../../theme/tokens';
@@ -604,6 +604,15 @@ export default function SettingsScreen() {
           <Text style={styles.devSectionTitle}>Food Search</Text>
           <TouchableOpacity
             style={styles.devRow}
+            onPress={() => router.push('/saved-foods' as any)}
+            activeOpacity={0.7}
+          >
+            <Bookmark size={16} color={Colors.primary} />
+            <Text style={styles.devRowText}>Saved Foods</Text>
+            <ChevronRight size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.devRow, { marginTop: 8 }]}
             onPress={handleUsdaHealthCheck}
             activeOpacity={0.7}
           >

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Flame, Trash2, Ruler, X } from 'lucide-react-native';
+import { Flame, Trash2, Ruler, X, ChevronRight } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
@@ -62,6 +62,16 @@ export default function DashboardScreen() {
     }
     router.push('/add-food' as never);
   }, []);
+
+  const handleEditEntry = useCallback(
+    (id: string) => {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      router.push({ pathname: '/edit-log-entry', params: { entryId: id } } as never);
+    },
+    []
+  );
 
   const handleRemoveEntry = useCallback(
     (id: string) => {
@@ -241,12 +251,19 @@ export default function DashboardScreen() {
               <Text style={styles.sectionTitle}>Today's Log</Text>
               {todayEntries.map((entry) => (
                 <PremiumCard key={entry.id} style={styles.entryCard}>
-                  <View style={styles.entryInfo}>
-                    <Text style={styles.entryName}>{entry.name}</Text>
-                    <Text style={styles.entryMacros}>
-                      {formatNumber(entry.calories)} cal · {formatNumber(entry.protein_g)}p · {formatNumber(entry.carbs_g)}c · {formatNumber(entry.fat_g)}f
-                    </Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.entryTapArea}
+                    onPress={() => handleEditEntry(entry.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.entryInfo}>
+                      <Text style={styles.entryName}>{entry.name}</Text>
+                      <Text style={styles.entryMacros}>
+                        {formatNumber(entry.calories)} cal · {formatNumber(entry.protein_g)}p · {formatNumber(entry.carbs_g)}c · {formatNumber(entry.fat_g)}f
+                      </Text>
+                    </View>
+                    <ChevronRight size={18} color={Colors.textTertiary} style={styles.entryChevron} />
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.entryDelete}
                     onPress={() => handleRemoveEntry(entry.id)}
@@ -395,8 +412,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.sm,
   },
+  entryTapArea: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   entryInfo: {
     flex: 1,
+  },
+  entryChevron: {
+    marginLeft: 8,
   },
   entryName: {
     color: Colors.text,

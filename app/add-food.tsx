@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Check, Search, Clock, Pencil, X, ChevronRight, Scan } from 'lucide-react-native';
+import { Check, Search, Clock, Pencil, X, ChevronRight, Scan, Bookmark } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
@@ -22,23 +22,23 @@ import * as foodService from '../features/food/foodService';
 import * as foodsRepo from '../src/data/foodsRepo';
 import SegmentedToggle from '../components/SegmentedToggle';
 import {
-  ServingUnit,
+  MeasureMode,
   getPreferredServingUnit,
   setPreferredServingUnit,
 } from '../storage/userSettingsRepo';
+import {
+  detectUnitFromName,
+  pluralizeUnit,
+} from '../features/food/servingDefaults';
 
 const DEBOUNCE_MS = 300;
 const OZ_TO_GRAMS = 28.349523125;
-const QTY_BASE_GRAMS = 100;
 
-const UNIT_OPTIONS: { label: string; value: ServingUnit }[] = [
+const MEASURE_OPTIONS: { label: string; value: MeasureMode }[] = [
   { label: 'Qty', value: 'qty' },
-  { label: 'gm', value: 'g' },
-  { label: 'oz', value: 'oz' },
+  { label: 'gm', value: 'grams' },
+  { label: 'oz', value: 'ounces' },
 ];
-
-const COUNT_FOOD_PATTERN =
-  /\b(egg|eggs|date|dates|banana|bananas|apple|apples|slice|slices|piece|pieces|bar|bars|scoop|scoops|wrap|wraps|patty|patties|muffin|muffins|bagel|bagels|roll|rolls|cookie|cookies|biscuit|biscuits)\b/i;
 
 function getSearchErrorMessage(
   searchStatus: string,
@@ -80,21 +80,33 @@ function getSearchErrorMessage(
   return 'No results found';
 }
 
-function gramsToDisplay(grams: number, unit: ServingUnit): string {
-  if (unit === 'oz') {
+/** Convert total grams to display value for the given measure mode */
+function gramsToDisplay(
+  grams: number,
+  measureMode: MeasureMode,
+  servingWeightG?: number
+): string {
+  if (measureMode === 'ounces') {
     return String(Math.round((grams / OZ_TO_GRAMS) * 10) / 10);
   }
-  if (unit === 'qty') {
-    const qty = grams / QTY_BASE_GRAMS;
-    return String(Math.round(qty * 10) / 10);
+  if (measureMode === 'qty' && servingWeightG && servingWeightG > 0) {
+    const qty = grams / servingWeightG;
+    return qty % 1 === 0 ? String(Math.round(qty)) : String(Math.round(qty * 10) / 10);
   }
   return String(Math.round(grams));
 }
 
-function displayToGrams(input: string, unit: ServingUnit): number {
+/** Convert display value to total grams */
+function displayToTotalGrams(
+  input: string,
+  measureMode: MeasureMode,
+  servingWeightG?: number
+): number {
   const value = parseFloat(input) || 0;
-  if (unit === 'oz') return value * OZ_TO_GRAMS;
-  if (unit === 'qty') return value * QTY_BASE_GRAMS;
+  if (measureMode === 'ounces') return value * OZ_TO_GRAMS;
+  if (measureMode === 'qty' && servingWeightG && servingWeightG > 0) {
+    return value * servingWeightG;
+  }
   return value;
 }
 
@@ -112,13 +124,16 @@ export default function AddFoodScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [name, setName] = useState('');
-  const [servingGrams, setServingGrams] = useState('100');
-  const [servingUnit, setServingUnit] = useState<ServingUnit>('g');
+  const [measureMode, setMeasureMode] = useState<MeasureMode>('grams');
+  const [quantityInput, setQuantityInput] = useState('100');
+  const [unitLabel, setUnitLabel] = useState<string>('egg');
+  const [servingWeightG, setServingWeightG] = useState<number>(50);
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [isCustomized, setIsCustomized] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveToLibrary, setSaveToLibrary] = useState(true);
 
   const [recentFoods, setRecentFoods] = useState<
     { food: NormalizedFood; lastServingGrams: number }[]
@@ -144,7 +159,7 @@ export default function AddFoodScreen() {
 
   useEffect(() => {
     foodsRepo
-      .getSavedFoods('openfoodfacts')
+      .getSavedFoods()
       .then((local) => local.map(foodsRepo.localFoodToNormalizedFood))
       .then(setSavedFoods)
       .catch((err) => console.log('[AddFood] Error loading saved foods:', err));
@@ -153,9 +168,9 @@ export default function AddFoodScreen() {
   useEffect(() => {
     getPreferredServingUnit()
       .then((unit) => {
-        if (unit !== 'g') {
-          setServingUnit(unit);
-          setServingGrams(gramsToDisplay(100, unit));
+        if (unit === 'oz') {
+          setMeasureMode('ounces');
+          setQuantityInput(gramsToDisplay(100, 'ounces'));
         }
       })
       .catch((err) => console.log('[AddFood] Error loading unit pref:', err));
@@ -173,20 +188,33 @@ export default function AddFoodScreen() {
           setName(norm.name);
           setQuery(norm.name);
           setShowSuggestions(false);
-          setProtein(String(norm.per100g.protein_g));
-          setCarbs(String(norm.per100g.carbs_g));
-          setFat(String(norm.per100g.fat_g));
-          setServingGrams(gramsToDisplay(100, servingUnit || 'g'));
-          computedMacrosRef.current = {
-            calories: norm.per100g.calories,
-            protein_g: norm.per100g.protein_g,
-            carbs_g: norm.per100g.carbs_g,
-            fat_g: norm.per100g.fat_g,
-          };
+          const detected = detectUnitFromName(norm.name);
+          const savedUnit = local.unitLabel && local.servingWeightG
+            ? { unitLabel: local.unitLabel, servingWeightG: local.servingWeightG }
+            : null;
+          const useUnits = !!(savedUnit || detected);
+          if (useUnits) {
+            setMeasureMode('qty');
+            const u = savedUnit ?? detected!;
+            setUnitLabel(u.unitLabel);
+            setServingWeightG(u.servingWeightG);
+            setQuantityInput('1');
+          } else {
+            setMeasureMode('grams');
+            setQuantityInput('100');
+          }
+          const grams = useUnits
+            ? (savedUnit ?? detected!).servingWeightG
+            : 100;
+          const macros = foodService.computeMacrosForServing(norm, grams);
+          computedMacrosRef.current = macros;
+          setProtein(String(macros.protein_g));
+          setCarbs(String(macros.carbs_g));
+          setFat(String(macros.fat_g));
         }
       })
       .catch((err) => console.log('[AddFood] Error loading barcode food:', err));
-  }, [params.fromBarcode, servingUnit]);
+  }, [params.fromBarcode]);
 
   const handleScanBarcode = useCallback(() => {
     router.push('/barcode-scanner');
@@ -262,28 +290,39 @@ export default function AddFoodScreen() {
       setQuery(food.name);
       setIsCustomized(false);
 
-      const autoUnit = COUNT_FOOD_PATTERN.test(food.name) ? 'qty' : servingUnit;
-      if (autoUnit !== servingUnit) setServingUnit(autoUnit);
-
-      const grams = 100;
-      setServingGrams(gramsToDisplay(grams, autoUnit));
-      const macros = foodService.computeMacrosForServing(food, grams);
-      computedMacrosRef.current = macros;
-      setProtein(String(macros.protein_g));
-      setCarbs(String(macros.carbs_g));
-      setFat(String(macros.fat_g));
+      const detected = detectUnitFromName(food.name);
+      if (detected) {
+        setMeasureMode('qty');
+        setUnitLabel(detected.unitLabel);
+        setServingWeightG(detected.servingWeightG);
+        setQuantityInput('1');
+        const grams = detected.servingWeightG;
+        const macros = foodService.computeMacrosForServing(food, grams);
+        computedMacrosRef.current = macros;
+        setProtein(String(macros.protein_g));
+        setCarbs(String(macros.carbs_g));
+        setFat(String(macros.fat_g));
+      } else {
+        setMeasureMode('grams');
+        setQuantityInput('100');
+        const macros = foodService.computeMacrosForServing(food, 100);
+        computedMacrosRef.current = macros;
+        setProtein(String(macros.protein_g));
+        setCarbs(String(macros.carbs_g));
+        setFat(String(macros.fat_g));
+      }
 
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    [servingUnit]
+    []
   );
 
-  const handleServingChange = useCallback(
+  const handleQuantityChange = useCallback(
     (text: string) => {
-      setServingGrams(text);
-      const grams = displayToGrams(text, servingUnit);
+      setQuantityInput(text);
+      const grams = displayToTotalGrams(text, measureMode, servingWeightG);
       if (selectedFood && grams > 0) {
         const macros = foodService.computeMacrosForServing(selectedFood, grams);
         computedMacrosRef.current = macros;
@@ -293,7 +332,24 @@ export default function AddFoodScreen() {
         setIsCustomized(false);
       }
     },
-    [selectedFood, servingUnit]
+    [selectedFood, measureMode, servingWeightG]
+  );
+
+  const handleServingWeightChange = useCallback(
+    (text: string) => {
+      const val = parseFloat(text) || 0;
+      setServingWeightG(val > 0 ? val : 50);
+      const grams = displayToTotalGrams(quantityInput, 'qty', val > 0 ? val : 50);
+      if (selectedFood && grams > 0) {
+        const macros = foodService.computeMacrosForServing(selectedFood, grams);
+        computedMacrosRef.current = macros;
+        setProtein(String(macros.protein_g));
+        setCarbs(String(macros.carbs_g));
+        setFat(String(macros.fat_g));
+        setIsCustomized(false);
+      }
+    },
+    [selectedFood, quantityInput]
   );
 
   const handleMacroEdit = useCallback(
@@ -307,6 +363,55 @@ export default function AddFoodScreen() {
       }
     },
     [selectedFood]
+  );
+
+  const saveManualToLibrary = useCallback(
+    async (
+      foodName: string,
+      grams: number,
+      macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number },
+      opts?: { unitLabel?: string; servingWeightG?: number }
+    ) => {
+      const scale = grams > 0 ? 100 / grams : 1;
+      const per100g = {
+        calories: Math.round(macros.calories * scale),
+        protein: macros.protein_g * scale,
+        carbs: macros.carbs_g * scale,
+        fat: macros.fat_g * scale,
+      };
+      const addOpts = opts?.unitLabel && opts?.servingWeightG
+        ? { unitLabel: opts.unitLabel, servingWeightG: opts.servingWeightG }
+        : { servingSize: `${grams}g` };
+      const existing = await foodsRepo.getSavedFoods('manual');
+      const dup = existing.find((f) => f.name.toLowerCase() === foodName.trim().toLowerCase());
+      if (dup) {
+        return new Promise<void>((resolve) => {
+          Alert.alert(
+            'Replace existing saved food?',
+            'A saved food with this name already exists.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve() },
+              {
+                text: 'Replace',
+                onPress: async () => {
+                  await foodsRepo.addManualFood({ name: foodName.trim(), calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
+                  resolve();
+                },
+              },
+              {
+                text: 'Keep both',
+                onPress: async () => {
+                  await foodsRepo.addManualFood({ name: `${foodName.trim()} (2)`, calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
+                  resolve();
+                },
+              },
+            ]
+          );
+        });
+      }
+      await foodsRepo.addManualFood({ name: foodName.trim(), calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
+    },
+    []
   );
 
   const handleSave = useCallback(async () => {
@@ -330,14 +435,20 @@ export default function AddFoodScreen() {
         fat_g: parseFloat(fat) || 0,
       };
 
-      const grams = displayToGrams(servingGrams, servingUnit) || 100;
+      const grams = displayToTotalGrams(quantityInput, measureMode, servingWeightG) || 100;
 
+      const qtyVal = parseFloat(quantityInput) || 0;
       const entry = foodService.createFoodEntry(
         selectedFood,
         foodName,
         grams,
         macros,
-        isCustomized
+        isCustomized,
+        measureMode === 'qty' && unitLabel && servingWeightG
+          ? { measureMode: 'qty', quantity: qtyVal || 1, servingWeightG }
+          : measureMode === 'ounces'
+            ? { measureMode: 'ounces', quantity: qtyVal }
+            : { measureMode: 'grams', quantity: grams }
       );
 
       addEntry(entry);
@@ -348,6 +459,14 @@ export default function AddFoodScreen() {
       await foodService.addToRecent(normalizedForRecent, grams);
       if (selectedFood?.providerId === 'openfoodfacts') {
         foodsRepo.recordFoodSelection(selectedFood.id).catch(() => {});
+      }
+
+      const isManual = !selectedFood || selectedFood.providerId === 'manual';
+      if (saveToLibrary && isManual) {
+        const unitOpts = measureMode === 'qty' && unitLabel && servingWeightG
+          ? { unitLabel, servingWeightG }
+          : undefined;
+        await saveManualToLibrary(foodName, grams, macros, unitOpts);
       }
 
       if (Platform.OS !== 'web') {
@@ -367,10 +486,13 @@ export default function AddFoodScreen() {
     carbs,
     fat,
     computedCalories,
-    servingGrams,
-    servingUnit,
+    quantityInput,
+    measureMode,
+    servingWeightG,
     selectedFood,
     isCustomized,
+    saveToLibrary,
+    saveManualToLibrary,
     addEntry,
   ]);
 
@@ -380,6 +502,16 @@ export default function AddFoodScreen() {
     setShowSuggestions(false);
     setIsCustomized(false);
     computedMacrosRef.current = null;
+    const detected = detectUnitFromName(query);
+    if (detected) {
+      setMeasureMode('qty');
+      setUnitLabel(detected.unitLabel);
+      setServingWeightG(detected.servingWeightG);
+      setQuantityInput('1');
+    } else {
+      setMeasureMode('grams');
+      setQuantityInput('100');
+    }
   }, [query]);
 
   const handleClearSelection = useCallback(() => {
@@ -389,11 +521,14 @@ export default function AddFoodScreen() {
     setProtein('');
     setCarbs('');
     setFat('');
-    setServingGrams(gramsToDisplay(100, servingUnit));
+    setMeasureMode('grams');
+    setQuantityInput('100');
+    setUnitLabel('egg');
+    setServingWeightG(50);
     setIsCustomized(false);
     computedMacrosRef.current = null;
     setShowSuggestions(false);
-  }, [servingUnit]);
+  }, []);
 
   const handleSelectRecent = useCallback(
     (food: NormalizedFood, lastGrams: number) => {
@@ -403,8 +538,17 @@ export default function AddFoodScreen() {
       setShowSuggestions(false);
       setIsCustomized(false);
 
+      const detected = detectUnitFromName(food.name);
       const grams = lastGrams || 100;
-      setServingGrams(gramsToDisplay(grams, servingUnit));
+      if (detected) {
+        setMeasureMode('qty');
+        setUnitLabel(detected.unitLabel);
+        setServingWeightG(detected.servingWeightG);
+        setQuantityInput(grams === detected.servingWeightG ? '1' : String(Math.round((grams / detected.servingWeightG) * 10) / 10));
+      } else {
+        setMeasureMode('grams');
+        setQuantityInput(String(Math.round(grams)));
+      }
       const macros = foodService.computeMacrosForServing(food, grams);
       computedMacrosRef.current = macros;
       setProtein(String(macros.protein_g));
@@ -415,22 +559,49 @@ export default function AddFoodScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    [servingUnit]
+    []
   );
 
-  const handleUnitChange = useCallback(
-    (newUnit: ServingUnit) => {
-      const currentGrams = displayToGrams(servingGrams, servingUnit);
-      setServingUnit(newUnit);
-      setServingGrams(gramsToDisplay(currentGrams, newUnit));
-      setPreferredServingUnit(newUnit).catch((err) =>
-        console.log('[AddFood] Error saving unit pref:', err)
-      );
+  const handleMeasureModeChange = useCallback(
+    (newMode: MeasureMode) => {
+      const currentGrams = displayToTotalGrams(quantityInput, measureMode, servingWeightG);
+      let newServingWeightG = servingWeightG;
+      if (newMode === 'qty') {
+        const nameToDetect = selectedFood?.name ?? (name || query);
+        const detected = detectUnitFromName(nameToDetect);
+        if (detected) {
+          setUnitLabel(detected.unitLabel);
+          setServingWeightG(detected.servingWeightG);
+          newServingWeightG = detected.servingWeightG;
+        } else {
+          setUnitLabel('serving');
+          setServingWeightG(100);
+          newServingWeightG = 100;
+        }
+      }
+      setMeasureMode(newMode);
+      setQuantityInput(gramsToDisplay(currentGrams, newMode, newServingWeightG));
+      if (newMode === 'grams') {
+        setPreferredServingUnit('g').catch((err) =>
+          console.log('[AddFood] Error saving unit pref:', err)
+        );
+      } else if (newMode === 'ounces') {
+        setPreferredServingUnit('oz').catch((err) =>
+          console.log('[AddFood] Error saving unit pref:', err)
+        );
+      }
+      if (selectedFood && currentGrams > 0) {
+        const macros = foodService.computeMacrosForServing(selectedFood, currentGrams);
+        computedMacrosRef.current = macros;
+        setProtein(String(macros.protein_g));
+        setCarbs(String(macros.carbs_g));
+        setFat(String(macros.fat_g));
+      }
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    [servingGrams, servingUnit]
+    [quantityInput, measureMode, servingWeightG, selectedFood, name, query]
   );
 
   return (
@@ -519,15 +690,25 @@ export default function AddFoodScreen() {
               </View>
             )}
 
-            <TouchableOpacity
-              style={styles.scanBarcodeBtn}
-              onPress={handleScanBarcode}
-              activeOpacity={0.7}
-              testID="scan-barcode-button"
-            >
-              <Scan size={18} color={Colors.primary} />
-              <Text style={styles.scanBarcodeText}>Scan Barcode</Text>
-            </TouchableOpacity>
+            <View style={styles.scanRow}>
+              <TouchableOpacity
+                style={styles.scanBarcodeBtn}
+                onPress={handleScanBarcode}
+                activeOpacity={0.7}
+                testID="scan-barcode-button"
+              >
+                <Scan size={18} color={Colors.primary} />
+                <Text style={styles.scanBarcodeText}>Scan Barcode</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.savedFoodsLink}
+                onPress={() => router.push('/saved-foods')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.savedFoodsLinkText}>Saved Foods</Text>
+                <ChevronRight size={16} color={Colors.primary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {showSuggestions && suggestions.length > 0 && (
@@ -629,27 +810,49 @@ export default function AddFoodScreen() {
               </View>
 
               <View style={styles.servingSection}>
-                <Text style={styles.inputLabel}>Serving Size</Text>
+                <Text style={styles.inputLabel}>
+                  {measureMode === 'qty'
+                    ? `Qty (${pluralizeUnit(parseFloat(quantityInput) || 1, unitLabel)})`
+                    : measureMode === 'grams'
+                      ? 'Amount (gm)'
+                      : 'Amount (oz)'}
+                </Text>
                 <View style={styles.servingControlRow}>
                   <TextInput
                     style={styles.servingTextInput}
-                    value={servingGrams}
-                    onChangeText={handleServingChange}
+                    value={quantityInput}
+                    onChangeText={handleQuantityChange}
                     keyboardType="decimal-pad"
-                    placeholder={servingUnit === 'oz' ? '3.5' : servingUnit === 'qty' ? '1' : '100'}
+                    placeholder={
+                      measureMode === 'qty' ? '1' : measureMode === 'ounces' ? '3.5' : '100'
+                    }
                     placeholderTextColor={Colors.textTertiary}
                     testID="serving-input"
                   />
                   <SegmentedToggle
-                    options={UNIT_OPTIONS}
-                    value={servingUnit}
-                    onChange={handleUnitChange}
-                    accessibilityLabel={`Serving units: ${servingUnit}`}
+                    options={MEASURE_OPTIONS}
+                    value={measureMode}
+                    onChange={handleMeasureModeChange}
+                    accessibilityLabel={`Measure mode: ${measureMode}`}
                     style={styles.servingToggle}
                   />
                 </View>
-                {servingUnit === 'qty' && (
-                  <Text style={styles.servingHelper}>Based on: 100g serving</Text>
+                {measureMode === 'qty' && (
+                  <View style={styles.perItemRow}>
+                    <Text style={styles.perItemLabel}>1 {unitLabel} =</Text>
+                    <TextInput
+                      style={styles.perItemInput}
+                      value={String(servingWeightG)}
+                      onChangeText={handleServingWeightChange}
+                      keyboardType="decimal-pad"
+                      placeholder="50"
+                      placeholderTextColor={Colors.textTertiary}
+                    />
+                    <Text style={styles.perItemUnit}>gm</Text>
+                  </View>
+                )}
+                {measureMode === 'qty' && (
+                  <Text style={styles.servingHelper}>Used to calculate macros.</Text>
                 )}
               </View>
 
@@ -704,6 +907,71 @@ export default function AddFoodScreen() {
                   {formatNumber(computedCalories)}
                 </Text>
               </View>
+
+              {(!selectedFood || selectedFood.providerId === 'manual') && (
+                <TouchableOpacity
+                  style={styles.saveToLibraryRow}
+                  onPress={() => setSaveToLibrary((v) => !v)}
+                  activeOpacity={0.7}
+                >
+                  <Bookmark
+                    size={18}
+                    color={saveToLibrary ? Colors.primary : Colors.textTertiary}
+                  />
+                  <Text
+                    style={[
+                      styles.saveToLibraryText,
+                      saveToLibrary && styles.saveToLibraryTextActive,
+                    ]}
+                  >
+                    Save to Saved Foods
+                  </Text>
+                  <View
+                    style={[
+                      styles.toggleTrack,
+                      saveToLibrary && styles.toggleTrackActive,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.toggleThumb,
+                        saveToLibrary && styles.toggleThumbActive,
+                      ]}
+                    />
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {selectedFood?.providerId === 'usda' && (
+                <TouchableOpacity
+                  style={styles.usdaSaveBtn}
+                  onPress={async () => {
+                    const fdcId = selectedFood.id.replace(/^usda:/, '');
+                    const p = selectedFood.per100g;
+                    const addOpts = measureMode === 'qty' && unitLabel && servingWeightG
+                      ? { unitLabel, servingWeightG }
+                      : { servingSize: '100g' };
+                    await foodsRepo.addUsdaFood(fdcId, {
+                      name: selectedFood.name,
+                      brand: selectedFood.brand,
+                      calories: p.calories,
+                      protein: p.protein_g,
+                      carbs: p.carbs_g,
+                      fat: p.fat_g,
+                      ...addOpts,
+                    });
+                    if (Platform.OS !== 'web') {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }
+                    const updated = await foodsRepo.getSavedFoods();
+                    setSavedFoods(updated.map(foodsRepo.localFoodToNormalizedFood));
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Bookmark size={16} color={Colors.primary} />
+                  <Text style={styles.usdaSaveBtnText}>Save to Saved Foods</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={styles.saveButton}
@@ -858,11 +1126,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500' as const,
   },
+  scanRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+  },
   scanBarcodeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 12,
+    flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -870,6 +1144,18 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   scanBarcodeText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  savedFoodsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  savedFoodsLinkText: {
     color: Colors.primary,
     fontSize: 15,
     fontWeight: '600' as const,
@@ -1028,6 +1314,35 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     textAlign: 'center' as const,
   },
+  perItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  perItemLabel: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  perItemInput: {
+    width: 70,
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    textAlign: 'center' as const,
+  },
+  perItemUnit: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
   servingHelper: {
     color: Colors.textTertiary,
     fontSize: 12,
@@ -1084,6 +1399,60 @@ const styles = StyleSheet.create({
     color: Colors.calories,
     fontSize: 22,
     fontWeight: '800' as const,
+  },
+  saveToLibraryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  saveToLibraryText: {
+    flex: 1,
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  saveToLibraryTextActive: {
+    color: Colors.text,
+  },
+  toggleTrack: {
+    width: 44,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.border,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleTrackActive: {
+    backgroundColor: Colors.primary,
+  },
+  toggleThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.textTertiary,
+    alignSelf: 'flex-start',
+  },
+  toggleThumbActive: {
+    backgroundColor: Colors.white,
+    alignSelf: 'flex-end',
+  },
+  usdaSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    alignSelf: 'flex-start',
+  },
+  usdaSaveBtnText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
   saveButton: {
     backgroundColor: Colors.primary,

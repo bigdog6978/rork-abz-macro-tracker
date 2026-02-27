@@ -4,9 +4,43 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FoodEntry, MacroTargets } from '../types';
 import { getTodayDateString } from '../utils/macroEngine';
 import { loadData, saveData, removeData, STORAGE_KEYS } from '../services/storage';
+import * as foodService from '../features/food/foodService';
 
 interface StoredLogs {
   [date: string]: FoodEntry[];
+}
+
+/** Migrate legacy entries: measureMode 'units' -> 'qty' */
+function migrateEntry(entry: FoodEntry): FoodEntry {
+  if (entry.measureMode === 'units') {
+    return { ...entry, measureMode: 'qty' };
+  }
+  return entry;
+}
+
+function migrateLogs(logs: StoredLogs): StoredLogs {
+  const out: StoredLogs = {};
+  for (const [date, entries] of Object.entries(logs)) {
+    out[date] = entries.map(migrateEntry);
+  }
+  return out;
+}
+
+/** Recompute entry macros from nutrientsPer100g when not custom */
+function ensureEntryMacros(entry: FoodEntry): FoodEntry {
+  if (entry.isCustomMacros || !entry.nutrientsPer100g) return entry;
+  const mode = (entry.measureMode === 'units' ? 'qty' : entry.measureMode) ?? 'grams';
+  const qty = entry.quantity ?? entry.servingGrams ?? 100;
+  const totalGrams = foodService.computeTotalGrams(mode, qty, entry.servingWeightG);
+  const macros = foodService.computeMacrosFromNutrients(entry.nutrientsPer100g, totalGrams);
+  return {
+    ...entry,
+    servingGrams: totalGrams,
+    protein_g: macros.protein_g,
+    carbs_g: macros.carbs_g,
+    fat_g: macros.fat_g,
+    calories: macros.calories,
+  };
 }
 
 export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
@@ -26,7 +60,12 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
           await removeData('abz_food_logs');
         }
       }
-      return stored ?? {};
+      const migrated = migrateLogs(stored ?? {});
+      const normalized: StoredLogs = {};
+      for (const [date, entries] of Object.entries(migrated)) {
+        normalized[date] = entries.map(ensureEntryMacros);
+      }
+      return normalized;
     },
   });
 
@@ -78,7 +117,11 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
         const idx = updated[today].findIndex((e) => e.id === entryId);
         if (idx !== -1) {
           updated[today] = [...updated[today]];
-          updated[today][idx] = { ...updated[today][idx], ...updates };
+          let merged = { ...updated[today][idx], ...updates };
+          if (!merged.isCustomMacros && merged.nutrientsPer100g) {
+            merged = ensureEntryMacros(merged);
+          }
+          updated[today][idx] = merged;
           setLogs(updated);
           saveMutation.mutate(updated);
         }

@@ -5,7 +5,7 @@ import { normalizeSearchResult, normalizeDetailResult } from './providers/usda/u
 import * as foodRepo from '../../storage/foodRepo';
 import * as foodsRepo from '../../src/data/foodsRepo';
 import { openDb } from '../../src/data/db';
-import { FoodEntry } from '../../types';
+import { FoodEntry, NutrientsPer100g } from '../../types';
 import {
   rankFoods,
   FoodItem,
@@ -35,6 +35,36 @@ export function computeMacrosForServing(
     carbs_g: Math.round(food.per100g.carbs_g * factor * 10) / 10,
     fat_g: Math.round(food.per100g.fat_g * factor * 10) / 10,
   };
+}
+
+const OZ_TO_GRAMS = 28.349523125;
+
+/** Compute macros from nutrientsPer100g and total grams */
+export function computeMacrosFromNutrients(
+  per100g: NutrientsPer100g,
+  totalGrams: number
+): { calories: number; protein_g: number; carbs_g: number; fat_g: number } {
+  const factor = totalGrams / 100;
+  return {
+    calories: Math.round(per100g.calories * factor),
+    protein_g: Math.round(per100g.protein_g * factor * 10) / 10,
+    carbs_g: Math.round(per100g.carbs_g * factor * 10) / 10,
+    fat_g: Math.round(per100g.fat_g * factor * 10) / 10,
+  };
+}
+
+/** Compute total grams from measure mode, quantity, and servingWeightG */
+export function computeTotalGrams(
+  measureMode: 'qty' | 'grams' | 'ounces' | 'units',
+  quantity: number,
+  servingWeightG?: number
+): number {
+  const mode = measureMode === 'units' ? 'qty' : measureMode;
+  if (mode === 'ounces') return quantity * OZ_TO_GRAMS;
+  if (mode === 'qty' && typeof servingWeightG === 'number' && servingWeightG > 0) {
+    return quantity * servingWeightG;
+  }
+  return quantity;
 }
 
 export function isApiAvailable(): boolean {
@@ -265,7 +295,12 @@ export function createFoodEntry(
   name: string,
   servingGrams: number,
   macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number },
-  isCustomized: boolean
+  isCustomized: boolean,
+  opts?: {
+    measureMode?: 'qty' | 'grams' | 'ounces';
+    quantity?: number;
+    servingWeightG?: number;
+  }
 ): FoodEntry {
   const entry: FoodEntry = {
     id: generateId(),
@@ -278,7 +313,32 @@ export function createFoodEntry(
     providerId: food?.providerId ?? 'manual',
     externalId: food?.externalId,
     servingGrams,
+    isCustomMacros: isCustomized,
   };
+
+  if (opts?.measureMode) {
+    entry.measureMode = opts.measureMode;
+    entry.quantity = opts.quantity ?? (opts.measureMode === 'qty' && opts.servingWeightG
+      ? servingGrams / opts.servingWeightG
+      : opts.measureMode === 'ounces'
+        ? servingGrams / OZ_TO_GRAMS
+        : servingGrams);
+    if (opts.measureMode === 'qty' && opts.servingWeightG) {
+      entry.servingWeightG = opts.servingWeightG;
+    }
+  } else {
+    entry.quantity = servingGrams;
+    entry.measureMode = 'grams';
+  }
+
+  if (food) {
+    entry.nutrientsPer100g = {
+      calories: food.per100g.calories,
+      protein_g: food.per100g.protein_g,
+      carbs_g: food.per100g.carbs_g,
+      fat_g: food.per100g.fat_g,
+    };
+  }
 
   if (isCustomized && food) {
     entry.customization = {

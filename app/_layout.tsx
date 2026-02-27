@@ -91,6 +91,24 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="saved-foods"
+        options={{
+          presentation: "modal",
+          title: "Saved Foods",
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+        }}
+      />
+      <Stack.Screen
+        name="edit-log-entry"
+        options={{
+          presentation: "modal",
+          title: "Edit Entry",
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+        }}
+      />
+      <Stack.Screen
         name="legal-document"
         options={{
           title: "",

@@ -80,6 +80,13 @@ export interface MacroTargets {
   fat_g: number;
 }
 
+export interface NutrientsPer100g {
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
 export interface FoodEntry {
   id: string;
   name: string;
@@ -93,6 +100,16 @@ export interface FoodEntry {
   servingGrams?: number;
   source?: 'mealPlan' | 'manual';
   sourceRefId?: string;
+  /** Measure mode: qty | grams | ounces. Legacy: 'units' treated as 'qty' */
+  measureMode?: 'qty' | 'grams' | 'ounces' | 'units';
+  /** Quantity (count or amount depending on mode) */
+  quantity?: number;
+  /** Grams per 1 unit when measureMode is qty */
+  servingWeightG?: number;
+  /** Per-100g nutrients for recalculation (USDA/barcode foods) */
+  nutrientsPer100g?: NutrientsPer100g;
+  /** True if user manually overrode macros; use stored values directly */
+  isCustomMacros?: boolean;
   customization?: {
     isCustomized: boolean;
     reason?: 'user_edit';
