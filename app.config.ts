@@ -5,7 +5,7 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.1.0',
+  version: '1.1.5',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
@@ -19,9 +19,11 @@ export default (): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'app.rork.abz-macro-tracker',
-    buildNumber: '10',
+    buildNumber: '11',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      NSCameraUsageDescription:
+        'Physiq uses the camera to scan barcodes to quickly add foods. No photos or videos are stored.',
     },
   },
   android: {
@@ -30,7 +32,8 @@ export default (): ExpoConfig => ({
       backgroundColor: '#ffffff',
     },
     package: 'app.rork.abz_macro_tracker',
-    versionCode: 10,
+    versionCode: 11,
+    permissions: ['CAMERA'],
   },
   web: {
     favicon: './assets/images/favicon.png',
@@ -39,7 +42,13 @@ export default (): ExpoConfig => ({
     ['expo-router', { origin: 'https://rork.com/' }],
     'expo-font',
     'expo-web-browser',
-    ['expo-camera', { cameraPermission: 'Allow $(PRODUCT_NAME) to scan barcodes' }],
+    [
+      'expo-camera',
+      {
+        cameraPermission:
+          'Physiq uses the camera to scan barcodes to quickly add foods. No photos or videos are stored.',
+      },
+    ],
     'expo-sqlite',
   ],
   experiments: {
