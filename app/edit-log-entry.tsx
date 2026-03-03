@@ -59,11 +59,13 @@ function displayToTotalGrams(
 }
 
 export default function EditLogEntryScreen() {
-  const { todayEntries, updateEntry } = useDailyLog();
-  const params = useLocalSearchParams<{ entryId: string }>();
+  const { todayEntries, getEntriesForDate, updateEntry } = useDailyLog();
+  const params = useLocalSearchParams<{ entryId: string; dateKey?: string }>();
   const entryId = params.entryId;
+  const dateKey = params.dateKey;
 
-  const entry = todayEntries.find((e) => e.id === entryId);
+  const entries = dateKey ? getEntriesForDate(dateKey) : todayEntries;
+  const entry = entries.find((e) => e.id === entryId);
 
   const [name, setName] = useState('');
   const [measureMode, setMeasureMode] = useState<MeasureMode>('grams');
@@ -224,15 +226,19 @@ export default function EditLogEntryScreen() {
     setIsSaving(true);
     try {
       const qtyVal = parseFloat(quantityInput) || 0;
-      updateEntry(entryId, {
-        name: foodName,
-        ...macros,
-        servingGrams: totalGrams,
-        measureMode,
-        quantity: measureMode === 'qty' ? qtyVal : measureMode === 'ounces' ? qtyVal : totalGrams,
-        servingWeightG: measureMode === 'qty' ? servingWeightG : undefined,
-        isCustomMacros: isCustomMacros || undefined,
-      });
+      updateEntry(
+        entryId,
+        {
+          name: foodName,
+          ...macros,
+          servingGrams: totalGrams,
+          measureMode,
+          quantity: measureMode === 'qty' ? qtyVal : measureMode === 'ounces' ? qtyVal : totalGrams,
+          servingWeightG: measureMode === 'qty' ? servingWeightG : undefined,
+          isCustomMacros: isCustomMacros || undefined,
+        },
+        dateKey ?? undefined
+      );
 
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -259,6 +265,7 @@ export default function EditLogEntryScreen() {
     computedMacros,
     displayCalories,
     updateEntry,
+    dateKey,
   ]);
 
   if (!entry) {

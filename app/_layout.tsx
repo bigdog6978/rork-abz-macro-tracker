@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { UserProvider, useUser } from "../providers/UserProvider";
 import { DailyLogProvider, useDailyLog } from "../providers/DailyLogProvider";
 import { MeasurementsProvider } from "../providers/MeasurementsProvider";
+import { GoalSettingsProvider } from "../providers/GoalSettingsProvider";
 import Colors from "../constants/colors";
 
 SplashScreen.preventAutoHideAsync();
@@ -73,6 +74,24 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="measurement-history"
+        options={{
+          presentation: "modal",
+          title: "Measurement History",
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+        }}
+      />
+      <Stack.Screen
+        name="set-target"
+        options={{
+          presentation: "modal",
+          title: "Set Target",
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+        }}
+      />
+      <Stack.Screen
         name="add-food"
         options={{
           presentation: "modal",
@@ -109,6 +128,15 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="day-log"
+        options={{
+          presentation: "modal",
+          title: "Day",
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.text,
+        }}
+      />
+      <Stack.Screen
         name="legal-document"
         options={{
           title: "",
@@ -127,7 +155,9 @@ export default function RootLayout() {
         <UserProvider>
           <DailyLogProvider>
             <MeasurementsProvider>
-              <AppContent />
+              <GoalSettingsProvider>
+                <AppContent />
+              </GoalSettingsProvider>
             </MeasurementsProvider>
           </DailyLogProvider>
         </UserProvider>

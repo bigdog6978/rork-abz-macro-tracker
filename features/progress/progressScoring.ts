@@ -1,5 +1,6 @@
 import { Goal } from '../../types';
 import { MeasurementRecord, MeasurementPromptSettings, GoalScore, ProgressTrend } from './types';
+import type { GoalTarget, GoalTargetMetric } from './goalTargetTypes';
 
 function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val));
@@ -239,6 +240,81 @@ export function computeGoalScore(
   });
 
   return result;
+}
+
+function getCurrentValue(
+  record: MeasurementRecord | null,
+  metric: GoalTargetMetric
+): number | undefined {
+  if (!record) return undefined;
+  if (metric === 'weight_lb') return record.weightLb;
+  if (metric === 'bodyfat_pct') return record.bodyFatPercent;
+  if (metric === 'waist_in') return record.waistIn;
+  if (metric === 'lean_mass_lb' && record.weightLb != null && record.bodyFatPercent != null) {
+    return record.weightLb * (1 - record.bodyFatPercent / 100);
+  }
+  return undefined;
+}
+
+export function computeGoalProgressScoreFromTarget(
+  baseline: MeasurementRecord | null,
+  latest: MeasurementRecord | null,
+  target: GoalTarget,
+): { score: number; statusText?: string; needsBaseline?: boolean } {
+  const baselineVal = target.baselineValue ?? getCurrentValue(baseline, target.metric);
+  const currentVal = getCurrentValue(latest, target.metric);
+
+  if (baselineVal == null) {
+    return { score: 0, needsBaseline: true };
+  }
+  if (currentVal == null) {
+    return { score: 0, statusText: 'Add a measurement to see progress' };
+  }
+
+  if (target.direction === 'maintain') {
+    const tolerance =
+      target.metric === 'weight_lb' || target.metric === 'lean_mass_lb' ? 1 :
+      target.metric === 'waist_in' ? 0.5 : 0.5;
+    const drift = Math.abs(currentVal - baselineVal);
+    const score = clamp(100 - (drift / tolerance) * 100, 0, 100);
+    const statusText =
+      drift <= tolerance ? 'On track' : `Drifted ${drift.toFixed(1)} from baseline`;
+    return { score: Math.round(score), statusText };
+  }
+
+  const delta = currentVal - baselineVal;
+  const currentDelta = target.direction === 'lose' ? baselineVal - currentVal : delta;
+  const amount = target.amount;
+  if (amount <= 0) return { score: 0 };
+
+  const progressRatio = clamp(currentDelta / amount, 0, 1);
+  const score = Math.round(progressRatio * 100);
+  const unit =
+    target.metric === 'weight_lb' || target.metric === 'lean_mass_lb' ? 'lb' :
+    target.metric === 'bodyfat_pct' ? '%' : 'in';
+  const statusText =
+    score >= 100
+      ? 'Target reached!'
+      : `${currentDelta.toFixed(1)} ${unit} of ${amount} ${unit}`;
+  return { score, statusText };
+}
+
+export function formatTargetSummary(target: GoalTarget, deadlineLabel?: string): string {
+  const unit =
+    target.metric === 'weight_lb' || target.metric === 'lean_mass_lb' ? 'lb' :
+    target.metric === 'bodyfat_pct' ? '%' : 'in';
+  const dir =
+    target.direction === 'lose' ? 'Lose' :
+    target.direction === 'gain' ? 'Gain' : 'Maintain';
+  if (target.direction === 'maintain') {
+    const metricLabel =
+      target.metric === 'weight_lb' ? 'weight' :
+      target.metric === 'bodyfat_pct' ? 'body fat' :
+      target.metric === 'waist_in' ? 'waist' : 'lean mass';
+    return `${dir} ${metricLabel}`;
+  }
+  const amount = `${target.amount} ${unit}`;
+  return deadlineLabel ? `${dir} ${amount} by ${deadlineLabel}` : `${dir} ${amount}`;
 }
 
 export function shouldShowPrompt(

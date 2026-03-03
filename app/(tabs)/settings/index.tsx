@@ -13,7 +13,7 @@ import {
   Pressable,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell, Bookmark } from 'lucide-react-native';
+import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell, Bookmark, Target } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing, Shadows } from '../../../theme/tokens';
@@ -21,6 +21,7 @@ import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
+import { useGoalSettings } from '../../../providers/GoalSettingsProvider';
 import { PromptCadence, CADENCE_LABELS } from '../../../features/progress/types';
 import * as foodService from '../../../features/food/foodService';
 import {
@@ -45,6 +46,8 @@ import {
 } from '../../../types';
 import { GOAL_DEFINITIONS, MACRO_STRATEGY_DEFINITIONS } from '../../../src/content/planDefinitions';
 import PlanDefinitionSheet from '../../../components/ui/PlanDefinitionSheet';
+import { formatTargetSummary } from '../../../features/progress/progressScoring';
+import { fromDateKey } from '../../../utils/dateKey';
 
 type EditMode = 'none' | 'profile' | 'goal' | 'strategy';
 
@@ -52,6 +55,7 @@ export default function SettingsScreen() {
   const { profile, macros, updateProfile, resetProfile } = useUser();
   const { clearAll } = useDailyLog();
   const { promptSettings, updateCadence, records } = useMeasurements();
+  const { target, saveGoalSettings } = useGoalSettings();
   const router = useRouter();
   const [editMode, setEditMode] = useState<EditMode>('none');
   const [usdaHealth, setUsdaHealth] = useState<{
@@ -111,11 +115,12 @@ export default function SettingsScreen() {
       goal,
       goal_rate: goalRate,
     });
+    saveGoalSettings({ goalType: goal });
     setEditMode('none');
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [goal, goalRate, updateProfile]);
+  }, [goal, goalRate, updateProfile, saveGoalSettings]);
 
   const toggleModifier = useCallback((mod: DietaryModifier) => {
     setDietaryModifiers((prev) => {
@@ -448,6 +453,34 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          <View style={styles.settingsDivider} />
+
+          <TouchableOpacity
+            style={styles.settingsRow}
+            onPress={() => router.push('/set-target' as never)}
+          >
+            <View style={[styles.settingsIcon, { backgroundColor: Colors.primaryMuted }]}>
+              <Target size={16} color={Colors.primary} />
+            </View>
+            <View style={styles.settingsInfo}>
+              <Text style={styles.settingsLabel}>Goal & Targets</Text>
+              <Text style={styles.settingsValue}>
+                {target
+                  ? formatTargetSummary(
+                      target,
+                      target.deadlineDateKey
+                        ? fromDateKey(target.deadlineDateKey).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : undefined
+                    )
+                  : 'Set a measurable target'}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={Colors.textTertiary} />
+          </TouchableOpacity>
 
           <View style={styles.settingsDivider} />
 

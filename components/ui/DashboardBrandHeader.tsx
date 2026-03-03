@@ -11,24 +11,6 @@ export default function DashboardBrandHeader() {
   return (
     <View style={styles.container}>
       <View style={styles.brandRow}>
-        <MaskedView
-          maskElement={
-            <Text style={[styles.physiqText, { backgroundColor: 'transparent', color: 'black' }]}>
-              Physiq
-            </Text>
-          }
-        >
-          <LinearGradient
-            colors={[...GRADIENT_COLORS]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.gradientFill}
-          >
-            <Text style={[styles.physiqText, styles.physiqTextInvisible]}>
-              Physiq
-            </Text>
-          </LinearGradient>
-        </MaskedView>
         <View style={styles.iconWrapper}>
           <MaskedView
             maskElement={
@@ -47,6 +29,26 @@ export default function DashboardBrandHeader() {
             </LinearGradient>
           </MaskedView>
         </View>
+        <MaskedView
+          maskElement={
+            <Text style={[styles.physiqText, { backgroundColor: 'transparent', color: 'black' }]}>
+              <Text style={styles.physiqBold}>Physiq:</Text>
+              <Text style={styles.macroTracker}> Macro Tracker</Text>
+            </Text>
+          }
+        >
+          <LinearGradient
+            colors={[...GRADIENT_COLORS]}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.gradientFill}
+          >
+            <Text style={[styles.physiqText, styles.physiqTextInvisible]}>
+              <Text style={styles.physiqBold}>Physiq:</Text>
+              <Text style={styles.macroTracker}> Macro Tracker</Text>
+            </Text>
+          </LinearGradient>
+        </MaskedView>
       </View>
       <View style={styles.divider} />
     </View>
@@ -67,8 +69,13 @@ const styles = StyleSheet.create({
   },
   physiqText: {
     fontSize: 22,
-    fontWeight: '700' as const,
     letterSpacing: 0.6,
+  },
+  physiqBold: {
+    fontWeight: '700' as const,
+  },
+  macroTracker: {
+    fontWeight: '400' as const,
   },
   physiqTextInvisible: {
     opacity: 0,

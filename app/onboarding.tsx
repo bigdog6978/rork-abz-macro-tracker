@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ChevronRight, ChevronLeft, Zap, Ruler, TrendingUp } from 'lucide-react-native';
 import Colors from '../constants/colors';
@@ -44,7 +44,7 @@ import { setPromptSettings } from '../storage/measurementsRepo';
 import { MeasurementRecord, MeasurementPromptSettings } from '../features/progress/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 type StepProps = {
   onNext: () => void;
@@ -54,6 +54,7 @@ type StepProps = {
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { completeOnboarding } = useUser();
+  const navRouter = useRouter();
   const [step, setStep] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -463,7 +464,48 @@ export default function OnboardingScreen() {
     });
   }, []);
 
-  const renderStep3 = () => {
+  const renderStep3 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Set Your Target</Text>
+      <Text style={styles.stepSubtitle}>Make your goal measurable.</Text>
+      <Text style={[styles.stepSubtitle, { marginBottom: 16, fontSize: 14 }]}>
+        You can edit this anytime in Settings.
+      </Text>
+      <TouchableOpacity
+        style={styles.optionButton}
+        onPress={() => {
+          if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          navRouter.push({ pathname: '/set-target', params: { fromOnboarding: 'true' } } as never);
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={styles.optionContent}>
+          <Text style={styles.optionLabel}>Set Target</Text>
+          <Text style={styles.optionDescription}>
+            Choose a metric (weight, body fat, waist) and target amount
+          </Text>
+        </View>
+        <ChevronRight size={20} color={Colors.primary} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.optionButton, { marginTop: 12, borderColor: Colors.cardBorder }]}
+        onPress={() => {
+          if (Platform.OS !== 'web') Haptics.selectionAsync();
+          goNext();
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={styles.optionContent}>
+          <Text style={[styles.optionLabel, { color: Colors.textSecondary }]}>Skip for now</Text>
+          <Text style={[styles.optionDescription, { color: Colors.textTertiary }]}>
+            Set a target later in Settings
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderStep4 = () => {
     const previewHeightCm = measurementSystem === 'us'
       ? ftInToCm(parseInt(heightFt, 10) || 5, parseInt(heightIn, 10) || 9)
       : parseFloat(heightCm) || 175;
@@ -596,7 +638,7 @@ export default function OnboardingScreen() {
     );
   };
 
-  const renderStep4 = () => (
+  const renderStep5 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.baselineTitleRow}>
         <Text style={[styles.stepTitle, { marginBottom: 0 }]}>Baseline{"\n"}Measurements</Text>
@@ -704,7 +746,7 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const steps = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4];
+  const steps = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5];
   const isLastStep = step === TOTAL_STEPS - 1;
 
   return (

@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   PROTOCOL: 'physiq_protocol',
   SETTINGS: 'physiq_settings',
   MEAL_PLAN_QUANTITIES: 'physiq_meal_plan_quantities',
+  GOAL_SETTINGS: 'physiq_goal_settings',
 } as const;
 
 export async function saveData(key: string, value: unknown): Promise<void> {

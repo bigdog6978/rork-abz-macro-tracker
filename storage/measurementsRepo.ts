@@ -1,22 +1,58 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MeasurementRecord, MeasurementPromptSettings } from '../features/progress/types';
+import { toDateKey } from '../utils/dateKey';
 
 const KEYS = {
   measurements: 'abz_measurements',
   promptSettings: 'abz_measurement_prompt_settings',
 };
 
-export async function addMeasurement(record: MeasurementRecord): Promise<void> {
+function ensureDateKey(r: MeasurementRecord): MeasurementRecord {
+  if (r.dateKey) return r;
+  const dk = toDateKey(new Date(r.recordedAt));
+  return { ...r, dateKey: dk };
+}
+
+function sortByDateKey(records: MeasurementRecord[]): MeasurementRecord[] {
+  return [...records].sort((a, b) => {
+    const dkA = a.dateKey ?? toDateKey(new Date(a.recordedAt));
+    const dkB = b.dateKey ?? toDateKey(new Date(b.recordedAt));
+    return dkA.localeCompare(dkB);
+  });
+}
+
+export async function getMeasurementByDateKey(
+  userId: string,
+  dateKey: string
+): Promise<MeasurementRecord | null> {
+  const records = await getMeasurements(userId);
+  return records.find((r) => (r.dateKey ?? toDateKey(new Date(r.recordedAt))) === dateKey) ?? null;
+}
+
+export async function upsertMeasurement(record: MeasurementRecord): Promise<void> {
   try {
+    const dateKey = record.dateKey ?? toDateKey(new Date(record.recordedAt));
+    const withKey = { ...record, dateKey };
     const existing = await getMeasurements(record.userId);
-    const updated = [...existing, record].sort(
-      (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()
+    const idx = existing.findIndex(
+      (r) => (r.dateKey ?? toDateKey(new Date(r.recordedAt))) === dateKey
     );
+    let updated: MeasurementRecord[];
+    if (idx >= 0) {
+      updated = [...existing];
+      updated[idx] = withKey;
+    } else {
+      updated = [...existing, withKey];
+    }
+    updated = sortByDateKey(updated);
     await AsyncStorage.setItem(KEYS.measurements, JSON.stringify(updated));
-    console.log('[measurementsRepo] Added measurement:', record.id);
   } catch (err) {
-    console.log('[measurementsRepo] Error adding measurement:', err);
+    console.log('[measurementsRepo] Error upserting measurement:', err);
   }
+}
+
+export async function addMeasurement(record: MeasurementRecord): Promise<void> {
+  await upsertMeasurement(ensureDateKey(record));
 }
 
 export async function getMeasurements(userId: string): Promise<MeasurementRecord[]> {
@@ -24,9 +60,10 @@ export async function getMeasurements(userId: string): Promise<MeasurementRecord
     const data = await AsyncStorage.getItem(KEYS.measurements);
     if (!data) return [];
     const all: MeasurementRecord[] = JSON.parse(data);
-    return all
+    const migrated = all.map(ensureDateKey);
+    return migrated
       .filter((r) => r.userId === userId)
-      .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
+      .sort((a, b) => (a.dateKey ?? '').localeCompare(b.dateKey ?? ''));
   } catch (err) {
     console.log('[measurementsRepo] Error reading measurements:', err);
     return [];

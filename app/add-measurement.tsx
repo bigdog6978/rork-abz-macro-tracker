@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,35 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Check, Info } from 'lucide-react-native';
+import { Check, Info, ChevronDown } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { useUser } from '../providers/UserProvider';
 import { useMeasurements } from '../providers/MeasurementsProvider';
 import { MeasurementRecord } from '../features/progress/types';
+import { toDateKey, fromDateKey, getTodayDateKey } from '../utils/dateKey';
+
+function formatDateLabel(dateKey: string): string {
+  return fromDateKey(dateKey).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
 
 export default function AddMeasurementScreen() {
   const { profile } = useUser();
-  const { latest, addMeasurement, isAdding, userId } = useMeasurements();
+  const { latest, addMeasurement, deleteMeasurementAsync, isAdding, userId, getMeasurementByDateKey } = useMeasurements();
+  const params = useLocalSearchParams<{ dateKey?: string }>();
+  const initialDateKey = typeof params.dateKey === 'string' ? params.dateKey : getTodayDateKey();
+
+  const [dateKey, setDateKey] = useState(initialDateKey);
+  const [existingEntry, setExistingEntry] = useState<MeasurementRecord | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [bodyFat, setBodyFat] = useState('');
   const [weight, setWeight] = useState('');
@@ -29,7 +46,50 @@ export default function AddMeasurementScreen() {
   const [dressSize, setDressSize] = useState('');
   const [notes, setNotes] = useState('');
 
-  const handleSave = useCallback(() => {
+  useEffect(() => {
+    setDateKey(initialDateKey);
+    let cancelled = false;
+    getMeasurementByDateKey(initialDateKey).then((entry) => {
+      if (!cancelled) {
+        setExistingEntry(entry);
+        if (entry) {
+          setWeight(entry.weightLb != null ? String(entry.weightLb) : '');
+          setBodyFat(entry.bodyFatPercent != null ? String(entry.bodyFatPercent) : '');
+          setWaist(entry.waistIn != null ? String(entry.waistIn) : '');
+          setChest(entry.chestIn != null ? String(entry.chestIn) : '');
+          setDressSize(entry.dressSize ?? '');
+          setNotes(entry.notes ?? '');
+        } else {
+          setWeight('');
+          setBodyFat('');
+          setWaist('');
+          setChest('');
+          setDressSize('');
+          setNotes('');
+        }
+      }
+    });
+    return () => { cancelled = true; };
+  }, [initialDateKey, getMeasurementByDateKey]);
+
+  const dateOptions = React.useMemo(() => {
+    const opts: { dateKey: string; label: string }[] = [];
+    const d = new Date();
+    for (let i = 0; i < 90; i++) {
+      const dk = toDateKey(d);
+      opts.push({ dateKey: dk, label: formatDateLabel(dk) });
+      d.setDate(d.getDate() - 1);
+    }
+    return opts;
+  }, []);
+
+  const handleDateSelect = useCallback((dk: string) => {
+    setDateKey(dk);
+    setShowDatePicker(false);
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+  }, []);
+
+  const handleSave = useCallback(async () => {
     const bf = parseFloat(bodyFat);
     const w = parseFloat(weight);
     const wa = parseFloat(waist);
@@ -46,10 +106,18 @@ export default function AddMeasurementScreen() {
       return;
     }
 
+    const originalDateKey = existingEntry?.dateKey ?? (existingEntry ? toDateKey(new Date(existingEntry.recordedAt)) : null);
+    const isMoving = existingEntry && originalDateKey && dateKey !== originalDateKey;
+
+    if (isMoving) {
+      await deleteMeasurementAsync(existingEntry.id);
+    }
+
     const record: MeasurementRecord = {
-      id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      id: isMoving ? `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` : (existingEntry?.id ?? `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
       userId,
-      recordedAt: new Date().toISOString(),
+      recordedAt: new Date(dateKey + 'T12:00:00').toISOString(),
+      dateKey,
     };
 
     if (!isNaN(bf)) record.bodyFatPercent = bf;
@@ -58,6 +126,7 @@ export default function AddMeasurementScreen() {
     if (!isNaN(ch) && ch > 0) record.chestIn = ch;
     if (dressSize.trim()) record.dressSize = dressSize.trim();
     if (notes.trim()) record.notes = notes.trim();
+    if (existingEntry?.isBaseline) record.isBaseline = true;
 
     addMeasurement(record);
 
@@ -68,7 +137,9 @@ export default function AddMeasurementScreen() {
     Alert.alert('Saved', 'Measurement recorded successfully.', [
       { text: 'OK', onPress: () => router.back() },
     ]);
-  }, [bodyFat, weight, waist, chest, dressSize, notes, addMeasurement, userId]);
+  }, [bodyFat, weight, waist, chest, dressSize, notes, addMeasurement, deleteMeasurementAsync, userId, dateKey, existingEntry]);
+
+  const isEditing = existingEntry !== null;
 
   return (
     <View style={styles.container}>
@@ -82,7 +153,59 @@ export default function AddMeasurementScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {latest && (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Date</Text>
+            <TouchableOpacity
+              style={styles.dateField}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dateFieldText}>{formatDateLabel(dateKey)}</Text>
+              <ChevronDown size={18} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
+
+          {existingEntry ? (
+            <View style={styles.lastCard}>
+              <View style={styles.lastCardHeader}>
+                <Info size={14} color={Colors.textSecondary} />
+                <Text style={styles.lastCardTitle}>Last Recorded</Text>
+                <Text style={styles.lastCardDate}>{formatDateLabel(dateKey)}</Text>
+              </View>
+              <View style={styles.lastCardValues}>
+                {existingEntry.weightLb != null && (
+                  <View style={styles.lastValueItem}>
+                    <Text style={styles.lastValueLabel}>Weight</Text>
+                    <Text style={styles.lastValueNum}>{existingEntry.weightLb} lb</Text>
+                  </View>
+                )}
+                {existingEntry.waistIn != null && (
+                  <View style={styles.lastValueItem}>
+                    <Text style={styles.lastValueLabel}>Waist</Text>
+                    <Text style={styles.lastValueNum}>{existingEntry.waistIn} in</Text>
+                  </View>
+                )}
+                {existingEntry.chestIn != null && (
+                  <View style={styles.lastValueItem}>
+                    <Text style={styles.lastValueLabel}>Chest</Text>
+                    <Text style={styles.lastValueNum}>{existingEntry.chestIn} in</Text>
+                  </View>
+                )}
+                {existingEntry.bodyFatPercent != null && (
+                  <View style={styles.lastValueItem}>
+                    <Text style={styles.lastValueLabel}>Body Fat</Text>
+                    <Text style={styles.lastValueNum}>{existingEntry.bodyFatPercent}%</Text>
+                  </View>
+                )}
+                {existingEntry.dressSize != null && (
+                  <View style={styles.lastValueItem}>
+                    <Text style={styles.lastValueLabel}>Dress</Text>
+                    <Text style={styles.lastValueNum}>{existingEntry.dressSize}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          ) : latest && dateKey === getTodayDateKey() ? (
             <View style={styles.lastCard}>
               <View style={styles.lastCardHeader}>
                 <Info size={14} color={Colors.textSecondary} />
@@ -123,6 +246,10 @@ export default function AddMeasurementScreen() {
                   </View>
                 )}
               </View>
+            </View>
+          ) : (
+            <View style={styles.noEntryCard}>
+              <Text style={styles.noEntryText}>No entry for this date</Text>
             </View>
           )}
 
@@ -235,11 +362,43 @@ export default function AddMeasurementScreen() {
           >
             <Check size={18} color={Colors.white} />
             <Text style={styles.saveButtonText}>
-              {isAdding ? 'Saving...' : 'Save Measurement'}
+              {isAdding ? 'Saving...' : isEditing ? 'Save Changes' : 'Save Measurement'}
             </Text>
           </TouchableOpacity>
+
+          <Text style={styles.savedToHint}>Saves to {formatDateLabel(dateKey)}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showDatePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <Pressable style={styles.datePickerOverlay} onPress={() => setShowDatePicker(false)}>
+          <View style={styles.datePickerSheet} onStartShouldSetResponder={() => true}>
+            <Text style={styles.datePickerTitle}>Select date</Text>
+            <ScrollView style={styles.datePickerList} showsVerticalScrollIndicator={false}>
+              {dateOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.dateKey}
+                  style={[styles.datePickerOption, opt.dateKey === dateKey && styles.datePickerOptionActive]}
+                  onPress={() => handleDateSelect(opt.dateKey)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.datePickerOptionText, opt.dateKey === dateKey && styles.datePickerOptionActiveText]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.datePickerCancel} onPress={() => setShowDatePicker(false)}>
+              <Text style={styles.datePickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -255,6 +414,52 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  fieldGroup: {},
+  fieldGroupHalf: {
+    flex: 1,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  fieldLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    marginBottom: 8,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  dateField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 20,
+  },
+  dateFieldText: {
+    color: Colors.text,
+    fontSize: 17,
+    fontWeight: '600' as const,
+  },
+  noEntryCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  noEntryText: {
+    color: Colors.textTertiary,
+    fontSize: 13,
+    fontWeight: '500' as const,
   },
   lastCard: {
     backgroundColor: Colors.card,
@@ -306,22 +511,6 @@ const styles = StyleSheet.create({
   fieldsSection: {
     gap: 16,
   },
-  fieldGroup: {},
-  fieldGroupHalf: {
-    flex: 1,
-  },
-  fieldRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  fieldLabel: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600' as const,
-    marginBottom: 8,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
   fieldInput: {
     backgroundColor: Colors.card,
     borderWidth: 1,
@@ -355,5 +544,62 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 16,
     fontWeight: '700' as const,
+  },
+  savedToHint: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    marginTop: 8,
+    textAlign: 'center' as const,
+  },
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  datePickerSheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: '70%',
+  },
+  datePickerTitle: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginBottom: 16,
+  },
+  datePickerList: {
+    maxHeight: 320,
+    marginBottom: 16,
+  },
+  datePickerOption: {
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.cardBorder,
+  },
+  datePickerOptionActive: {
+    backgroundColor: Colors.primaryMuted,
+  },
+  datePickerOptionText: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  datePickerOptionActiveText: {
+    color: Colors.primary,
+  },
+  datePickerCancel: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  datePickerCancelText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
 });

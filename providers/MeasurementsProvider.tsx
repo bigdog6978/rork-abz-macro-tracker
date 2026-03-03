@@ -10,8 +10,10 @@ import {
   ProgressTrend,
 } from '../features/progress/types';
 import {
-  addMeasurement as repoAdd,
+  upsertMeasurement as repoUpsert,
   getMeasurements as repoGetAll,
+  getMeasurementByDateKey as repoGetByDateKey,
+  deleteMeasurement as repoDelete,
   getBaselineMeasurement as repoGetBaseline,
   getLatestMeasurement as repoGetLatest,
   getPromptSettings as repoGetPromptSettings,
@@ -63,7 +65,7 @@ export const [MeasurementsProvider, useMeasurements] = createContextHook(() => {
 
   const addMeasurementMutation = useMutation({
     mutationFn: async (record: MeasurementRecord) => {
-      await repoAdd(record);
+      await repoUpsert(record);
       const settings = await repoGetPromptSettings(USER_ID);
       if (settings) {
         await repoSetPromptSettings(USER_ID, {
@@ -77,6 +79,7 @@ export const [MeasurementsProvider, useMeasurements] = createContextHook(() => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['measurements', USER_ID] });
       queryClient.invalidateQueries({ queryKey: ['measurement_prompt_settings', USER_ID] });
+      queryClient.refetchQueries({ queryKey: ['measurements', USER_ID] });
     },
   });
 
@@ -130,6 +133,19 @@ export const [MeasurementsProvider, useMeasurements] = createContextHook(() => {
     },
   });
 
+  const getMeasurementByDateKey = useCallback(
+    (dateKey: string) => repoGetByDateKey(USER_ID, dateKey),
+    []
+  );
+
+  const deleteMeasurementMutation = useMutation({
+    mutationFn: (measurementId: string) => repoDelete(measurementId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['measurements', USER_ID] });
+      queryClient.refetchQueries({ queryKey: ['measurements', USER_ID] });
+    },
+  });
+
   return {
     records,
     baseline,
@@ -141,6 +157,9 @@ export const [MeasurementsProvider, useMeasurements] = createContextHook(() => {
     promptSettings,
     isLoading: measurementsQuery.isLoading,
     addMeasurement: addMeasurementMutation.mutate,
+    deleteMeasurement: deleteMeasurementMutation.mutate,
+    deleteMeasurementAsync: deleteMeasurementMutation.mutateAsync,
+    getMeasurementByDateKey,
     isAdding: addMeasurementMutation.isPending,
     initPromptSettings,
     updateCadence: updateCadence.mutate,

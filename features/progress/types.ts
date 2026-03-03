@@ -4,6 +4,8 @@ export interface MeasurementRecord {
   id: string;
   userId: string;
   recordedAt: string;
+  /** YYYY-MM-DD in local timezone; used for deduplication and edit-by-date */
+  dateKey?: string;
   bodyFatPercent?: number;
   weightLb?: number;
   dressSize?: string;

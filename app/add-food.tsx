@@ -31,6 +31,7 @@ import {
 } from '../features/food/servingDefaults';
 
 const DEBOUNCE_MS = 300;
+const HEADER_BUTTON_SIZE = 44;
 
 function getSearchErrorMessage(
   searchStatus: string,
@@ -74,7 +75,8 @@ function getSearchErrorMessage(
 
 export default function AddFoodScreen() {
   const { addEntry } = useDailyLog();
-  const params = useLocalSearchParams<{ fromBarcode?: string }>();
+  const params = useLocalSearchParams<{ fromBarcode?: string; dateKey?: string }>();
+  const dateKeyParam = typeof params.dateKey === 'string' ? params.dateKey : undefined;
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<NormalizedFood[]>([]);
@@ -476,7 +478,7 @@ export default function AddFoodScreen() {
         entryOpts
       );
 
-      addEntry(entry);
+      addEntry(entry, dateKeyParam);
 
       const normalizedForRecent =
         selectedFood ??
@@ -524,6 +526,7 @@ export default function AddFoodScreen() {
     saveToLibrary,
     saveManualToLibrary,
     addEntry,
+    dateKeyParam,
   ]);
 
   const handleManualMode = useCallback(() => {
@@ -672,33 +675,37 @@ export default function AddFoodScreen() {
       <Stack.Screen
         options={{
           headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              testID="close-add-food"
-              style={styles.headerIconBtn}
-            >
-              <View style={styles.headerIconWrap}>
-                <X size={22} color={Colors.textSecondary} />
-              </View>
-            </TouchableOpacity>
+            <View style={styles.headerBtnContainer}>
+              <TouchableOpacity
+                onPress={() => router.back()}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                testID="close-add-food"
+                style={styles.headerIconBtn}
+              >
+                <View style={styles.headerIconWrap}>
+                  <X size={22} color={Colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+            </View>
           ),
           headerRight: () => (
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={isSaving}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              testID="save-food-button"
-              style={styles.headerIconBtn}
-            >
-              <View style={styles.headerIconWrap}>
-                {isSaving ? (
-                  <ActivityIndicator size="small" color={Colors.primary} />
-                ) : (
-                  <Check size={22} color={Colors.primary} />
-                )}
-              </View>
-            </TouchableOpacity>
+            <View style={styles.headerBtnContainer}>
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={isSaving}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                testID="save-food-button"
+                style={styles.headerIconBtn}
+              >
+                <View style={styles.headerIconWrap}>
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  ) : (
+                    <Check size={22} color={Colors.primary} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
           ),
         }}
       />
@@ -1184,15 +1191,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  headerBtnContainer: {
+    width: HEADER_BUTTON_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerIconBtn: {
-    width: 44,
-    height: 44,
+    width: HEADER_BUTTON_SIZE,
+    height: HEADER_BUTTON_SIZE,
+    borderRadius: HEADER_BUTTON_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerIconWrap: {
-    width: 44,
-    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },

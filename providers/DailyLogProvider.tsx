@@ -86,12 +86,13 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
   });
 
   const addEntry = useCallback(
-    (entry: FoodEntry) => {
+    (entry: FoodEntry, dateKey?: string) => {
+      const targetDate = dateKey ?? today;
       const updated = { ...logs };
-      if (!updated[today]) {
-        updated[today] = [];
+      if (!updated[targetDate]) {
+        updated[targetDate] = [];
       }
-      updated[today] = [...updated[today], entry];
+      updated[targetDate] = [...updated[targetDate], entry];
       setLogs(updated);
       saveMutation.mutate(updated);
     },
@@ -99,10 +100,11 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
   );
 
   const removeEntry = useCallback(
-    (entryId: string) => {
+    (entryId: string, dateKey?: string) => {
+      const targetDate = dateKey ?? today;
       const updated = { ...logs };
-      if (updated[today]) {
-        updated[today] = updated[today].filter((e) => e.id !== entryId);
+      if (updated[targetDate]) {
+        updated[targetDate] = updated[targetDate].filter((e) => e.id !== entryId);
         setLogs(updated);
         saveMutation.mutate(updated);
       }
@@ -111,17 +113,18 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
   );
 
   const updateEntry = useCallback(
-    (entryId: string, updates: Partial<FoodEntry>) => {
+    (entryId: string, updates: Partial<FoodEntry>, dateKey?: string) => {
+      const targetDate = dateKey ?? today;
       const updated = { ...logs };
-      if (updated[today]) {
-        const idx = updated[today].findIndex((e) => e.id === entryId);
+      if (updated[targetDate]) {
+        const idx = updated[targetDate].findIndex((e) => e.id === entryId);
         if (idx !== -1) {
-          updated[today] = [...updated[today]];
-          let merged = { ...updated[today][idx], ...updates };
+          updated[targetDate] = [...updated[targetDate]];
+          let merged = { ...updated[targetDate][idx], ...updates };
           if (!merged.isCustomMacros && merged.nutrientsPer100g) {
             merged = ensureEntryMacros(merged);
           }
-          updated[today][idx] = merged;
+          updated[targetDate][idx] = merged;
           setLogs(updated);
           saveMutation.mutate(updated);
         }
@@ -186,6 +189,36 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
     return Object.keys(logs).filter((date) => logs[date].length > 0).sort().reverse();
   }, [logs]);
 
+  const ensureDayExists = useCallback(
+    (dateKey: string): StoredLogs => {
+      const updated = { ...logs };
+      if (!updated[dateKey]) {
+        updated[dateKey] = [];
+        setLogs(updated);
+        saveMutation.mutate(updated);
+      }
+      return updated;
+    },
+    [logs, saveMutation]
+  );
+
+  const clearDay = useCallback(
+    (dateKey: string) => {
+      const updated = { ...logs };
+      const entries = updated[dateKey] ?? [];
+      if (entries.length > 0) {
+        if (__DEV__) {
+          console.warn('[DailyLog] clearDay: day has entries, refusing to clear');
+        }
+        return;
+      }
+      delete updated[dateKey];
+      setLogs(updated);
+      saveMutation.mutate(updated);
+    },
+    [logs, saveMutation]
+  );
+
   const getStreak = useCallback((): number => {
     let streak = 0;
     const d = new Date();
@@ -210,10 +243,13 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
     updateEntry,
     clearToday,
     clearAll,
+    clearDay,
+    ensureDayExists,
     getEntriesForDate,
     getTotalsForDate,
     getDatesWithEntries,
     getStreak,
+    logs,
     isLoading: logsQuery.isLoading,
   };
 });

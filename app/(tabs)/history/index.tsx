@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   View,
   Text,
@@ -7,12 +9,14 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
+  Pressable,
+  Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   Flame, TrendingUp, TrendingDown, Calendar, ChevronDown, ChevronUp,
-  Target, Plus, ArrowUpRight, ArrowDownRight, Minus, Ruler,
+  Target, Plus, ArrowUpRight, ArrowDownRight, Minus, Ruler, ChevronRight,
 } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing, Shadows } from '../../../theme/tokens';
@@ -20,9 +24,16 @@ import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
+import { useGoalSettings } from '../../../providers/GoalSettingsProvider';
 import { getAdherencePercent } from '../../../utils/macroEngine';
+import { toDateKey } from '../../../utils/dateKey';
 import { MacroTargets, GOAL_LABELS } from '../../../types';
 import { ProgressTrend } from '../../../features/progress/types';
+import {
+  computeGoalProgressScoreFromTarget,
+  formatTargetSummary,
+} from '../../../features/progress/progressScoring';
+import { fromDateKey } from '../../../utils/dateKey';
 
 type ViewMode = 'progress' | 'history';
 type TimeRange = 7 | 14 | 30;
@@ -94,7 +105,7 @@ const gaugeStyles = StyleSheet.create({
   },
 });
 
-function TrendItem({ trend }: { trend: ProgressTrend }) {
+function TrendItem({ trend, onPress }: { trend: ProgressTrend; onPress?: () => void }) {
   const icon = trend.direction === 'up'
     ? <ArrowUpRight size={16} color={trend.isPositive ? Colors.success : Colors.danger} />
     : trend.direction === 'down'
@@ -103,7 +114,7 @@ function TrendItem({ trend }: { trend: ProgressTrend }) {
 
   const valueColor = trend.isPositive ? Colors.success : trend.direction === 'stable' ? Colors.textSecondary : Colors.danger;
 
-  return (
+  const content = (
     <View style={trendStyles.item}>
       <View style={trendStyles.left}>
         {icon}
@@ -121,6 +132,15 @@ function TrendItem({ trend }: { trend: ProgressTrend }) {
       </Text>
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+  return content;
 }
 
 const trendStyles = StyleSheet.create({
@@ -257,12 +277,13 @@ function DayRow({
   date,
   totals,
   targets,
+  onPress,
 }: {
   date: string;
   totals: MacroTargets;
   targets: MacroTargets;
+  onPress: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const adherence = getAdherencePercent(totals, targets);
   const d = new Date(date + 'T12:00:00');
   const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
@@ -272,10 +293,11 @@ function DayRow({
     adherence >= 80 ? Colors.success : adherence >= 50 ? Colors.warning : Colors.danger;
 
   return (
-    <TouchableOpacity
+    <Pressable
       style={styles.dayRow}
-      onPress={() => setExpanded(!expanded)}
-      activeOpacity={0.7}
+      onPress={onPress}
+      accessibilityLabel={`${dayName} ${dateLabel}, ${formatNumber(totals.calories)} calories`}
+      accessibilityRole="button"
     >
       <View style={styles.dayRowMain}>
         <View style={styles.dayInfo}>
@@ -289,68 +311,49 @@ function DayRow({
         <View style={[styles.adherenceBadge, { backgroundColor: adherenceColor + '20' }]}>
           <Text style={[styles.adherenceText, { color: adherenceColor }]}>{adherence}%</Text>
         </View>
-        {expanded ? (
-          <ChevronUp size={16} color={Colors.textTertiary} />
-        ) : (
-          <ChevronDown size={16} color={Colors.textTertiary} />
-        )}
+        <ChevronRight size={16} color={Colors.textTertiary} />
       </View>
-      {expanded && (
-        <View style={styles.dayExpanded}>
-          <View style={styles.dayMacroRow}>
-            <View style={styles.dayMacroItem}>
-              <View style={[styles.dayMacroDot, { backgroundColor: Colors.protein }]} />
-              <Text style={styles.dayMacroLabel}>Protein</Text>
-              <Text style={styles.dayMacroValue}>
-                {formatNumber(totals.protein_g)}
-                <Text style={styles.dayMacroTarget}>/{formatNumber(targets.protein_g)}g</Text>
-              </Text>
-            </View>
-            <View style={styles.dayMacroItem}>
-              <View style={[styles.dayMacroDot, { backgroundColor: Colors.carbs }]} />
-              <Text style={styles.dayMacroLabel}>Carbs</Text>
-              <Text style={styles.dayMacroValue}>
-                {formatNumber(totals.carbs_g)}
-                <Text style={styles.dayMacroTarget}>/{formatNumber(targets.carbs_g)}g</Text>
-              </Text>
-            </View>
-            <View style={styles.dayMacroItem}>
-              <View style={[styles.dayMacroDot, { backgroundColor: Colors.fat }]} />
-              <Text style={styles.dayMacroLabel}>Fat</Text>
-              <Text style={styles.dayMacroValue}>
-                {formatNumber(totals.fat_g)}
-                <Text style={styles.dayMacroTarget}>/{formatNumber(targets.fat_g)}g</Text>
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 export default function HistoryScreen() {
+  const queryClient = useQueryClient();
   const { profile, macros } = useUser();
-  const { getTotalsForDate, getDatesWithEntries, getStreak } = useDailyLog();
+  const { getTotalsForDate, getDatesWithEntries, getStreak, ensureDayExists, logs } = useDailyLog();
   const { records, trends, goalScore, hasBaseline, baseline, latest } = useMeasurements();
+  const { target } = useGoalSettings();
+
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.refetchQueries({ queryKey: ['measurements', 'local_user'] });
+    }, [queryClient])
+  );
   const [viewMode, setViewMode] = useState<ViewMode>('progress');
   const [range, setRange] = useState<TimeRange>(7);
+  const [addDayModalVisible, setAddDayModalVisible] = useState(false);
+  const [highlightDateKey, setHighlightDateKey] = useState<string | null>(null);
   const streak = getStreak();
 
   const datesInRange = useMemo(() => {
     const dates: string[] = [];
     const d = new Date();
     for (let i = 0; i < range; i++) {
-      dates.push(d.toISOString().split('T')[0]);
+      dates.push(toDateKey(d));
       d.setDate(d.getDate() - 1);
     }
     return dates;
   }, [range]);
 
+  const datesToShow = useMemo(() => {
+    const logDates = Object.keys(logs);
+    const combined = new Set([...datesInRange, ...logDates]);
+    return Array.from(combined).sort().reverse().slice(0, 60);
+  }, [datesInRange, logs]);
+
   const datesWithData = useMemo(() => {
-    const allDates = getDatesWithEntries();
-    return datesInRange.filter((date) => allDates.includes(date));
-  }, [datesInRange, getDatesWithEntries]);
+    return datesToShow.filter((date) => (logs[date]?.length ?? 0) > 0);
+  }, [datesToShow, logs]);
 
   const avgAdherence = useMemo(() => {
     if (datesWithData.length === 0) return 0;
@@ -367,6 +370,89 @@ export default function HistoryScreen() {
     }
     router.push('/add-measurement' as never);
   }, []);
+
+  const handleOpenMeasurementHistory = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push('/measurement-history' as never);
+  }, []);
+
+  const handleOpenSetTarget = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push('/set-target' as never);
+  }, []);
+
+  const targetScoreResult = target && (baseline || latest)
+    ? computeGoalProgressScoreFromTarget(baseline, latest, target)
+    : null;
+  const displayScore = target && targetScoreResult && !targetScoreResult.needsBaseline
+    ? targetScoreResult.score
+    : goalScore.overall;
+  const targetStatusText = targetScoreResult?.statusText;
+  const needsBaselineForTarget = targetScoreResult?.needsBaseline ?? false;
+  const targetSummary = target
+    ? formatTargetSummary(
+        target,
+        target.deadlineDateKey
+          ? fromDateKey(target.deadlineDateKey).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+            })
+          : undefined
+      )
+    : null;
+
+  const handleDayPress = useCallback(
+    (dateKey: string) => {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      router.push({ pathname: '/day-log', params: { dateKey } } as never);
+    },
+    []
+  );
+
+  const openAddDayModal = useCallback(() => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setAddDayModalVisible(true);
+  }, []);
+
+  const addDayOptions = useMemo(() => {
+    const opts: { label: string; dateKey: string }[] = [];
+    const d = new Date();
+    for (let i = 1; i <= 30; i++) {
+      d.setDate(d.getDate() - 1);
+      const dateKey = toDateKey(d);
+      const dateLabel = d.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+      opts.push({ label: dateLabel, dateKey });
+    }
+    return opts;
+  }, []);
+
+  const handleAddDaySelect = useCallback(
+    (dateKey: string) => {
+      const exists = logs[dateKey] !== undefined;
+      if (!exists) {
+        ensureDayExists(dateKey);
+      }
+      setAddDayModalVisible(false);
+      setHighlightDateKey(dateKey);
+      setTimeout(() => setHighlightDateKey(null), 1500);
+      if (!exists) {
+        handleDayPress(dateKey);
+      }
+    },
+    [logs, ensureDayExists, handleDayPress]
+  );
 
   if (!profile.onboarding_complete) {
     return (
@@ -410,20 +496,64 @@ export default function HistoryScreen() {
                 </View>
                 <View style={styles.scoreHeaderText}>
                   <Text style={styles.scoreTitle}>Goal Progress</Text>
-                  <Text style={styles.scoreGoal}>{GOAL_LABELS[profile.goal]}</Text>
+                  <Text style={styles.scoreGoal} numberOfLines={1}>
+                    {GOAL_LABELS[profile.goal]}
+                    {targetSummary ? ` · ${targetSummary}` : ''}
+                  </Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.addMeasurementBtn}
-                  onPress={handleAddMeasurement}
-                  activeOpacity={0.7}
-                >
-                  <Plus size={16} color={Colors.primary} />
-                  <Text style={styles.addMeasurementText}>Add</Text>
-                </TouchableOpacity>
+                <View style={styles.addEditRow}>
+                  <TouchableOpacity
+                    style={styles.addMeasurementBtn}
+                    onPress={handleAddMeasurement}
+                    activeOpacity={0.7}
+                  >
+                    <Plus size={16} color={Colors.primary} />
+                    <Text style={styles.addMeasurementText}>Add</Text>
+                  </TouchableOpacity>
+                  {(records.length > 0 || target) && (
+                    <>
+                      {target && (
+                        <TouchableOpacity
+                          style={styles.editMeasurementBtn}
+                          onPress={handleOpenSetTarget}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.editMeasurementText}>Edit Target</Text>
+                        </TouchableOpacity>
+                      )}
+                      {records.length > 0 && (
+                        <TouchableOpacity
+                          style={styles.editMeasurementBtn}
+                          onPress={handleOpenMeasurementHistory}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.editMeasurementText}>Edit</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+                </View>
               </View>
 
-              {records.length >= 2 ? (
-                <ScoreGauge score={goalScore.overall} />
+              {needsBaselineForTarget ? (
+                <View style={styles.scoreEmpty}>
+                  <Ruler size={20} color={Colors.textTertiary} />
+                  <Text style={styles.scoreEmptyText}>
+                    Set a baseline measurement to start tracking progress toward your target.
+                  </Text>
+                  <TouchableOpacity style={styles.scoreEmptyCta} onPress={handleAddMeasurement}>
+                    <Text style={styles.scoreEmptyCtaText}>Add Measurement</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : records.length >= 2 || (target && (baseline || latest)) ? (
+                <>
+                  <ScoreGauge score={displayScore} />
+                  {targetStatusText && (
+                    <Text style={styles.targetStatusText} numberOfLines={1}>
+                      {targetStatusText}
+                    </Text>
+                  )}
+                </>
               ) : (
                 <View style={styles.scoreEmpty}>
                   <Ruler size={20} color={Colors.textTertiary} />
@@ -458,7 +588,7 @@ export default function HistoryScreen() {
                 <Text style={styles.trendsTitle}>Measurement Trends</Text>
                 <Text style={styles.trendsSubtitle}>Baseline vs Latest</Text>
                 {trends.map((trend) => (
-                  <TrendItem key={trend.field} trend={trend} />
+                  <TrendItem key={trend.field} trend={trend} onPress={handleOpenMeasurementHistory} />
                 ))}
               </View>
             )}
@@ -485,10 +615,17 @@ export default function HistoryScreen() {
             )}
 
             {records.length > 0 && (
-              <View style={styles.timelineCard}>
-                <Text style={styles.timelineTitle}>Measurement History</Text>
+              <TouchableOpacity
+                style={styles.timelineCard}
+                onPress={handleOpenMeasurementHistory}
+                activeOpacity={0.9}
+              >
+                <View style={styles.timelineHeader}>
+                  <Text style={styles.timelineTitle}>Measurement History</Text>
+                  <ChevronRight size={18} color={Colors.textTertiary} />
+                </View>
                 <MeasurementTimeline records={records} />
-              </View>
+              </TouchableOpacity>
             )}
           </>
         ) : (
@@ -532,26 +669,78 @@ export default function HistoryScreen() {
             </View>
 
             <View style={styles.daysList}>
-              <Text style={styles.daysListTitle}>Daily Breakdown</Text>
-              {datesInRange.map((date) => {
+              <View style={styles.daysListHeader}>
+                <Text style={styles.daysListTitle}>Daily Breakdown</Text>
+                <TouchableOpacity
+                  style={styles.addDayBtn}
+                  onPress={openAddDayModal}
+                  accessibilityLabel="Add day"
+                  accessibilityRole="button"
+                >
+                  <Plus size={16} color={Colors.primary} />
+                  <Text style={styles.addDayBtnText}>Add Day</Text>
+                </TouchableOpacity>
+              </View>
+              {datesToShow.map((date) => {
                 const totals = getTotalsForDate(date);
-                if (totals.calories === 0) return null;
+                const isHighlighted = highlightDateKey === date;
                 return (
-                  <DayRow
-                    key={date}
-                    date={date}
-                    totals={totals}
-                    targets={macros}
-                  />
+                  <View style={isHighlighted ? styles.dayRowHighlighted : undefined} key={date}>
+                    <DayRow
+                      date={date}
+                      totals={totals}
+                      targets={macros}
+                      onPress={() => handleDayPress(date)}
+                    />
+                  </View>
                 );
               })}
-              {datesWithData.length === 0 && (
+              {datesToShow.length === 0 && (
                 <View style={styles.noDataState}>
-                  <Text style={styles.noDataText}>No logged days in this range</Text>
-                  <Text style={styles.noDataSubtext}>Start tracking to see your history</Text>
+                  <Text style={styles.noDataText}>No days in this range</Text>
+                  <Text style={styles.noDataSubtext}>
+                    Tap "Add Day" to add a missing day, or start tracking today
+                  </Text>
                 </View>
               )}
             </View>
+
+            <Modal
+              visible={addDayModalVisible}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setAddDayModalVisible(false)}
+            >
+              <TouchableOpacity
+                style={styles.addDayOverlay}
+                activeOpacity={1}
+                onPress={() => setAddDayModalVisible(false)}
+              >
+                <View style={styles.addDaySheet} onStartShouldSetResponder={() => true}>
+                  <Text style={styles.addDayTitle}>Add missing day</Text>
+                  <Text style={styles.addDaySubtitle}>Select a date to add to your log</Text>
+                  <ScrollView style={styles.addDayList} showsVerticalScrollIndicator={false}>
+                    {addDayOptions.map((opt) => (
+                      <TouchableOpacity
+                        key={opt.dateKey}
+                        style={styles.addDayOption}
+                        onPress={() => handleAddDaySelect(opt.dateKey)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.addDayOptionText}>{opt.label}</Text>
+                        <ChevronRight size={16} color={Colors.textTertiary} />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <TouchableOpacity
+                    style={styles.addDayCancel}
+                    onPress={() => setAddDayModalVisible(false)}
+                  >
+                    <Text style={styles.addDayCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </Modal>
           </>
         )}
       </ScrollView>
@@ -630,6 +819,11 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
     marginTop: 1,
   },
+  addEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   addMeasurementBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -638,6 +832,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
+  },
+  editMeasurementBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  editMeasurementText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
   addMeasurementText: {
     color: Colors.primary,
@@ -666,6 +869,12 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 14,
     fontWeight: '700' as const,
+  },
+  targetStatusText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    marginTop: 8,
   },
   insightsCard: {
     backgroundColor: Colors.card,
@@ -782,11 +991,16 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     ...(Shadows.card as Record<string, unknown>),
   },
+  timelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   timelineTitle: {
     color: Colors.text,
     fontSize: 15,
     fontWeight: '700' as const,
-    marginBottom: 8,
   },
   rangeSelector: {
     flexDirection: 'row',
@@ -850,11 +1064,85 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   daysList: {},
+  daysListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   daysListTitle: {
     color: Colors.text,
     fontSize: 18,
     fontWeight: '700' as const,
-    marginBottom: 12,
+  },
+  addDayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  addDayBtnText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  dayRowHighlighted: {
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  addDayOverlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  addDaySheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: '70%',
+  },
+  addDayTitle: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+  },
+  addDaySubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  addDayList: {
+    maxHeight: 320,
+    marginBottom: 16,
+  },
+  addDayOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.cardBorder,
+  },
+  addDayOptionText: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '600' as const,
+  },
+  addDayCancel: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  addDayCancelText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
   dayRow: {
     backgroundColor: Colors.card,
