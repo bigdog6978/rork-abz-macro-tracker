@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import { Flame, Trash2, Ruler, X, ChevronRight } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
-import { scale } from '../../../utils/responsive';
 import { getGreeting, getProgressLevel } from '../../../utils/greeting';
 import { useStaggerFadeIn } from '../../../utils/motion';
 import { useUser } from '../../../providers/UserProvider';
@@ -31,17 +30,32 @@ import { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
 
 const { width: screenWidth } = Dimensions.get('window');
+const CARD_HORIZONTAL_PADDING = 18;
+const GAP = 20;
+const STATS_MIN_WIDTH = 165;
+const IS_NARROW = screenWidth < 380;
+
+function getDialSize(cardWidth: number): number {
+  const effectiveWidth = cardWidth > 0 ? cardWidth : Math.floor(screenWidth * 0.85);
+  const dialMax = effectiveWidth - STATS_MIN_WIDTH - GAP;
+  return Math.min(230, Math.max(120, Math.floor(dialMax)));
+}
 
 export default function DashboardScreen() {
   const { profile, macros, isLoading: userLoading } = useUser();
+  const [cardWidth, setCardWidth] = useState(0);
 
-  const calorieDialLayout = useMemo(() => {
-    const dialSize = Math.min(screenWidth * 0.55, 260);
-    const strokeWidth = Math.round(dialSize * 0.078);
-    const calorieFontSize = Math.min(scale(42), 48);
-    const labelFontSize = Math.min(scale(14), 16);
-    return { dialSize, strokeWidth, calorieFontSize, labelFontSize };
-  }, []);
+  const dialSize = useMemo(() => getDialSize(cardWidth), [cardWidth]);
+  const dialStrokeWidth = useMemo(() => Math.round(dialSize * 0.078), [dialSize]);
+  const dialNumberSize = useMemo(() => Math.round(dialSize * 0.255), [dialSize]);
+  const dialNumberLine = useMemo(() => Math.round(dialNumberSize * 1.02), [dialNumberSize]);
+  const dialSubSize = useMemo(() => Math.max(13, Math.round(dialSize * 0.065)), [dialSize]);
+  const dialSubGap = useMemo(() => Math.round(dialSize * 0.035), [dialSize]);
+  // Shift block down so the number's vertical center aligns with dial center (block center is below number center due to "cal left")
+  const dialCenterOffsetY = useMemo(
+    () => Math.round((dialSubGap + dialSubSize) / 2),
+    [dialSubGap, dialSubSize]
+  );
   const { todayEntries, todayTotals, removeEntry, getStreak } = useDailyLog();
   const { showPrompt, hasBaseline, dismissPrompt } = useMeasurements();
   const streak = getStreak();
@@ -129,56 +143,80 @@ export default function DashboardScreen() {
         {/* Calorie Hero */}
         <Animated.View style={{ opacity: stagger[1], transform: [{ translateY: stagger[1].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
           <PremiumCard style={styles.calorieCard} variant="hero">
-            <View style={[styles.calorieRingSection, { width: calorieDialLayout.dialSize, height: calorieDialLayout.dialSize }]}>
-              <CalorieGauge
-                consumed={todayTotals.calories}
-                target={macros.calories}
-                color={Colors.primary}
-                size={calorieDialLayout.dialSize}
-                strokeWidth={calorieDialLayout.strokeWidth}
-              />
-              <View style={[styles.calorieCenter, { transform: [{ translateY: -4 }] }]}>
-                <Text
-                  style={[
-                    styles.calorieNumber,
-                    {
-                      fontSize: calorieDialLayout.calorieFontSize,
-                      lineHeight: calorieDialLayout.calorieFontSize * 1.1,
-                    },
-                  ]}
-                >
-                  {formatNumber(caloriesRemaining)}
-                </Text>
-                <Text
-                  style={[
-                    styles.calorieLabel,
-                    {
-                      fontSize: calorieDialLayout.labelFontSize,
-                      marginTop: 2,
-                    },
-                  ]}
-                >
-                  cal left
-                </Text>
-              </View>
-            </View>
-            <View style={styles.calorieInfo}>
-              <View style={styles.calorieStatRow}>
-                <Text style={styles.calorieStatLabel}>Target</Text>
-                <Text style={styles.calorieStatValue}>{formatNumber(macros.calories)}</Text>
-              </View>
-              <View style={styles.calorieStatRow}>
-                <Text style={styles.calorieStatLabel}>Consumed</Text>
-                <Text style={[styles.calorieStatValue, { color: Colors.primary }]}>
-                  {formatNumber(todayTotals.calories)}
-                </Text>
-              </View>
-              {streak > 0 && (
-                <View style={styles.streakBadge}>
-                  <Flame size={14} color={Colors.primary} />
-                  <Text style={styles.streakText}>{streak} day streak</Text>
+            <View
+              style={[styles.calorieCardInner, IS_NARROW && styles.calorieCardInnerNarrow]}
+              onLayout={(e) => setCardWidth(e.nativeEvent.layout.width - 2 * CARD_HORIZONTAL_PADDING)}
+            >
+              <View style={[styles.dialCol, { width: dialSize, height: dialSize, marginRight: GAP }]}>
+                <View style={{ width: dialSize, height: dialSize }}>
+                  <CalorieGauge
+                    consumed={todayTotals.calories}
+                    target={macros.calories}
+                    color={Colors.primary}
+                    size={dialSize}
+                    strokeWidth={dialStrokeWidth}
+                  />
+                  <View style={[styles.dialCenterOverlay, { transform: [{ translateY: dialCenterOffsetY }] }]}>
+                    <Text
+                      style={[
+                        styles.dialNumber,
+                        {
+                          fontSize: dialNumberSize,
+                          lineHeight: dialNumberLine,
+                          fontVariant: ['tabular-nums'],
+                        },
+                      ]}
+                      numberOfLines={1}
+                      includeFontPadding={false}
+                      maxFontSizeMultiplier={1}
+                    >
+                      {formatNumber(caloriesRemaining)}
+                    </Text>
+                    <Text
+                      style={[styles.dialSub, { fontSize: dialSubSize, marginTop: dialSubGap }]}
+                      numberOfLines={1}
+                      includeFontPadding={false}
+                      maxFontSizeMultiplier={1}
+                    >
+                      cal left
+                    </Text>
+                  </View>
                 </View>
-              )}
+              </View>
+              <View style={[styles.statsCol, IS_NARROW && styles.statsColNarrow]}>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel} numberOfLines={1}>Target</Text>
+                  <Text
+                    style={styles.statValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    maxFontSizeMultiplier={1}
+                  >
+                    {formatNumber(macros.calories)}
+                  </Text>
+                </View>
+                <View style={styles.statRow}>
+                  <Text style={styles.statLabel} numberOfLines={1}>Consumed</Text>
+                  <Text
+                    style={styles.statValueAccent}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    maxFontSizeMultiplier={1}
+                  >
+                    {formatNumber(todayTotals.calories)}
+                  </Text>
+                </View>
+                {streak > 0 && (
+                  <View style={styles.streakWrap}>
+                    <View style={styles.streakBadge}>
+                      <Flame size={14} color={Colors.primary} />
+                      <Text style={styles.streakText}>{streak} day streak</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
             </View>
           </PremiumCard>
         </Animated.View>
@@ -331,48 +369,86 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   calorieCard: {
-    padding: Spacing.xl,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  calorieCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xl,
+    paddingHorizontal: CARD_HORIZONTAL_PADDING,
+    paddingVertical: 22,
   },
-  calorieRingSection: {
+  calorieCardInnerNarrow: {
+    flexDirection: 'column',
+  },
+  dialCol: {
+    flexShrink: 1,
+    minWidth: 120,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calorieCenter: {
-    ...StyleSheet.absoluteFillObject,
+  dialCenterOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  calorieNumber: {
-    fontWeight: '700' as const,
+  dialNumber: {
+    fontWeight: '800' as const,
     color: Colors.text,
     textAlign: 'center' as const,
   },
-  calorieLabel: {
+  dialSub: {
     color: Colors.textSecondary,
     textAlign: 'center' as const,
-    fontWeight: '500' as const,
   },
-  calorieInfo: {
+  statsCol: {
     flex: 1,
-    gap: 10,
+    minWidth: STATS_MIN_WIDTH,
+    flexShrink: 0,
+    justifyContent: 'center',
   },
-  calorieStatRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  statsColNarrow: {
+    width: '100%',
     alignItems: 'center',
+    marginTop: 14,
   },
-  calorieStatValue: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    color: Colors.text,
+  statRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    gap: 8,
   },
-  calorieStatLabel: {
-    fontSize: 13,
+  statLabel: {
+    flexShrink: 0,
+    width: 82,
+    fontSize: 16,
     color: Colors.textSecondary,
-    fontWeight: '500' as const,
+  },
+  statValue: {
+    flex: 1,
+    fontSize: 30,
+    fontWeight: '800' as const,
+    color: Colors.text,
+    minWidth: 56,
+    textAlign: 'right' as const,
+  },
+  statValueAccent: {
+    flex: 1,
+    fontSize: 30,
+    fontWeight: '800' as const,
+    color: Colors.primary,
+    minWidth: 56,
+    textAlign: 'right' as const,
+  },
+  streakWrap: {
+    marginTop: 6,
+    alignItems: 'flex-end',
   },
   streakBadge: {
     flexDirection: 'row',
@@ -382,8 +458,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.sm,
-    alignSelf: 'flex-start',
-    marginTop: 4,
   },
   streakText: {
     color: Colors.primary,
