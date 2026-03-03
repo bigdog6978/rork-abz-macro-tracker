@@ -20,25 +20,17 @@ import { useDailyLog } from '../providers/DailyLogProvider';
 import { NormalizedFood } from '../features/food/types';
 import * as foodService from '../features/food/foodService';
 import * as foodsRepo from '../src/data/foodsRepo';
-import SegmentedToggle from '../components/SegmentedToggle';
-import {
-  MeasureMode,
-  getPreferredServingUnit,
-  setPreferredServingUnit,
-} from '../storage/userSettingsRepo';
+import QuantityPillsCompact from '../components/ui/QuantityPillsCompact';
+import QuantityCallout, { type CalloutReason } from '../components/ui/QuantityCallout';
+import DensityModal from '../components/ui/DensityModal';
+import type { UnitKind, UnitId } from '../src/lib/units';
+import { getPreferredServingUnit } from '../storage/userSettingsRepo';
 import {
   detectUnitFromName,
   pluralizeUnit,
 } from '../features/food/servingDefaults';
 
 const DEBOUNCE_MS = 300;
-const OZ_TO_GRAMS = 28.349523125;
-
-const MEASURE_OPTIONS: { label: string; value: MeasureMode }[] = [
-  { label: 'Qty', value: 'qty' },
-  { label: 'gm', value: 'grams' },
-  { label: 'oz', value: 'ounces' },
-];
 
 function getSearchErrorMessage(
   searchStatus: string,
@@ -80,36 +72,6 @@ function getSearchErrorMessage(
   return 'No results found';
 }
 
-/** Convert total grams to display value for the given measure mode */
-function gramsToDisplay(
-  grams: number,
-  measureMode: MeasureMode,
-  servingWeightG?: number
-): string {
-  if (measureMode === 'ounces') {
-    return String(Math.round((grams / OZ_TO_GRAMS) * 10) / 10);
-  }
-  if (measureMode === 'qty' && servingWeightG && servingWeightG > 0) {
-    const qty = grams / servingWeightG;
-    return qty % 1 === 0 ? String(Math.round(qty)) : String(Math.round(qty * 10) / 10);
-  }
-  return String(Math.round(grams));
-}
-
-/** Convert display value to total grams */
-function displayToTotalGrams(
-  input: string,
-  measureMode: MeasureMode,
-  servingWeightG?: number
-): number {
-  const value = parseFloat(input) || 0;
-  if (measureMode === 'ounces') return value * OZ_TO_GRAMS;
-  if (measureMode === 'qty' && servingWeightG && servingWeightG > 0) {
-    return value * servingWeightG;
-  }
-  return value;
-}
-
 export default function AddFoodScreen() {
   const { addEntry } = useDailyLog();
   const params = useLocalSearchParams<{ fromBarcode?: string }>();
@@ -124,10 +86,13 @@ export default function AddFoodScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [name, setName] = useState('');
-  const [measureMode, setMeasureMode] = useState<MeasureMode>('grams');
+  const [unitKind, setUnitKind] = useState<UnitKind>('mass');
+  const [unitId, setUnitId] = useState<UnitId>('g');
   const [quantityInput, setQuantityInput] = useState('100');
   const [unitLabel, setUnitLabel] = useState<string>('egg');
   const [servingWeightG, setServingWeightG] = useState<number>(50);
+  const [showDensityModal, setShowDensityModal] = useState(false);
+  const [scalingReason, setScalingReason] = useState<CalloutReason | null>(null);
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
@@ -169,8 +134,9 @@ export default function AddFoodScreen() {
     getPreferredServingUnit()
       .then((unit) => {
         if (unit === 'oz') {
-          setMeasureMode('ounces');
-          setQuantityInput(gramsToDisplay(100, 'ounces'));
+          setUnitKind('mass');
+          setUnitId('oz');
+          setQuantityInput('3.5');
         }
       })
       .catch((err) => console.log('[AddFood] Error loading unit pref:', err));
@@ -193,24 +159,31 @@ export default function AddFoodScreen() {
             ? { unitLabel: local.unitLabel, servingWeightG: local.servingWeightG }
             : null;
           const useUnits = !!(savedUnit || detected);
+          const foodWithServing = useUnits
+            ? { ...norm, servingWeightGrams: (savedUnit ?? detected!).servingWeightG }
+            : norm;
           if (useUnits) {
-            setMeasureMode('qty');
+            setUnitKind('serving');
+            setUnitId('piece');
             const u = savedUnit ?? detected!;
             setUnitLabel(u.unitLabel);
             setServingWeightG(u.servingWeightG);
             setQuantityInput('1');
           } else {
-            setMeasureMode('grams');
+            setUnitKind('mass');
+            setUnitId('g');
             setQuantityInput('100');
           }
-          const grams = useUnits
-            ? (savedUnit ?? detected!).servingWeightG
-            : 100;
-          const macros = foodService.computeMacrosForServing(norm, grams);
+          const value = useUnits ? 1 : 100;
+          const unit = useUnits ? 'piece' : 'g';
+          const kind = useUnits ? 'serving' : 'mass';
+          const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unit, kind);
+          const macros = result.ok ? result.macros : foodService.computeMacrosForServing(norm, 100);
           computedMacrosRef.current = macros;
           setProtein(String(macros.protein_g));
           setCarbs(String(macros.carbs_g));
           setFat(String(macros.fat_g));
+          setScalingReason(result.ok ? null : result.reason);
         }
       })
       .catch((err) => console.log('[AddFood] Error loading barcode food:', err));
@@ -291,25 +264,39 @@ export default function AddFoodScreen() {
       setIsCustomized(false);
 
       const detected = detectUnitFromName(food.name);
+      const foodWithServing = detected
+        ? { ...food, servingWeightGrams: detected.servingWeightG }
+        : food;
       if (detected) {
-        setMeasureMode('qty');
+        setUnitKind('serving');
+        setUnitId('piece');
         setUnitLabel(detected.unitLabel);
         setServingWeightG(detected.servingWeightG);
         setQuantityInput('1');
-        const grams = detected.servingWeightG;
-        const macros = foodService.computeMacrosForServing(food, grams);
-        computedMacrosRef.current = macros;
-        setProtein(String(macros.protein_g));
-        setCarbs(String(macros.carbs_g));
-        setFat(String(macros.fat_g));
+        const result = foodService.scaleMacrosFromQuantity(foodWithServing, 1, 'piece', 'serving');
+        if (result.ok) {
+          computedMacrosRef.current = result.macros;
+          setProtein(String(result.macros.protein_g));
+          setCarbs(String(result.macros.carbs_g));
+          setFat(String(result.macros.fat_g));
+          setScalingReason(null);
+        } else {
+          setScalingReason(result.reason);
+        }
       } else {
-        setMeasureMode('grams');
+        setUnitKind('mass');
+        setUnitId('g');
         setQuantityInput('100');
-        const macros = foodService.computeMacrosForServing(food, 100);
-        computedMacrosRef.current = macros;
-        setProtein(String(macros.protein_g));
-        setCarbs(String(macros.carbs_g));
-        setFat(String(macros.fat_g));
+        const result = foodService.scaleMacrosFromQuantity(food, 100, 'g', 'mass');
+        if (result.ok) {
+          computedMacrosRef.current = result.macros;
+          setProtein(String(result.macros.protein_g));
+          setCarbs(String(result.macros.carbs_g));
+          setFat(String(result.macros.fat_g));
+          setScalingReason(null);
+        } else {
+          setScalingReason(result.reason);
+        }
       }
 
       if (Platform.OS !== 'web') {
@@ -322,34 +309,47 @@ export default function AddFoodScreen() {
   const handleQuantityChange = useCallback(
     (text: string) => {
       setQuantityInput(text);
-      const grams = displayToTotalGrams(text, measureMode, servingWeightG);
-      if (selectedFood && grams > 0) {
-        const macros = foodService.computeMacrosForServing(selectedFood, grams);
-        computedMacrosRef.current = macros;
-        setProtein(String(macros.protein_g));
-        setCarbs(String(macros.carbs_g));
-        setFat(String(macros.fat_g));
+      const value = parseFloat(text) || 0;
+      if (!selectedFood || value <= 0) return;
+      const foodWithServing =
+        unitKind === 'serving'
+          ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? servingWeightG }
+          : selectedFood;
+      const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unitId, unitKind);
+      if (result.ok) {
+        computedMacrosRef.current = result.macros;
+        setProtein(String(result.macros.protein_g));
+        setCarbs(String(result.macros.carbs_g));
+        setFat(String(result.macros.fat_g));
         setIsCustomized(false);
+        setScalingReason(null);
+      } else {
+        setScalingReason(result.reason);
       }
     },
-    [selectedFood, measureMode, servingWeightG]
+    [selectedFood, unitKind, unitId, servingWeightG]
   );
 
   const handleServingWeightChange = useCallback(
-    (text: string) => {
-      const val = parseFloat(text) || 0;
-      setServingWeightG(val > 0 ? val : 50);
-      const grams = displayToTotalGrams(quantityInput, 'qty', val > 0 ? val : 50);
-      if (selectedFood && grams > 0) {
-        const macros = foodService.computeMacrosForServing(selectedFood, grams);
-        computedMacrosRef.current = macros;
-        setProtein(String(macros.protein_g));
-        setCarbs(String(macros.carbs_g));
-        setFat(String(macros.fat_g));
+    (val: number) => {
+      const g = val > 0 ? val : 50;
+      setServingWeightG(g);
+      const value = parseFloat(quantityInput) || 0;
+      if (!selectedFood || value <= 0) return;
+      const foodWithServing = { ...selectedFood, servingWeightGrams: g };
+      const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unitId, 'serving');
+      if (result.ok) {
+        computedMacrosRef.current = result.macros;
+        setProtein(String(result.macros.protein_g));
+        setCarbs(String(result.macros.carbs_g));
+        setFat(String(result.macros.fat_g));
         setIsCustomized(false);
+        setScalingReason(null);
+      } else {
+        setScalingReason(result.reason);
       }
     },
-    [selectedFood, quantityInput]
+    [selectedFood, quantityInput, unitId]
   );
 
   const handleMacroEdit = useCallback(
@@ -370,7 +370,7 @@ export default function AddFoodScreen() {
       foodName: string,
       grams: number,
       macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number },
-      opts?: { unitLabel?: string; servingWeightG?: number }
+      opts?: { unitLabel?: string; servingWeightG?: number; density_g_per_ml?: number }
     ) => {
       const scale = grams > 0 ? 100 / grams : 1;
       const per100g = {
@@ -379,9 +379,12 @@ export default function AddFoodScreen() {
         carbs: macros.carbs_g * scale,
         fat: macros.fat_g * scale,
       };
-      const addOpts = opts?.unitLabel && opts?.servingWeightG
-        ? { unitLabel: opts.unitLabel, servingWeightG: opts.servingWeightG }
-        : { servingSize: `${grams}g` };
+      const addOpts =
+        opts?.unitLabel && opts?.servingWeightG
+          ? { unitLabel: opts.unitLabel, servingWeightG: opts.servingWeightG, density_g_per_ml: opts.density_g_per_ml }
+          : opts?.density_g_per_ml
+            ? { density_g_per_ml: opts.density_g_per_ml, servingSize: `${grams}g` }
+            : { servingSize: `${grams}g` };
       const existing = await foodsRepo.getSavedFoods('manual');
       const dup = existing.find((f) => f.name.toLowerCase() === foodName.trim().toLowerCase());
       if (dup) {
@@ -425,30 +428,52 @@ export default function AddFoodScreen() {
       return;
     }
 
+    const value = parseFloat(quantityInput) || 0;
+    const foodWithServing: NormalizedFood | null =
+      unitKind === 'serving' && selectedFood
+        ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? servingWeightG }
+        : selectedFood;
+    const scaling =
+      foodWithServing && value > 0
+        ? foodService.scaleMacrosFromQuantity(foodWithServing, value, unitId, unitKind)
+        : null;
+
+    if (scaling && !scaling.ok) {
+      Alert.alert(
+        'Cannot add to log',
+        'Please fix the amount (e.g. add density or switch to grams) before saving.'
+      );
+      return;
+    }
+
+    const macros = scaling?.ok
+      ? scaling.macros
+      : {
+          calories: Math.round(computedCalories),
+          protein_g: parseFloat(protein) || 0,
+          carbs_g: parseFloat(carbs) || 0,
+          fat_g: parseFloat(fat) || 0,
+        };
+    const grams = scaling?.ok ? scaling.gramsUsedForScaling : 100;
+
     setIsSaving(true);
 
     try {
-      const macros = {
-        calories: Math.round(computedCalories),
-        protein_g: parseFloat(protein) || 0,
-        carbs_g: parseFloat(carbs) || 0,
-        fat_g: parseFloat(fat) || 0,
-      };
-
-      const grams = displayToTotalGrams(quantityInput, measureMode, servingWeightG) || 100;
-
       const qtyVal = parseFloat(quantityInput) || 0;
+      const entryOpts =
+        unitKind === 'serving' && servingWeightG > 0
+          ? { measureMode: 'qty' as const, quantity: qtyVal || 1, servingWeightG }
+          : unitId === 'oz'
+            ? { measureMode: 'ounces' as const, quantity: qtyVal }
+            : { measureMode: 'grams' as const, quantity: grams };
+
       const entry = foodService.createFoodEntry(
-        selectedFood,
+        selectedFood ?? null,
         foodName,
         grams,
         macros,
         isCustomized,
-        measureMode === 'qty' && unitLabel && servingWeightG
-          ? { measureMode: 'qty', quantity: qtyVal || 1, servingWeightG }
-          : measureMode === 'ounces'
-            ? { measureMode: 'ounces', quantity: qtyVal }
-            : { measureMode: 'grams', quantity: grams }
+        entryOpts
       );
 
       addEntry(entry);
@@ -463,9 +488,13 @@ export default function AddFoodScreen() {
 
       const isManual = !selectedFood || selectedFood.providerId === 'manual';
       if (saveToLibrary && isManual) {
-        const unitOpts = measureMode === 'qty' && unitLabel && servingWeightG
-          ? { unitLabel, servingWeightG }
-          : undefined;
+        const density = typeof selectedFood?.density_g_per_ml === 'number' ? selectedFood.density_g_per_ml : undefined;
+        const unitOpts =
+          unitKind === 'serving' && unitLabel && servingWeightG
+            ? { unitLabel, servingWeightG, density_g_per_ml: density }
+            : density !== undefined
+              ? { density_g_per_ml: density }
+              : undefined;
         await saveManualToLibrary(foodName, grams, macros, unitOpts);
       }
 
@@ -487,7 +516,8 @@ export default function AddFoodScreen() {
     fat,
     computedCalories,
     quantityInput,
-    measureMode,
+    unitKind,
+    unitId,
     servingWeightG,
     selectedFood,
     isCustomized,
@@ -502,14 +532,17 @@ export default function AddFoodScreen() {
     setShowSuggestions(false);
     setIsCustomized(false);
     computedMacrosRef.current = null;
+    setScalingReason(null);
     const detected = detectUnitFromName(query);
     if (detected) {
-      setMeasureMode('qty');
+      setUnitKind('serving');
+      setUnitId('piece');
       setUnitLabel(detected.unitLabel);
       setServingWeightG(detected.servingWeightG);
       setQuantityInput('1');
     } else {
-      setMeasureMode('grams');
+      setUnitKind('mass');
+      setUnitId('g');
       setQuantityInput('100');
     }
   }, [query]);
@@ -521,12 +554,14 @@ export default function AddFoodScreen() {
     setProtein('');
     setCarbs('');
     setFat('');
-    setMeasureMode('grams');
+    setUnitKind('mass');
+    setUnitId('g');
     setQuantityInput('100');
     setUnitLabel('egg');
     setServingWeightG(50);
     setIsCustomized(false);
     computedMacrosRef.current = null;
+    setScalingReason(null);
     setShowSuggestions(false);
   }, []);
 
@@ -540,20 +575,38 @@ export default function AddFoodScreen() {
 
       const detected = detectUnitFromName(food.name);
       const grams = lastGrams || 100;
+      const foodWithServing = detected
+        ? { ...food, servingWeightGrams: detected.servingWeightG }
+        : food;
+      let value: number;
+      let unit: UnitId;
+      let kind: UnitKind;
       if (detected) {
-        setMeasureMode('qty');
+        setUnitKind('serving');
+        setUnitId('piece');
         setUnitLabel(detected.unitLabel);
         setServingWeightG(detected.servingWeightG);
-        setQuantityInput(grams === detected.servingWeightG ? '1' : String(Math.round((grams / detected.servingWeightG) * 10) / 10));
+        const qty = grams / detected.servingWeightG;
+        const qtyStr = qty === Math.round(qty) ? String(Math.round(qty)) : String(Math.round(qty * 10) / 10);
+        setQuantityInput(qtyStr);
+        value = parseFloat(qtyStr) || qty;
+        unit = 'piece';
+        kind = 'serving';
       } else {
-        setMeasureMode('grams');
+        setUnitKind('mass');
+        setUnitId('g');
         setQuantityInput(String(Math.round(grams)));
+        value = grams;
+        unit = 'g';
+        kind = 'mass';
       }
-      const macros = foodService.computeMacrosForServing(food, grams);
+      const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unit, kind);
+      const macros = result.ok ? result.macros : foodService.computeMacrosForServing(food, grams);
       computedMacrosRef.current = macros;
       setProtein(String(macros.protein_g));
       setCarbs(String(macros.carbs_g));
       setFat(String(macros.fat_g));
+      setScalingReason(result.ok ? null : result.reason);
 
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -562,46 +615,56 @@ export default function AddFoodScreen() {
     []
   );
 
-  const handleMeasureModeChange = useCallback(
-    (newMode: MeasureMode) => {
-      const currentGrams = displayToTotalGrams(quantityInput, measureMode, servingWeightG);
-      let newServingWeightG = servingWeightG;
-      if (newMode === 'qty') {
-        const nameToDetect = selectedFood?.name ?? (name || query);
-        const detected = detectUnitFromName(nameToDetect);
-        if (detected) {
-          setUnitLabel(detected.unitLabel);
-          setServingWeightG(detected.servingWeightG);
-          newServingWeightG = detected.servingWeightG;
+  const handleKindChange = useCallback(
+    (k: UnitKind) => {
+      setUnitKind(k);
+      if (k === 'mass') setUnitId('g');
+      else if (k === 'volume') setUnitId('ml');
+      else setUnitId('serving');
+      const value = parseFloat(quantityInput) || 0;
+      const newUnit = k === 'mass' ? 'g' : k === 'volume' ? 'ml' : 'serving';
+      const foodWithServing: NormalizedFood | null =
+        k === 'serving' && selectedFood
+          ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? servingWeightG }
+          : selectedFood;
+      if (foodWithServing && value > 0) {
+        const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, newUnit, k);
+        if (result.ok) {
+          computedMacrosRef.current = result.macros;
+          setProtein(String(result.macros.protein_g));
+          setCarbs(String(result.macros.carbs_g));
+          setFat(String(result.macros.fat_g));
+          setScalingReason(null);
         } else {
-          setUnitLabel('serving');
-          setServingWeightG(100);
-          newServingWeightG = 100;
+          setScalingReason(result.reason);
         }
       }
-      setMeasureMode(newMode);
-      setQuantityInput(gramsToDisplay(currentGrams, newMode, newServingWeightG));
-      if (newMode === 'grams') {
-        setPreferredServingUnit('g').catch((err) =>
-          console.log('[AddFood] Error saving unit pref:', err)
-        );
-      } else if (newMode === 'ounces') {
-        setPreferredServingUnit('oz').catch((err) =>
-          console.log('[AddFood] Error saving unit pref:', err)
-        );
-      }
-      if (selectedFood && currentGrams > 0) {
-        const macros = foodService.computeMacrosForServing(selectedFood, currentGrams);
-        computedMacrosRef.current = macros;
-        setProtein(String(macros.protein_g));
-        setCarbs(String(macros.carbs_g));
-        setFat(String(macros.fat_g));
-      }
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [quantityInput, selectedFood, servingWeightG]
+  );
+
+  const handleUnitChange = useCallback(
+    (u: UnitId) => {
+      setUnitId(u);
+      const value = parseFloat(quantityInput) || 0;
+      const foodWithServing: NormalizedFood | null =
+        unitKind === 'serving' && selectedFood
+          ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? servingWeightG }
+          : selectedFood;
+      if (foodWithServing && value > 0) {
+        const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, u, unitKind);
+        if (result.ok) {
+          computedMacrosRef.current = result.macros;
+          setProtein(String(result.macros.protein_g));
+          setCarbs(String(result.macros.carbs_g));
+          setFat(String(result.macros.fat_g));
+          setScalingReason(null);
+        } else {
+          setScalingReason(result.reason);
+        }
       }
     },
-    [quantityInput, measureMode, servingWeightG, selectedFood, name, query]
+    [quantityInput, unitKind, selectedFood, servingWeightG]
   );
 
   return (
@@ -811,50 +874,98 @@ export default function AddFoodScreen() {
 
               <View style={styles.servingSection}>
                 <Text style={styles.inputLabel}>
-                  {measureMode === 'qty'
-                    ? `Qty (${pluralizeUnit(parseFloat(quantityInput) || 1, unitLabel)})`
-                    : measureMode === 'grams'
-                      ? 'Amount (gm)'
-                      : 'Amount (oz)'}
+                  {unitKind === 'serving'
+                    ? `Amount (${pluralizeUnit(parseFloat(quantityInput) || 1, unitLabel)})`
+                    : 'Amount'}
                 </Text>
-                <View style={styles.servingControlRow}>
-                  <TextInput
-                    style={styles.servingTextInput}
-                    value={quantityInput}
-                    onChangeText={handleQuantityChange}
-                    keyboardType="decimal-pad"
-                    placeholder={
-                      measureMode === 'qty' ? '1' : measureMode === 'ounces' ? '3.5' : '100'
+                <QuantityPillsCompact
+                  value={quantityInput}
+                  unit={unitId}
+                  kind={unitKind}
+                  onValueChange={handleQuantityChange}
+                  onUnitChange={handleUnitChange}
+                  onKindChange={handleKindChange}
+                  servingWeightG={servingWeightG}
+                  onServingWeightChange={handleServingWeightChange}
+                  showPerItemRow={unitKind === 'serving'}
+                  unitLabel={unitLabel}
+                />
+                {scalingReason && (
+                  <QuantityCallout
+                    reason={scalingReason}
+                    onPrimary={() => {
+                      if (scalingReason === 'NEEDS_DENSITY') {
+                        setShowDensityModal(true);
+                      } else if (scalingReason === 'UNSUPPORTED_SERVING' || scalingReason === 'NEEDS_SERVING_INFO') {
+                        setUnitKind('mass');
+                        setUnitId('g');
+                        setQuantityInput('100');
+                        if (selectedFood) {
+                          const result = foodService.scaleMacrosFromQuantity(selectedFood, 100, 'g', 'mass');
+                          if (result.ok) {
+                            computedMacrosRef.current = result.macros;
+                            setProtein(String(result.macros.protein_g));
+                            setCarbs(String(result.macros.carbs_g));
+                            setFat(String(result.macros.fat_g));
+                            setScalingReason(null);
+                          }
+                        }
+                      }
+                    }}
+                    onSecondary={
+                      scalingReason === 'NEEDS_DENSITY' || scalingReason === 'NEEDS_SERVING_INFO'
+                        ? () => {
+                            setUnitKind('mass');
+                            setUnitId('g');
+                            setQuantityInput('100');
+                            if (selectedFood) {
+                              const result = foodService.scaleMacrosFromQuantity(selectedFood, 100, 'g', 'mass');
+                              if (result.ok) {
+                                computedMacrosRef.current = result.macros;
+                                setProtein(String(result.macros.protein_g));
+                                setCarbs(String(result.macros.carbs_g));
+                                setFat(String(result.macros.fat_g));
+                                setScalingReason(null);
+                              }
+                            }
+                          }
+                        : undefined
                     }
-                    placeholderTextColor={Colors.textTertiary}
-                    testID="serving-input"
                   />
-                  <SegmentedToggle
-                    options={MEASURE_OPTIONS}
-                    value={measureMode}
-                    onChange={handleMeasureModeChange}
-                    accessibilityLabel={`Measure mode: ${measureMode}`}
-                    style={styles.servingToggle}
-                  />
-                </View>
-                {measureMode === 'qty' && (
-                  <View style={styles.perItemRow}>
-                    <Text style={styles.perItemLabel}>1 {unitLabel} =</Text>
-                    <TextInput
-                      style={styles.perItemInput}
-                      value={String(servingWeightG)}
-                      onChangeText={handleServingWeightChange}
-                      keyboardType="decimal-pad"
-                      placeholder="50"
-                      placeholderTextColor={Colors.textTertiary}
-                    />
-                    <Text style={styles.perItemUnit}>gm</Text>
-                  </View>
-                )}
-                {measureMode === 'qty' && (
-                  <Text style={styles.servingHelper}>Used to calculate macros.</Text>
                 )}
               </View>
+
+              {showDensityModal && selectedFood && (
+                <DensityModal
+                  key={selectedFood.id}
+                  visible={showDensityModal}
+                  initialValue={selectedFood.density_g_per_ml}
+                  onSave={async (density) => {
+                    setShowDensityModal(false);
+                    const updated = { ...selectedFood, density_g_per_ml: density };
+                    setSelectedFood(updated);
+                    try {
+                      const updatedLocal = await foodsRepo.updateFoodDensity(selectedFood.id, density);
+                      if (updatedLocal) {
+                        const saved = await foodsRepo.getSavedFoods();
+                        setSavedFoods(saved.map(foodsRepo.localFoodToNormalizedFood));
+                      }
+                    } catch {
+                      // Food may not be in DB yet; in-memory update is enough
+                    }
+                    const value = parseFloat(quantityInput) || 0;
+                    const result = foodService.scaleMacrosFromQuantity(updated, value, unitId, unitKind);
+                    if (result.ok) {
+                      computedMacrosRef.current = result.macros;
+                      setProtein(String(result.macros.protein_g));
+                      setCarbs(String(result.macros.carbs_g));
+                      setFat(String(result.macros.fat_g));
+                      setScalingReason(null);
+                    }
+                  }}
+                  onCancel={() => setShowDensityModal(false)}
+                />
+              )}
 
               <View style={styles.macroInputRow}>
                 <View style={styles.macroInput}>
@@ -948,9 +1059,13 @@ export default function AddFoodScreen() {
                   onPress={async () => {
                     const fdcId = selectedFood.id.replace(/^usda:/, '');
                     const p = selectedFood.per100g;
-                    const addOpts = measureMode === 'qty' && unitLabel && servingWeightG
-                      ? { unitLabel, servingWeightG }
-                      : { servingSize: '100g' };
+                    const density = typeof selectedFood.density_g_per_ml === 'number' ? selectedFood.density_g_per_ml : undefined;
+                    const addOpts =
+                      unitKind === 'serving' && unitLabel && servingWeightG
+                        ? { unitLabel, servingWeightG, density_g_per_ml: density }
+                        : density !== undefined
+                          ? { density_g_per_ml: density, servingSize: '100g' }
+                          : { servingSize: '100g' };
                     await foodsRepo.addUsdaFood(fdcId, {
                       name: selectedFood.name,
                       brand: selectedFood.brand,

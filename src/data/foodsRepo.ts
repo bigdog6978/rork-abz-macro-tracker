@@ -30,13 +30,23 @@ interface FoodRow {
   updated_at: number;
 }
 
-function parseUnitMeta(servingSize: string | null): { unitLabel?: string; servingWeightG?: number } {
+function parseUnitMeta(servingSize: string | null): {
+  unitLabel?: string;
+  servingWeightG?: number;
+  density_g_per_ml?: number | null;
+} {
   if (!servingSize?.trim().startsWith('{')) return {};
   try {
-    const parsed = JSON.parse(servingSize) as { unitLabel?: string; servingWeightG?: number };
-    if (typeof parsed.unitLabel === 'string' && typeof parsed.servingWeightG === 'number') {
-      return { unitLabel: parsed.unitLabel, servingWeightG: parsed.servingWeightG };
-    }
+    const parsed = JSON.parse(servingSize) as {
+      unitLabel?: string;
+      servingWeightG?: number;
+      density_g_per_ml?: number | null;
+    };
+    return {
+      unitLabel: typeof parsed.unitLabel === 'string' ? parsed.unitLabel : undefined,
+      servingWeightG: typeof parsed.servingWeightG === 'number' ? parsed.servingWeightG : undefined,
+      density_g_per_ml: typeof parsed.density_g_per_ml === 'number' ? parsed.density_g_per_ml : undefined,
+    };
   } catch {
     // Legacy format
   }
@@ -47,9 +57,19 @@ function encodeServingSize(opts: {
   servingSize?: string | null;
   unitLabel?: string | null;
   servingWeightG?: number | null;
+  density_g_per_ml?: number | null;
 }): string | null {
-  if (opts.unitLabel && typeof opts.servingWeightG === 'number') {
-    return JSON.stringify({ unitLabel: opts.unitLabel, servingWeightG: opts.servingWeightG });
+  const hasMeta = (opts.unitLabel && typeof opts.servingWeightG === 'number') || typeof opts.density_g_per_ml === 'number';
+  if (hasMeta) {
+    const obj: Record<string, unknown> = {};
+    if (opts.unitLabel && typeof opts.servingWeightG === 'number') {
+      obj.unitLabel = opts.unitLabel;
+      obj.servingWeightG = opts.servingWeightG;
+    }
+    if (typeof opts.density_g_per_ml === 'number') {
+      obj.density_g_per_ml = opts.density_g_per_ml;
+    }
+    return JSON.stringify(obj);
   }
   return opts.servingSize ?? null;
 }
@@ -69,6 +89,7 @@ function mapRow(r: FoodRow): LocalFood {
     servingSize: r.serving_size,
     unitLabel: meta.unitLabel ?? null,
     servingWeightG: meta.servingWeightG ?? null,
+    density_g_per_ml: meta.density_g_per_ml ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -184,6 +205,7 @@ export async function addManualFood(data: {
   servingSize?: string | null;
   unitLabel?: string | null;
   servingWeightG?: number | null;
+  density_g_per_ml?: number | null;
 }): Promise<LocalFood> {
   const db = await openDb();
   const id = `${PREFIX_MANUAL}${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -199,6 +221,7 @@ export async function addManualFood(data: {
     servingSize: data.servingSize,
     unitLabel: data.unitLabel,
     servingWeightG: data.servingWeightG,
+    density_g_per_ml: data.density_g_per_ml,
   });
 
   if (existing) {
@@ -259,6 +282,7 @@ export async function addUsdaFood(
     servingSize?: string | null;
     unitLabel?: string | null;
     servingWeightG?: number | null;
+    density_g_per_ml?: number | null;
   }
 ): Promise<LocalFood> {
   const db = await openDb();
@@ -270,6 +294,7 @@ export async function addUsdaFood(
     servingSize: data.servingSize,
     unitLabel: data.unitLabel,
     servingWeightG: data.servingWeightG,
+    density_g_per_ml: data.density_g_per_ml,
   });
 
   const existing = await db.getFirstAsync<FoodRow>('SELECT * FROM foods WHERE id = ?', [id]);
@@ -337,7 +362,7 @@ export async function searchLocalFoods(query: string): Promise<LocalFood[]> {
 
 export function localFoodToNormalizedFood(f: LocalFood): NormalizedFood {
   const providerId = f.source === 'usda' ? 'usda' : f.source === 'manual' ? 'manual' : 'openfoodfacts';
-  return {
+  const norm: NormalizedFood = {
     id: f.id,
     providerId,
     externalId: f.barcode,
@@ -352,6 +377,38 @@ export function localFoodToNormalizedFood(f: LocalFood): NormalizedFood {
     },
     updatedAt: new Date(f.updatedAt * 1000).toISOString(),
   };
+  if (typeof f.servingWeightG === 'number') norm.servingWeightGrams = f.servingWeightG;
+  if (typeof f.density_g_per_ml === 'number') norm.density_g_per_ml = f.density_g_per_ml;
+  return norm;
+}
+
+/**
+ * Update density (g/ml) for a saved food. Merges into existing serving_size JSON.
+ */
+export async function updateFoodDensity(
+  foodId: string,
+  density_g_per_ml: number
+): Promise<LocalFood | null> {
+  const db = await openDb();
+  const row = await db.getFirstAsync<FoodRow>('SELECT * FROM foods WHERE id = ?', [foodId]);
+  if (!row) return null;
+
+  const meta = parseUnitMeta(row.serving_size);
+  const servingSizeEnc = encodeServingSize({
+    servingSize: row.serving_size,
+    unitLabel: meta.unitLabel ?? undefined,
+    servingWeightG: meta.servingWeightG ?? undefined,
+    density_g_per_ml,
+  });
+
+  const now = Math.floor(Date.now() / 1000);
+  await db.runAsync(
+    `UPDATE foods SET serving_size = ?, updated_at = ? WHERE id = ?`,
+    [servingSizeEnc, now, foodId]
+  );
+
+  const updated = await db.getFirstAsync<FoodRow>('SELECT * FROM foods WHERE id = ?', [foodId]);
+  return updated ? mapRow(updated) : null;
 }
 
 export async function recordFoodSelection(foodId: string): Promise<void> {

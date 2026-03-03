@@ -11,6 +11,10 @@ export interface NormalizedFood {
     carbs_g: number;
     fat_g: number;
   };
+  /** Grams per 1 serving when basis supports it */
+  servingWeightGrams?: number;
+  /** Density (g/ml) for volume→grams conversion */
+  density_g_per_ml?: number | null;
   updatedAt: string;
 }
 

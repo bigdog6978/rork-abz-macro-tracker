@@ -1,4 +1,11 @@
 import { NormalizedFood } from './types';
+import {
+  UnitId,
+  UnitKind,
+  toGrams,
+  toMilliliters,
+  mlToGrams,
+} from '../../src/lib/units';
 import { getUsdaApiKey } from '../../config/env';
 import * as usdaClient from './providers/usda/usdaClient';
 import { normalizeSearchResult, normalizeDetailResult } from './providers/usda/usdaNormalizer';
@@ -24,6 +31,12 @@ function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 }
 
+export type ScalingResult =
+  | { ok: true; macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number }; gramsUsedForScaling: number }
+  | { ok: false; reason: 'NEEDS_DENSITY' }
+  | { ok: false; reason: 'UNSUPPORTED_SERVING' }
+  | { ok: false; reason: 'NEEDS_SERVING_INFO' };
+
 export function computeMacrosForServing(
   food: NormalizedFood,
   grams: number
@@ -35,6 +48,59 @@ export function computeMacrosForServing(
     carbs_g: Math.round(food.per100g.carbs_g * factor * 10) / 10,
     fat_g: Math.round(food.per100g.fat_g * factor * 10) / 10,
   };
+}
+
+/** Scale macros from quantity with unit. Returns ok + macros or error state. */
+export function scaleMacrosFromQuantity(
+  food: NormalizedFood,
+  value: number,
+  unit: UnitId,
+  kind: UnitKind
+): ScalingResult {
+  const basis = food.basis ?? 'per100g';
+
+  if (basis === 'per100g') {
+    if (kind === 'mass') {
+      const grams = toGrams(value, unit);
+      const macros = computeMacrosForServing(food, grams);
+      return { ok: true, macros, gramsUsedForScaling: grams };
+    }
+    if (kind === 'volume') {
+      const ml = toMilliliters(value, unit);
+      const density = food.density_g_per_ml;
+      if (typeof density !== 'number' || density <= 0) {
+        return { ok: false, reason: 'NEEDS_DENSITY' };
+      }
+      const grams = mlToGrams(ml, density);
+      const macros = computeMacrosForServing(food, grams);
+      return { ok: true, macros, gramsUsedForScaling: grams };
+    }
+    if (kind === 'serving') {
+      const servingWeightG = food.servingWeightGrams;
+      if (typeof servingWeightG !== 'number' || servingWeightG <= 0) {
+        return { ok: false, reason: 'UNSUPPORTED_SERVING' };
+      }
+      const grams = value * servingWeightG;
+      const macros = computeMacrosForServing(food, grams);
+      return { ok: true, macros, gramsUsedForScaling: grams };
+    }
+  }
+
+  // perServing: only if food has servingWeightGrams and we support it
+  const servingWeightG = food.servingWeightGrams;
+  if (kind === 'serving') {
+    if (typeof servingWeightG === 'number' && servingWeightG > 0) {
+      const grams = value * servingWeightG;
+      const macros = computeMacrosForServing(food, grams);
+      return { ok: true, macros, gramsUsedForScaling: grams };
+    }
+    return { ok: false, reason: 'UNSUPPORTED_SERVING' };
+  }
+
+  // Fallback: per100g with mass
+  const grams = toGrams(value, unit);
+  const macros = computeMacrosForServing(food, grams);
+  return { ok: true, macros, gramsUsedForScaling: grams };
 }
 
 const OZ_TO_GRAMS = 28.349523125;
