@@ -9,6 +9,8 @@ import {
   Alert,
   Platform,
   InteractionManager,
+  Modal,
+  Pressable,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell, Bookmark } from 'lucide-react-native';
@@ -41,6 +43,8 @@ import {
   cmToFtIn,
   ftInToCm,
 } from '../../../types';
+import { GOAL_DEFINITIONS, MACRO_STRATEGY_DEFINITIONS } from '../../../src/content/planDefinitions';
+import PlanDefinitionSheet from '../../../components/ui/PlanDefinitionSheet';
 
 type EditMode = 'none' | 'profile' | 'goal' | 'strategy';
 
@@ -75,6 +79,11 @@ export default function SettingsScreen() {
   const [goalRate, setGoalRate] = useState<GoalRate>(profile.goal_rate);
   const [macroStrategy, setMacroStrategy] = useState<MacroStrategy>(profile.macro_strategy ?? 'balanced');
   const [dietaryModifiers, setDietaryModifiers] = useState<DietaryModifier[]>(profile.dietary_modifiers ?? []);
+
+  const [definitionSheet, setDefinitionSheet] = useState<
+    { type: 'goal'; id: Goal } | { type: 'strategy'; id: MacroStrategy } | null
+  >(null);
+  const [viewAllDefinitionsVisible, setViewAllDefinitionsVisible] = useState(false);
 
   const handleSaveProfile = useCallback(() => {
     const finalHeightCm = measurementSystem === 'us'
@@ -499,6 +508,70 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.sectionCard}>
+          <Text style={styles.legalSectionTitle}>My Plan</Text>
+          <TouchableOpacity
+            style={styles.settingsRow}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setDefinitionSheet({ type: 'goal', id: profile.goal });
+            }}
+            accessibilityLabel={`View details for current goal: ${GOAL_DEFINITIONS[profile.goal].title}`}
+            accessibilityRole="button"
+          >
+            <View style={[styles.settingsIcon, { backgroundColor: Colors.successMuted }]}>
+              <Calculator size={16} color={Colors.success} />
+            </View>
+            <View style={styles.settingsInfo}>
+              <Text style={styles.settingsLabel}>Current Goal</Text>
+              <Text style={styles.settingsValue}>
+                {GOAL_DEFINITIONS[profile.goal].title}
+              </Text>
+            </View>
+            <Text style={styles.learnMoreLinkText}>View details</Text>
+          </TouchableOpacity>
+          <View style={styles.settingsDivider} />
+          <TouchableOpacity
+            style={styles.settingsRow}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setDefinitionSheet({ type: 'strategy', id: profile.macro_strategy ?? 'balanced' });
+            }}
+            accessibilityLabel={`View details for current strategy: ${MACRO_STRATEGY_DEFINITIONS[profile.macro_strategy ?? 'balanced'].title}`}
+            accessibilityRole="button"
+          >
+            <View style={[styles.settingsIcon, { backgroundColor: Colors.fatMuted }]}>
+              <RefreshCw size={16} color={Colors.fat} />
+            </View>
+            <View style={styles.settingsInfo}>
+              <Text style={styles.settingsLabel}>Current Macro Strategy</Text>
+              <Text style={styles.settingsValue}>
+                {MACRO_STRATEGY_DEFINITIONS[profile.macro_strategy ?? 'balanced'].title}
+              </Text>
+            </View>
+            <Text style={styles.learnMoreLinkText}>View details</Text>
+          </TouchableOpacity>
+          <View style={styles.settingsDivider} />
+          <TouchableOpacity
+            style={styles.settingsRow}
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setViewAllDefinitionsVisible(true);
+            }}
+            accessibilityLabel="View all goal and strategy definitions"
+            accessibilityRole="button"
+          >
+            <View style={[styles.settingsIcon, { backgroundColor: Colors.primaryMuted }]}>
+              <Bookmark size={16} color={Colors.primary} />
+            </View>
+            <View style={styles.settingsInfo}>
+              <Text style={styles.settingsLabel}>View all definitions</Text>
+              <Text style={styles.settingsValue}>Goals and Macro Strategies</Text>
+            </View>
+            <ChevronRight size={16} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionCard}>
           <Text style={styles.legalSectionTitle}>Measurements</Text>
           <TouchableOpacity
             style={styles.settingsRow}
@@ -651,6 +724,79 @@ export default function SettingsScreen() {
           <Text style={styles.footerVersion}>Physiq v1.1.9</Text>
         </View>
       </ScrollView>
+
+      {definitionSheet && (
+        <PlanDefinitionSheet
+          visible={!!definitionSheet}
+          title={
+            definitionSheet.type === 'goal'
+              ? GOAL_DEFINITIONS[definitionSheet.id].title
+              : MACRO_STRATEGY_DEFINITIONS[definitionSheet.id].title
+          }
+          sections={
+            definitionSheet.type === 'goal'
+              ? GOAL_DEFINITIONS[definitionSheet.id].learnMore
+              : MACRO_STRATEGY_DEFINITIONS[definitionSheet.id].learnMore
+          }
+          onClose={() => setDefinitionSheet(null)}
+        />
+      )}
+
+      <Modal
+        visible={viewAllDefinitionsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setViewAllDefinitionsVisible(false)}
+      >
+        <Pressable style={styles.viewAllOverlay} onPress={() => setViewAllDefinitionsVisible(false)}>
+          <Pressable onPress={() => {}} style={styles.viewAllSheet}>
+            <View style={styles.viewAllHandle} />
+            <Text style={styles.viewAllTitle}>All Definitions</Text>
+            <ScrollView style={styles.viewAllScroll} contentContainerStyle={styles.viewAllScrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={styles.viewAllSectionTitle}>Goals</Text>
+              {(Object.keys(GOAL_DEFINITIONS) as Goal[]).map((g) => {
+                const def = GOAL_DEFINITIONS[g];
+                return (
+                  <TouchableOpacity
+                    key={g}
+                    style={styles.viewAllItem}
+                    onPress={() => {
+                      setDefinitionSheet({ type: 'goal', id: g });
+                      setViewAllDefinitionsVisible(false);
+                    }}
+                    accessibilityLabel={`Learn more about ${def.title}`}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.viewAllItemTitle}>{def.title}</Text>
+                    <Text style={styles.viewAllItemDesc} numberOfLines={2}>{def.shortDescription}</Text>
+                    <Text style={styles.viewAllLearnMore}>Learn more</Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <Text style={[styles.viewAllSectionTitle, { marginTop: 20 }]}>Macro Strategies</Text>
+              {(Object.keys(MACRO_STRATEGY_DEFINITIONS) as MacroStrategy[]).map((s) => {
+                const def = MACRO_STRATEGY_DEFINITIONS[s];
+                return (
+                  <TouchableOpacity
+                    key={s}
+                    style={styles.viewAllItem}
+                    onPress={() => {
+                      setDefinitionSheet({ type: 'strategy', id: s });
+                      setViewAllDefinitionsVisible(false);
+                    }}
+                    accessibilityLabel={`Learn more about ${def.title}`}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.viewAllItemTitle}>{def.title}</Text>
+                    <Text style={styles.viewAllItemDesc} numberOfLines={2}>{def.shortDescription}</Text>
+                    <Text style={styles.viewAllLearnMore}>Learn more</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -737,6 +883,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500' as const,
     marginTop: 1,
+  },
+  learnMoreLinkText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
   settingsDivider: {
     height: 1,
@@ -914,6 +1065,76 @@ const styles = StyleSheet.create({
   footerVersion: {
     color: Colors.textTertiary,
     fontSize: 11,
+  },
+  viewAllOverlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  viewAllSheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.cardBorder,
+  },
+  viewAllHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.textTertiary,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  viewAllTitle: {
+    color: Colors.text,
+    fontSize: 20,
+    fontWeight: '700' as const,
+    marginBottom: 16,
+  },
+  viewAllScroll: {
+    maxHeight: 400,
+  },
+  viewAllScrollContent: {
+    paddingBottom: 20,
+  },
+  viewAllSectionTitle: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  viewAllItem: {
+    backgroundColor: Colors.cardElevated,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  viewAllItemTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  viewAllItemDesc: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  viewAllLearnMore: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    marginTop: 8,
   },
   legalSectionTitle: {
     color: Colors.textSecondary,

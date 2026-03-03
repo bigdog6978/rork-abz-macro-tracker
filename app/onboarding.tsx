@@ -29,15 +29,15 @@ import {
   ACTIVITY_LABELS,
   ACTIVITY_DESCRIPTIONS,
   GOAL_LABELS,
-  GOAL_DESCRIPTIONS,
   GOAL_RATE_LABELS,
   MACRO_STRATEGY_LABELS,
-  MACRO_STRATEGY_DESCRIPTIONS,
   DIETARY_MODIFIER_LABELS,
   strategyToPreference,
   kgToLb,
   ftInToCm,
 } from '../types';
+import { GOAL_DEFINITIONS, MACRO_STRATEGY_DEFINITIONS } from '../src/content/planDefinitions';
+import PlanDefinitionSheet from '../components/ui/PlanDefinitionSheet';
 import { calculateMacros } from '../utils/macroEngine';
 import { addMeasurement } from '../storage/measurementsRepo';
 import { setPromptSettings } from '../storage/measurementsRepo';
@@ -75,6 +75,10 @@ export default function OnboardingScreen() {
   const [baselineWaist, setBaselineWaist] = useState('');
   const [baselineChest, setBaselineChest] = useState('');
   const [baselineDressSize, setBaselineDressSize] = useState('');
+
+  const [definitionSheet, setDefinitionSheet] = useState<
+    { type: 'goal'; id: Goal } | { type: 'strategy'; id: MacroStrategy } | null
+  >(null);
 
   const animateProgress = useCallback((toStep: number) => {
     Animated.spring(progressAnim, {
@@ -378,9 +382,45 @@ export default function OnboardingScreen() {
       <Text style={styles.stepTitle}>Your Goal</Text>
       <Text style={styles.stepSubtitle}>What are you working toward?</Text>
       <View style={styles.optionsList}>
-        {(Object.keys(GOAL_LABELS) as Goal[]).map((g) =>
-          renderOptionButton(g, goal, setGoal, GOAL_LABELS[g], GOAL_DESCRIPTIONS[g])
-        )}
+        {(Object.keys(GOAL_DEFINITIONS) as Goal[]).map((g) => {
+          const def = GOAL_DEFINITIONS[g];
+          const selected = g === goal;
+          return (
+            <View key={g} style={styles.goalOptionWrap}>
+              <TouchableOpacity
+                style={[styles.optionButton, selected && styles.optionButtonSelected]}
+                onPress={() => {
+                  setGoal(g);
+                  if (Platform.OS !== 'web') Haptics.selectionAsync();
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel={`${def.title}. ${def.shortDescription}`}
+                accessibilityRole="button"
+              >
+                <View style={styles.optionContent}>
+                  <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                    {def.title}
+                  </Text>
+                  <Text style={[styles.optionDescription, selected && styles.optionDescriptionSelected]}>
+                    {def.shortDescription}
+                  </Text>
+                </View>
+                {selected && <View style={styles.optionDot} />}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.learnMoreLink}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setDefinitionSheet({ type: 'goal', id: g });
+                }}
+                accessibilityLabel={`Learn more about ${def.title}`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.learnMoreText}>Learn more</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
       </View>
       {goal !== 'maintain' && goal !== 'recompose' && (
         <View style={styles.rateSection}>
@@ -455,9 +495,48 @@ export default function OnboardingScreen() {
         <Text style={styles.stepTitle}>Macro Strategy</Text>
         <Text style={styles.stepSubtitle}>Choose your macro approach</Text>
         <View style={styles.optionsList}>
-          {(Object.keys(MACRO_STRATEGY_LABELS) as MacroStrategy[]).map((strat) =>
-            renderOptionButton(strat, macroStrategy, setMacroStrategy, MACRO_STRATEGY_LABELS[strat], MACRO_STRATEGY_DESCRIPTIONS[strat])
-          )}
+          {(Object.keys(MACRO_STRATEGY_DEFINITIONS) as MacroStrategy[]).map((strat) => {
+            const def = MACRO_STRATEGY_DEFINITIONS[strat];
+            const selected = strat === macroStrategy;
+            return (
+              <View key={strat} style={styles.goalOptionWrap}>
+                <TouchableOpacity
+                  style={[styles.optionButton, selected && styles.optionButtonSelected]}
+                  onPress={() => {
+                    setMacroStrategy(strat);
+                    if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  }}
+                  activeOpacity={0.7}
+                  accessibilityLabel={`${def.title}. ${def.shortDescription}`}
+                  accessibilityRole="button"
+                >
+                  <View style={styles.optionContent}>
+                    <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                      {def.title}
+                    </Text>
+                    <Text style={[styles.optionDescription, selected && styles.optionDescriptionSelected]}>
+                      {def.shortDescription}
+                    </Text>
+                    <Text style={[styles.strategyPreview, selected && styles.strategyPreviewSelected]}>
+                      {def.preview}
+                    </Text>
+                  </View>
+                  {selected && <View style={styles.optionDot} />}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.learnMoreLink}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setDefinitionSheet({ type: 'strategy', id: strat });
+                  }}
+                  accessibilityLabel={`Learn more about ${def.title}`}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.learnMoreText}>Learn more</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.modifierSection}>
@@ -672,6 +751,23 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {definitionSheet && (
+        <PlanDefinitionSheet
+          visible={!!definitionSheet}
+          title={
+            definitionSheet.type === 'goal'
+              ? GOAL_DEFINITIONS[definitionSheet.id].title
+              : MACRO_STRATEGY_DEFINITIONS[definitionSheet.id].title
+          }
+          sections={
+            definitionSheet.type === 'goal'
+              ? GOAL_DEFINITIONS[definitionSheet.id].learnMore
+              : MACRO_STRATEGY_DEFINITIONS[definitionSheet.id].learnMore
+          }
+          onClose={() => setDefinitionSheet(null)}
+        />
+      )}
     </View>
   );
 }
@@ -838,6 +934,28 @@ const styles = StyleSheet.create({
   },
   optionsList: {
     gap: 10,
+  },
+  goalOptionWrap: {
+    gap: 4,
+  },
+  learnMoreLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingRight: 4,
+  },
+  learnMoreText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  strategyPreview: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  strategyPreviewSelected: {
+    color: Colors.primary,
+    opacity: 0.8,
   },
   optionButton: {
     flexDirection: 'row',
