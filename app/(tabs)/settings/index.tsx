@@ -13,8 +13,10 @@ import {
   Pressable,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell, Bookmark, Target } from 'lucide-react-native';
+import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell, Bookmark, Target, AlertCircle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { getAllergies } from '../../../storage/allergiesRepo';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing, Shadows } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
@@ -88,6 +90,17 @@ export default function SettingsScreen() {
     { type: 'goal'; id: Goal } | { type: 'strategy'; id: MacroStrategy } | null
   >(null);
   const [viewAllDefinitionsVisible, setViewAllDefinitionsVisible] = useState(false);
+
+  const allergiesQuery = useQuery({
+    queryKey: ['user_allergies'],
+    queryFn: getAllergies,
+  });
+  const allergies = allergiesQuery.data ?? [];
+  const allergiesSubtitle = allergies.length === 0
+    ? 'None'
+    : allergies.length <= 2
+      ? allergies.map((a) => a.name).join(', ')
+      : `${allergies[0].name}, ${allergies[1].name} +${allergies.length - 2}`;
 
   const handleSaveProfile = useCallback(() => {
     const finalHeightCm = measurementSystem === 'us'
@@ -486,6 +499,22 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={styles.settingsRow}
+            onPress={() => router.push('/settings/allergies' as never)}
+          >
+            <View style={[styles.settingsIcon, { backgroundColor: Colors.warningMuted }]}>
+              <AlertCircle size={16} color={Colors.warning} />
+            </View>
+            <View style={styles.settingsInfo}>
+              <Text style={styles.settingsLabel}>Allergies</Text>
+              <Text style={styles.settingsValue}>{allergiesSubtitle}</Text>
+            </View>
+            <ChevronRight size={16} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
+          <View style={styles.settingsDivider} />
+
+          <TouchableOpacity
+            style={styles.settingsRow}
             onPress={() => setEditMode(editMode === 'strategy' ? 'none' : 'strategy')}
           >
             <View style={[styles.settingsIcon, { backgroundColor: Colors.fatMuted }]}>
@@ -754,7 +783,7 @@ export default function SettingsScreen() {
             <Shield size={14} color={Colors.textTertiary} />
             <Text style={styles.footerText}>For general fitness guidance only</Text>
           </View>
-          <Text style={styles.footerVersion}>Physiq v1.1.9</Text>
+          <Text style={styles.footerVersion}>Physiq v1.2.1</Text>
         </View>
       </ScrollView>
 

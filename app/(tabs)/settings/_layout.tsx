@@ -15,6 +15,10 @@ export default function SettingsLayout() {
         name="index"
         options={{ title: "Settings" }}
       />
+      <Stack.Screen
+        name="allergies"
+        options={{ title: "Allergies" }}
+      />
     </Stack>
   );
 }

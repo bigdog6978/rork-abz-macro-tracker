@@ -24,6 +24,7 @@ import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { getMealPlanForStrategy } from '../../../mocks/mealTemplates';
+import { getAllergies } from '../../../storage/allergiesRepo';
 import {
   MACRO_STRATEGY_LABELS,
   DIETARY_MODIFIER_LABELS,
@@ -35,6 +36,22 @@ import {
   SavedMealPlan,
   FoodEntry,
 } from '../../../types';
+
+function computePlanTotals(meals: MealSlot[]): MacroTargets {
+  let calories = 0;
+  let protein_g = 0;
+  let carbs_g = 0;
+  let fat_g = 0;
+  for (const meal of meals) {
+    for (const s of meal.suggestions ?? []) {
+      calories += s.calories ?? 0;
+      protein_g += s.protein_g ?? 0;
+      carbs_g += s.carbs_g ?? 0;
+      fat_g += s.fat_g ?? 0;
+    }
+  }
+  return { calories, protein_g, carbs_g, fat_g };
+}
 import { getSubstitutes, applySubstitution } from '../../../utils/substitutions/substituteEngine';
 import { SubstituteResult } from '../../../utils/substitutions/types';
 import { mealNameToType } from '../../../constants/mealSwapCatalog';
@@ -848,14 +865,21 @@ export default function PlanScreen() {
     queryFn: getAllSavedMealPlans,
   });
 
+  const allergiesQuery = useQuery({
+    queryKey: ['user_allergies'],
+    queryFn: getAllergies,
+  });
+  const allergies = allergiesQuery.data ?? [];
+
   const basePlan = useMemo(() => {
     return getMealPlanForStrategy(
       profile.macro_strategy ?? 'balanced',
       profile.dietary_modifiers ?? [],
       macros,
-      profile.measurement_system ?? 'us'
+      profile.measurement_system ?? 'us',
+      allergies
     );
-  }, [profile.macro_strategy, profile.dietary_modifiers, macros, profile.measurement_system]);
+  }, [profile.macro_strategy, profile.dietary_modifiers, profile.goal, macros, profile.measurement_system, allergies]);
 
   const [substitutionMap, setSubstitutionMap] = useState<
     Record<string, MealSuggestion>
@@ -936,10 +960,17 @@ export default function PlanScreen() {
         strategy: basePlan.strategy,
         tags: basePlan.tags,
         meals: applySubstitutionsAndQuantity(activePlanMeals),
+        planUnavailable: false,
       };
     }
-    return { ...basePlan, meals: applySubstitutionsAndQuantity(basePlan.meals) };
+    return {
+      ...basePlan,
+      meals: applySubstitutionsAndQuantity(basePlan.meals),
+      planUnavailable: basePlan.planUnavailable ?? false,
+    };
   }, [basePlan, substitutionMap, quantityMap, isUsingActivePlan, activePlanMeals, measurementSystem]);
+
+  const planTotals = useMemo(() => computePlanTotals(plan.meals), [plan.meals]);
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [selectedFood, setSelectedFood] = useState<MealSuggestion | null>(null);
@@ -1238,10 +1269,39 @@ export default function PlanScreen() {
                 {MACRO_STRATEGY_LABELS[profile.macro_strategy ?? 'balanced']} Plan
               </Text>
               <Text style={styles.headerSubtitle}>
-                A typical day hitting your {formatNumber(macros.calories)} cal target
+                Plan totals: {formatNumber(planTotals.calories)} cal (target {formatNumber(macros.calories)})
               </Text>
             </View>
             <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.headerActionBtn}
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const keyToClear = planKey;
+                  const resetState = () => {
+                    setSubstitutionMap({});
+                    setQuantityMap({});
+                    setActivePlanLoaded(false);
+                    loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES).then((existing) => {
+                      if (existing && keyToClear in existing) {
+                        const next = { ...existing };
+                        delete next[keyToClear];
+                        saveData(STORAGE_KEYS.MEAL_PLAN_QUANTITIES, next);
+                      }
+                    });
+                    showToast('Plan regenerated');
+                  };
+                  if (activePlanQuery.data) {
+                    clearActiveMutation.mutate(undefined, { onSuccess: resetState });
+                  } else {
+                    resetState();
+                  }
+                }}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                testID="regenerate-plan-btn"
+              >
+                <RotateCcw size={16} color={Colors.primary} />
+              </TouchableOpacity>
               {savedPlans.length > 0 && (
                 <TouchableOpacity
                   style={styles.headerActionBtn}
@@ -1287,40 +1347,57 @@ export default function PlanScreen() {
           )}
           <View style={styles.headerMacros}>
             <View style={styles.headerMacroItem}>
-              <Text style={[styles.headerMacroValue, { color: Colors.protein }]}>{formatNumber(macros.protein_g)}g</Text>
+              <Text style={[styles.headerMacroValue, { color: Colors.protein }]}>{formatNumber(Math.round(planTotals.protein_g))}g</Text>
               <Text style={styles.headerMacroLabel}>Protein</Text>
             </View>
             <View style={styles.headerDivider} />
             <View style={styles.headerMacroItem}>
-              <Text style={[styles.headerMacroValue, { color: Colors.carbs }]}>{formatNumber(macros.carbs_g)}g</Text>
+              <Text style={[styles.headerMacroValue, { color: Colors.carbs }]}>{formatNumber(Math.round(planTotals.carbs_g))}g</Text>
               <Text style={styles.headerMacroLabel}>Carbs</Text>
             </View>
             <View style={styles.headerDivider} />
             <View style={styles.headerMacroItem}>
-              <Text style={[styles.headerMacroValue, { color: Colors.fat }]}>{formatNumber(macros.fat_g)}g</Text>
+              <Text style={[styles.headerMacroValue, { color: Colors.fat }]}>{formatNumber(Math.round(planTotals.fat_g))}g</Text>
               <Text style={styles.headerMacroLabel}>Fat</Text>
             </View>
           </View>
         </View>
 
-        {plan.meals.map((meal, idx) => (
-          <MealCard
-            key={idx}
-            meal={meal}
-            macros={macros}
-            mealIndex={idx}
-            onSwapPress={openSheet}
-            onLogPress={handleLogToggle}
-            onEditQuantityPress={openEditQuantity}
-            isLogged={isLogged}
-          />
-        ))}
+        {plan.planUnavailable ? (
+          <View style={styles.planUnavailableCard}>
+            <Text style={styles.planUnavailableTitle}>Plan unavailable</Text>
+            <Text style={styles.planUnavailableText}>
+              We couldn't generate a plan with your current allergies and preferences. Try removing an allergy or adjusting your strategy.
+            </Text>
+            <TouchableOpacity
+              style={styles.editAllergiesBtn}
+              onPress={() => router.push('/settings/allergies' as never)}
+            >
+              <Text style={styles.editAllergiesBtnText}>Edit Allergies</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {plan.meals.map((meal, idx) => (
+              <MealCard
+                key={idx}
+                meal={meal}
+                macros={macros}
+                mealIndex={idx}
+                onSwapPress={openSheet}
+                onLogPress={handleLogToggle}
+                onEditQuantityPress={openEditQuantity}
+                isLogged={isLogged}
+              />
+            ))}
 
-        <GrocerySection
-          meals={plan.meals}
-          planId={activePlanQuery.data?.id ?? 'generated'}
-          showToast={showToast}
-        />
+                <GrocerySection
+              meals={plan.meals}
+              planId={activePlanQuery.data?.id ?? 'generated'}
+              showToast={showToast}
+            />
+          </>
+        )}
 
         <View style={styles.disclaimer}>
           <Text style={styles.disclaimerText}>
@@ -1867,6 +1944,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 0,
+  },
+  planUnavailableCard: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 24,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  planUnavailableTitle: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginBottom: 8,
+  },
+  planUnavailableText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  editAllergiesBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  editAllergiesBtnText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '700' as const,
   },
   disclaimer: {
     marginTop: 8,

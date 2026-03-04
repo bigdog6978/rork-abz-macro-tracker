@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { ChevronRight, ChevronLeft, Zap, Ruler, TrendingUp } from 'lucide-react-native';
+import { ChevronRight, ChevronLeft, Zap, Ruler, TrendingUp, X } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useUser } from '../providers/UserProvider';
@@ -41,10 +41,23 @@ import PlanDefinitionSheet from '../components/ui/PlanDefinitionSheet';
 import { calculateMacros } from '../utils/macroEngine';
 import { addMeasurement } from '../storage/measurementsRepo';
 import { setPromptSettings } from '../storage/measurementsRepo';
+import { setAllergies } from '../storage/allergiesRepo';
 import { MeasurementRecord, MeasurementPromptSettings } from '../features/progress/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
+
+const ALLERGY_QUICK_PICKS = [
+  'Peanuts',
+  'Tree nuts',
+  'Milk/Dairy',
+  'Eggs',
+  'Wheat/Gluten',
+  'Soy',
+  'Fish',
+  'Shellfish',
+  'Sesame',
+];
 
 type StepProps = {
   onNext: () => void;
@@ -71,6 +84,10 @@ export default function OnboardingScreen() {
   const [goalRate, setGoalRate] = useState<GoalRate>('moderate');
   const [macroStrategy, setMacroStrategy] = useState<MacroStrategy>('balanced');
   const [dietaryModifiers, setDietaryModifiers] = useState<DietaryModifier[]>([]);
+
+  const [hasAllergies, setHasAllergies] = useState<'yes' | 'no'>('no');
+  const [allergiesList, setAllergiesList] = useState<{ id: string; name: string }[]>([]);
+  const [allergyInput, setAllergyInput] = useState('');
 
   const [baselineBodyFat, setBaselineBodyFat] = useState('');
   const [baselineWaist, setBaselineWaist] = useState('');
@@ -165,9 +182,22 @@ export default function OnboardingScreen() {
     };
     await setPromptSettings('local_user', defaultSettings);
 
+    if (hasAllergies === 'yes' && allergiesList.length > 0) {
+      const toSave = allergiesList.map((a) => ({
+        id: a.id,
+        name: a.name,
+        normalized: a.name.trim().toLowerCase().replace(/\s+/g, ' '),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }));
+      await setAllergies(toSave);
+    } else {
+      await setAllergies([]);
+    }
+
     completeOnboarding(profile);
     router.replace('/(tabs)' as never);
-  }, [age, sex, heightCm, heightFt, heightIn, weightLb, weightKg, measurementSystem, activityLevel, goal, goalRate, macroStrategy, dietaryModifiers, completeOnboarding, baselineBodyFat, baselineWaist, baselineChest, baselineDressSize]);
+  }, [age, sex, heightCm, heightFt, heightIn, weightLb, weightKg, measurementSystem, activityLevel, goal, goalRate, macroStrategy, dietaryModifiers, hasAllergies, allergiesList, completeOnboarding, baselineBodyFat, baselineWaist, baselineChest, baselineDressSize]);
 
   const handleComplete = useCallback(() => {
     saveBaselineAndComplete(false);
@@ -638,7 +668,116 @@ export default function OnboardingScreen() {
     );
   };
 
+  const addAllergyFromInput = useCallback(() => {
+    const trimmed = allergyInput.trim();
+    if (!trimmed) return;
+    const norm = trimmed.toLowerCase();
+    if (allergiesList.some((a) => a.name.toLowerCase() === norm)) return;
+    setAllergiesList((prev) => [...prev, { id: `a_${Date.now()}`, name: trimmed }]);
+    setAllergyInput('');
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+  }, [allergyInput, allergiesList]);
+
+  const removeAllergy = useCallback((id: string) => {
+    setAllergiesList((prev) => prev.filter((a) => a.id !== id));
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+  }, []);
+
   const renderStep5 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Food Allergies</Text>
+      <Text style={styles.stepSubtitle}>We'll avoid these in your meal plan.</Text>
+      <Text style={[styles.inputLabel, { marginBottom: 12 }]}>Do you have any food allergies?</Text>
+      <View style={styles.segmentRow}>
+        <TouchableOpacity
+          style={[styles.segment, hasAllergies === 'no' && styles.segmentActive]}
+          onPress={() => setHasAllergies('no')}
+        >
+          <Text style={[styles.segmentText, hasAllergies === 'no' && styles.segmentTextActive]}>No</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.segment, hasAllergies === 'yes' && styles.segmentActive]}
+          onPress={() => setHasAllergies('yes')}
+        >
+          <Text style={[styles.segmentText, hasAllergies === 'yes' && styles.segmentTextActive]}>Yes</Text>
+        </TouchableOpacity>
+      </View>
+
+      {hasAllergies === 'no' && (
+        <>
+          <Text style={[styles.stepSubtitle, { marginTop: 12, fontSize: 13 }]}>
+            You can update this anytime in Settings.
+          </Text>
+        </>
+      )}
+
+      {hasAllergies === 'yes' && (
+        <>
+          <View style={[styles.inputGroup, { marginTop: 20 }]}>
+            <Text style={styles.inputLabel}>Add allergies</Text>
+            <View style={styles.allergyInputRow}>
+              <TextInput
+                style={[styles.textInput, styles.textInputFlex]}
+                value={allergyInput}
+                onChangeText={setAllergyInput}
+                placeholder="Search or type an allergy…"
+                placeholderTextColor={Colors.textTertiary}
+                onSubmitEditing={addAllergyFromInput}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                style={styles.addAllergyBtn}
+                onPress={addAllergyFromInput}
+                disabled={!allergyInput.trim()}
+              >
+                <Text style={styles.addAllergyBtnText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.quickPickWrap}>
+            {ALLERGY_QUICK_PICKS.map((label) => {
+              const norm = label.toLowerCase();
+              const added = allergiesList.some((a) => a.name.toLowerCase() === norm);
+              return (
+                <TouchableOpacity
+                  key={label}
+                  style={[styles.quickPickChip, added && styles.quickPickChipAdded]}
+                  onPress={() => {
+                    if (added) return;
+                    setAllergiesList((prev) => [...prev, { id: `a_${Date.now()}_${label}`, name: label }]);
+                    if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  }}
+                  disabled={added}
+                >
+                  <Text style={[styles.quickPickChipText, added && styles.quickPickChipTextAdded]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {allergiesList.length > 0 && (
+            <View style={styles.allergyPillsWrap}>
+              {allergiesList.map((a) => (
+                <View key={a.id} style={styles.allergyPill}>
+                  <Text style={styles.allergyPillText}>{a.name}</Text>
+                  <TouchableOpacity
+                    onPress={() => removeAllergy(a.id)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <X size={14} color={Colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={[styles.stepSubtitle, { marginTop: 16, fontSize: 12, color: Colors.textTertiary }]}>
+            For severe allergies, always verify labels and ingredients.
+          </Text>
+        </>
+      )}
+    </View>
+  );
+
+  const renderStep6 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.baselineTitleRow}>
         <Text style={[styles.stepTitle, { marginBottom: 0 }]}>Baseline{"\n"}Measurements</Text>
@@ -746,8 +885,10 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const steps = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5];
+  const steps = [renderStep0, renderStep1, renderStep2, renderStep3, renderStep4, renderStep5, renderStep6];
   const isLastStep = step === TOTAL_STEPS - 1;
+
+  const canSaveAllergies = hasAllergies === 'yes' && allergiesList.length > 0;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -783,14 +924,35 @@ export default function OnboardingScreen() {
             <View style={styles.backButton} />
           )}
 
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={isLastStep ? handleComplete : goNext}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.nextButtonText}>{isLastStep ? 'Get Started' : 'Continue'}</Text>
-            <ChevronRight size={18} color={Colors.white} />
-          </TouchableOpacity>
+          {step === 5 && hasAllergies === 'yes' ? (
+            <View style={styles.allergyFooterRow}>
+              <TouchableOpacity
+                style={styles.skipButton}
+                onPress={goNext}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.skipButtonText}>Skip for now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.nextButton, styles.nextButtonHalf, !canSaveAllergies && styles.nextButtonDisabled]}
+                onPress={goNext}
+                activeOpacity={0.8}
+                disabled={!canSaveAllergies}
+              >
+                <Text style={styles.nextButtonText}>Save & Continue</Text>
+                <ChevronRight size={18} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.nextButton}
+              onPress={isLastStep ? handleComplete : goNext}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.nextButtonText}>{isLastStep ? 'Get Started' : 'Continue'}</Text>
+              <ChevronRight size={18} color={Colors.white} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -1207,6 +1369,92 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 16,
     fontWeight: '700' as const,
+  },
+  nextButtonDisabled: {
+    opacity: 0.5,
+  },
+  nextButtonHalf: {
+    width: 'auto',
+    flex: 1,
+  },
+  skipButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+  },
+  skipButtonText: {
+    color: Colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  allergyFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  allergyInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  addAllergyBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  addAllergyBtnText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  quickPickWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 14,
+  },
+  quickPickChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+    borderWidth: 1.5,
+    borderColor: Colors.cardBorder,
+  },
+  quickPickChipAdded: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryMuted,
+    opacity: 0.7,
+  },
+  quickPickChipText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  quickPickChipTextAdded: {
+    color: Colors.primary,
+  },
+  allergyPillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+  },
+  allergyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.card,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  allergyPillText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
   baselineTitleRow: {
     flexDirection: 'row',

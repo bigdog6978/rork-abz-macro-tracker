@@ -1,5 +1,13 @@
 export type MeasurementSystem = 'metric' | 'us';
 
+export interface UserAllergy {
+  id: string;
+  name: string;
+  normalized: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type Sex = 'male' | 'female';
 
 export type ActivityLevel =
@@ -151,6 +159,8 @@ export interface DayPlan {
   strategy?: MacroStrategy;
   tags?: string[];
   meals: MealSlot[];
+  /** True when allergies/constraints blocked all foods and no plan could be generated */
+  planUnavailable?: boolean;
 }
 
 export const ACTIVITY_LABELS: Record<ActivityLevel, string> = {

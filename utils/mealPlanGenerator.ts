@@ -1,5 +1,6 @@
 import { FOODS, FoodItemData, computeMacros, formatPortionLabel } from '../constants/foodDatabase';
-import { MacroTargets, MacroStrategy, DietaryModifier, DayPlan, MealSlot, MealSuggestion, DietaryPreference, MeasurementSystem, FoodCategory } from '../types';
+import { MacroTargets, MacroStrategy, DietaryModifier, DayPlan, MealSlot, MealSuggestion, DietaryPreference, MeasurementSystem, FoodCategory, UserAllergy } from '../types';
+import { isFoodBlockedByAllergies } from './allergyFilter';
 
 interface MealFoodRef {
   foodId: string;
@@ -650,13 +651,38 @@ function applyIFTimings(meals: MealBlueprint[]): MealBlueprint[] {
   ];
 }
 
+const TOLERANCE = { protein: 3, carbs: 5, fat: 3, calories: 50 };
+const MIN_SCALE = 0.25;
+const MAX_SCALE = 3.0;
+const SOLVER_ITERATIONS = 40;
+const SOLVER_STEP = 0.7;
+
+function getMealTargets(daily: MacroTargets, pct: number): MacroTargets {
+  return {
+    calories: Math.round(daily.calories * pct),
+    protein_g: Math.round(daily.protein_g * pct),
+    carbs_g: Math.round(daily.carbs_g * pct),
+    fat_g: Math.round(daily.fat_g * pct),
+  };
+}
+
+function withinTolerance(actual: MacroTargets, target: MacroTargets): boolean {
+  return (
+    Math.abs(actual.calories - target.calories) <= TOLERANCE.calories &&
+    Math.abs(actual.protein_g - target.protein_g) <= TOLERANCE.protein &&
+    Math.abs(actual.carbs_g - target.carbs_g) <= TOLERANCE.carbs &&
+    Math.abs(actual.fat_g - target.fat_g) <= TOLERANCE.fat
+  );
+}
+
 function scaleMealToTargets(
   blueprint: MealBlueprint,
   dailyMacros: MacroTargets,
   modifiers: DietaryModifier[],
-  measurementSystem: MeasurementSystem = 'us'
+  measurementSystem: MeasurementSystem = 'us',
+  allergies: UserAllergy[] = []
 ): MealSlot {
-  const slotCalTarget = dailyMacros.calories * blueprint.percentage;
+  const mealTarget = getMealTargets(dailyMacros, blueprint.percentage);
 
   const resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[] = [];
   const seenIds = new Set<string>();
@@ -665,6 +691,7 @@ function scaleMealToTargets(
     let foodId = applyFoodSwaps(ref.foodId, modifiers);
     const food = FOODS[foodId];
     if (!food || seenIds.has(foodId)) continue;
+    if (isFoodBlockedByAllergies(food, allergies)) continue;
     seenIds.add(foodId);
     resolvedFoods.push({ food, ref: { ...ref, foodId } });
   }
@@ -678,18 +705,10 @@ function scaleMealToTargets(
     };
   }
 
-  const baseCalories = resolvedFoods.reduce((sum, { food }) => {
-    return sum + (food.per100g.calories * food.basePortionG / 100);
-  }, 0);
-
-  const scaleFactor = baseCalories > 0 ? slotCalTarget / baseCalories : 1;
-
-  const minScale = 0.3;
-  const maxScale = 3.0;
-  const clampedScale = Math.max(minScale, Math.min(maxScale, scaleFactor));
-
+  const multipliers = solveMealMacros(resolvedFoods, mealTarget);
   const suggestions: MealSuggestion[] = resolvedFoods.map(({ food, ref }, idx) => {
-    const portionG = Math.round(food.basePortionG * clampedScale);
+    const m = multipliers[idx] ?? 1;
+    const portionG = Math.round(food.basePortionG * m);
     const macros = computeMacros(food, portionG);
     const portion = formatPortionLabel(food, portionG, measurementSystem);
 
@@ -699,10 +718,10 @@ function scaleMealToTargets(
       name: food.name,
       portion,
       portionGrams: portionG,
-      protein_g: Math.round(macros.protein_g),
-      carbs_g: Math.round(macros.carbs_g),
-      fat_g: Math.round(macros.fat_g),
-      calories: macros.calories,
+      protein_g: Math.round(macros.protein_g * 10) / 10,
+      carbs_g: Math.round(macros.carbs_g * 10) / 10,
+      fat_g: Math.round(macros.fat_g * 10) / 10,
+      calories: Math.round(macros.calories),
       category: roleToCategory(ref.role),
       isSubstitutable: true,
     };
@@ -714,6 +733,188 @@ function scaleMealToTargets(
     percentage: blueprint.percentage,
     suggestions,
   };
+}
+
+function solveMealMacros(
+  resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[],
+  target: MacroTargets
+): number[] {
+  const n = resolvedFoods.length;
+  let mults = resolvedFoods.map(() => 1);
+
+  const getTotals = (m: number[]) => {
+    let cal = 0, p = 0, c = 0, f = 0;
+    resolvedFoods.forEach(({ food }, i) => {
+      const g = food.basePortionG * (m[i] ?? 1);
+      const factor = g / 100;
+      cal += food.per100g.calories * factor;
+      p += food.per100g.protein_g * factor;
+      c += food.per100g.carbs_g * factor;
+      f += food.per100g.fat_g * factor;
+    });
+    return { calories: cal, protein_g: p, carbs_g: c, fat_g: f };
+  };
+
+  for (let iter = 0; iter < SOLVER_ITERATIONS; iter++) {
+    const tot = getTotals(mults);
+    if (withinTolerance(tot, target)) break;
+
+    const proteinFoods = resolvedFoods
+      .map((r, i) => ({ i, p: r.food.per100g.protein_g * r.food.basePortionG / 100 }))
+      .filter((x) => x.p > 0.5)
+      .sort((a, b) => b.p - a.p);
+    const carbFoods = resolvedFoods
+      .map((r, i) => ({ i, c: r.food.per100g.carbs_g * r.food.basePortionG / 100 }))
+      .filter((x) => x.c > 0.5)
+      .sort((a, b) => b.c - a.c);
+    const fatFoods = resolvedFoods
+      .map((r, i) => ({ i, f: r.food.per100g.fat_g * r.food.basePortionG / 100 }))
+      .filter((x) => x.f > 0.5)
+      .sort((a, b) => b.f - a.f);
+
+    const step = SOLVER_STEP;
+    if (tot.protein_g < target.protein_g - TOLERANCE.protein && proteinFoods[0]) {
+      const idx = proteinFoods[0].i;
+      const need = target.protein_g - tot.protein_g;
+      const contrib = resolvedFoods[idx].food.per100g.protein_g * resolvedFoods[idx].food.basePortionG / 100;
+      if (contrib > 0) {
+        const delta = need / contrib;
+        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) + delta * step));
+      }
+    } else if (tot.protein_g > target.protein_g + TOLERANCE.protein && proteinFoods[0]) {
+      const idx = proteinFoods[0].i;
+      const excess = tot.protein_g - target.protein_g;
+      const contrib = resolvedFoods[idx].food.per100g.protein_g * resolvedFoods[idx].food.basePortionG / 100;
+      if (contrib > 0) {
+        const delta = excess / contrib;
+        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) - delta * step));
+      }
+    }
+
+    if (tot.carbs_g < target.carbs_g - TOLERANCE.carbs && carbFoods[0]) {
+      const idx = carbFoods[0].i;
+      const need = target.carbs_g - tot.carbs_g;
+      const contrib = resolvedFoods[idx].food.per100g.carbs_g * resolvedFoods[idx].food.basePortionG / 100;
+      if (contrib > 0) {
+        const delta = need / contrib;
+        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) + delta * step));
+      }
+    } else if (tot.carbs_g > target.carbs_g + TOLERANCE.carbs && carbFoods[0]) {
+      const idx = carbFoods[0].i;
+      const excess = tot.carbs_g - target.carbs_g;
+      const contrib = resolvedFoods[idx].food.per100g.carbs_g * resolvedFoods[idx].food.basePortionG / 100;
+      if (contrib > 0) {
+        const delta = excess / contrib;
+        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) - delta * step));
+      }
+    }
+
+    if (tot.fat_g < target.fat_g - TOLERANCE.fat && fatFoods[0]) {
+      const idx = fatFoods[0].i;
+      const need = target.fat_g - tot.fat_g;
+      const contrib = resolvedFoods[idx].food.per100g.fat_g * resolvedFoods[idx].food.basePortionG / 100;
+      if (contrib > 0) {
+        const delta = need / contrib;
+        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) + delta * step));
+      }
+    } else if (tot.fat_g > target.fat_g + TOLERANCE.fat && fatFoods[0]) {
+      const idx = fatFoods[0].i;
+      const excess = tot.fat_g - target.fat_g;
+      const contrib = resolvedFoods[idx].food.per100g.fat_g * resolvedFoods[idx].food.basePortionG / 100;
+      if (contrib > 0) {
+        const delta = excess / contrib;
+        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) - delta * step));
+      }
+    }
+
+    if (Math.abs(tot.calories - target.calories) > TOLERANCE.calories) {
+      const calScale = target.calories / Math.max(tot.calories, 1);
+      for (let i = 0; i < n; i++) {
+        mults[i] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[i] ?? 1) * calScale));
+      }
+    }
+  }
+
+  return mults;
+}
+
+function reconcileDailyTotals(
+  meals: MealSlot[],
+  dailyTarget: MacroTargets,
+  measurementSystem: MeasurementSystem = 'us'
+): MealSlot[] {
+  const getDailyTotals = (m: MealSlot[]) => m.reduce(
+    (acc, meal) => {
+      meal.suggestions.forEach((s) => {
+        acc.calories += s.calories;
+        acc.protein_g += s.protein_g;
+        acc.carbs_g += s.carbs_g;
+        acc.fat_g += s.fat_g;
+      });
+      return acc;
+    },
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+  );
+
+  let dailyFromPlan = getDailyTotals(meals);
+  if (withinTolerance(dailyFromPlan, dailyTarget)) return meals;
+
+  let toScale = meals;
+  // First try: adjust snack to close calorie gap (snack is most flexible)
+  const snackIdx = meals.findIndex((m) => m.name.toLowerCase().includes('snack'));
+  if (snackIdx >= 0 && meals[snackIdx].suggestions.length > 0) {
+    const snack = meals[snackIdx];
+    const totalSnackCal = snack.suggestions.reduce((s, x) => s + x.calories, 0);
+    if (totalSnackCal > 0) {
+      const gap = dailyTarget.calories - dailyFromPlan.calories;
+      const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (totalSnackCal + gap) / totalSnackCal));
+      const scaledSuggestions = snack.suggestions.map((s) => {
+        const newG = Math.round(s.portionGrams * scale);
+        const food = FOODS[s.foodId];
+        if (!food) return s;
+        const macros = computeMacros(food, newG);
+        return {
+          ...s,
+          portionGrams: newG,
+          portion: formatPortionLabel(food, newG, measurementSystem),
+          calories: Math.round(macros.calories),
+          protein_g: Math.round(macros.protein_g * 10) / 10,
+          carbs_g: Math.round(macros.carbs_g * 10) / 10,
+          fat_g: Math.round(macros.fat_g * 10) / 10,
+        };
+      });
+      const updated = [...meals];
+      updated[snackIdx] = { ...snack, suggestions: scaledSuggestions };
+      toScale = updated;
+      dailyFromPlan = getDailyTotals(updated);
+      if (withinTolerance(dailyFromPlan, dailyTarget)) return updated;
+    }
+  }
+
+  // Second pass: scale ALL meals proportionally to hit daily target
+  let result = toScale;
+  let totals = getDailyTotals(result);
+  const calScale = dailyTarget.calories / Math.max(totals.calories, 1);
+  const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, calScale));
+  result = result.map((meal) => ({
+    ...meal,
+    suggestions: meal.suggestions.map((s) => {
+      const newG = Math.round(s.portionGrams * scale);
+      const food = FOODS[s.foodId];
+      if (!food) return s;
+      const macros = computeMacros(food, newG);
+      return {
+        ...s,
+        portionGrams: newG,
+        portion: formatPortionLabel(food, newG, measurementSystem),
+        calories: Math.round(macros.calories),
+        protein_g: Math.round(macros.protein_g * 10) / 10,
+        carbs_g: Math.round(macros.carbs_g * 10) / 10,
+        fat_g: Math.round(macros.fat_g * 10) / 10,
+      };
+    }),
+  }));
+  return result;
 }
 
 function strategyToDietaryPreference(strategy: MacroStrategy): DietaryPreference {
@@ -729,10 +930,9 @@ export function generateMealPlan(
   macros: MacroTargets,
   strategy: MacroStrategy,
   modifiers: DietaryModifier[],
-  measurementSystem: MeasurementSystem = 'us'
+  measurementSystem: MeasurementSystem = 'us',
+  allergies: UserAllergy[] = []
 ): DayPlan {
-  console.log('[MealPlanGenerator] Generating plan for strategy:', strategy, 'modifiers:', modifiers, 'macros:', macros);
-
   const blueprint = selectBlueprint(strategy, modifiers);
   const isIF = modifiers.includes('intermittent_fasting');
 
@@ -742,14 +942,19 @@ export function generateMealPlan(
     mealBlueprints = applyIFTimings(mealBlueprints);
   }
 
-  const meals = mealBlueprints.map((mb) =>
-    scaleMealToTargets(mb, macros, modifiers, measurementSystem)
+  let meals = mealBlueprints.map((mb) =>
+    scaleMealToTargets(mb, macros, modifiers, measurementSystem, allergies)
   );
+  meals = reconcileDailyTotals(meals, macros, measurementSystem);
+
+  const totalFoods = meals.reduce((s, m) => s + m.suggestions.length, 0);
+  const planUnavailable = totalFoods === 0;
 
   return {
     preference: strategyToDietaryPreference(strategy),
     strategy,
     tags: modifiers as string[],
     meals,
+    planUnavailable,
   };
 }
