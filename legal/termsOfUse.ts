@@ -6,7 +6,7 @@ Last Updated: ${TERMS_LAST_UPDATED}
 
 1. AGREEMENT TO TERMS
 
-These Terms of Use ("Terms") govern your use of the Physiq mobile application (the "App"), owned and operated by ALOA LLC ("Company," "we," "us," or "our").
+These Terms of Use ("Terms") govern your use of the Physiq Macro Tracker mobile application (the "App"), owned and operated by Physiq Macro Tracker ("Company," "we," "us," or "our").
 
 By downloading, installing, or using the App through the Apple App Store or Google Play Store, you agree to be bound by these Terms. If you do not agree, do not use the App.
 
@@ -14,7 +14,7 @@ By downloading, installing, or using the App through the Apple App Store or Goog
 
 The App is licensed, not sold, to you.
 
-Subject to your compliance with these Terms, ALOA LLC grants you a limited, non-exclusive, non-transferable, revocable license to download and use the App for personal, non-commercial purposes on devices you own or control.
+Subject to your compliance with these Terms, Physiq Macro Tracker grants you a limited, non-exclusive, non-transferable, revocable license to download and use the App for personal, non-commercial purposes on devices you own or control.
 
 For users who download the App through Apple's App Store:
 
@@ -41,7 +41,7 @@ You assume full responsibility for your health decisions.
 
 All food logs, macro tracking data, weight entries, and related information entered into the App are stored locally on your device.
 
-ALOA LLC:
+Physiq Macro Tracker:
 • Does not collect personal data
 • Does not store your health data
 • Does not maintain cloud backups of your tracking information
@@ -61,7 +61,7 @@ You agree not to:
 
 The App may retrieve nutritional data from third-party sources such as USDA FoodData Central.
 
-ALOA LLC is not responsible for:
+Physiq Macro Tracker is not responsible for:
 • The accuracy of third-party data
 • Changes made by third-party providers
 • The availability of third-party services
@@ -72,7 +72,7 @@ Use of third-party services may be subject to their respective terms and policie
 
 The App is provided "AS IS" and "AS AVAILABLE" without warranties of any kind, express or implied.
 
-To the fullest extent permitted by law, ALOA LLC disclaims all warranties, including:
+To the fullest extent permitted by law, Physiq Macro Tracker disclaims all warranties, including:
 
 • Accuracy of nutritional data
 • Fitness for a particular purpose
@@ -81,7 +81,7 @@ To the fullest extent permitted by law, ALOA LLC disclaims all warranties, inclu
 
 8. LIMITATION OF LIABILITY
 
-To the maximum extent permitted by law, ALOA LLC shall not be liable for:
+To the maximum extent permitted by law, Physiq Macro Tracker shall not be liable for:
 
 • Any indirect, incidental, special, consequential, or punitive damages
 • Loss of data
@@ -110,6 +110,6 @@ Continued use of the App after changes constitutes acceptance of the updated Ter
 
 12. CONTACT INFORMATION
 
-ALOA LLC
+Physiq Macro Tracker
 Email: physiqmacrotracker@yahoo.com
 `;
