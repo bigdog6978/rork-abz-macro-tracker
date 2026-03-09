@@ -548,7 +548,7 @@ function PreviewMetric({ label, value, color }: { label: string; value: string; 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: 'transparent',
   },
   flex: {
     flex: 1,

@@ -19,6 +19,7 @@ export const Spacing = {
 } as const;
 
 export const Gradients = {
+  screen: ['#272727', '#000000'] as [string, string],
   card: ['#1E1E1E', '#141414'] as [string, string],
   cardSubtle: ['#1A1A1A', '#121212'] as [string, string],
   hero: ['#1F1F1F', '#111111'] as [string, string],

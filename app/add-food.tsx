@@ -10,6 +10,9 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Animated,
+  Easing,
+  Keyboard,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -23,12 +26,14 @@ import * as foodsRepo from '../src/data/foodsRepo';
 import QuantityPillsCompact from '../components/ui/QuantityPillsCompact';
 import QuantityCallout, { type CalloutReason } from '../components/ui/QuantityCallout';
 import DensityModal from '../components/ui/DensityModal';
+import BarcodeScannerPanel from '../components/ui/BarcodeScannerPanel';
 import type { UnitKind, UnitId } from '../src/lib/units';
 import { getPreferredServingUnit } from '../storage/userSettingsRepo';
 import {
   detectUnitFromName,
   pluralizeUnit,
 } from '../features/food/servingDefaults';
+import { Radius } from '../theme/tokens';
 
 const DEBOUNCE_MS = 300;
 const HEADER_BUTTON_SIZE = 44;
@@ -101,6 +106,8 @@ export default function AddFoodScreen() {
   const [isCustomized, setIsCustomized] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveToLibrary, setSaveToLibrary] = useState(true);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerViewportWidth, setScannerViewportWidth] = useState(0);
 
   const [recentFoods, setRecentFoods] = useState<
     { food: NormalizedFood; lastServingGrams: number }[]
@@ -108,6 +115,7 @@ export default function AddFoodScreen() {
   const [savedFoods, setSavedFoods] = useState<NormalizedFood[]>([]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scannerAnim = useRef(new Animated.Value(0)).current;
   const computedMacrosRef = useRef<{
     calories: number;
     protein_g: number;
@@ -132,6 +140,20 @@ export default function AddFoodScreen() {
       .catch((err) => console.log('[AddFood] Error loading saved foods:', err));
   }, [params.fromBarcode]);
 
+  const animateScanner = useCallback(
+    (toValue: number, onComplete?: () => void) => {
+      Animated.timing(scannerAnim, {
+        toValue,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start(({ finished }) => {
+        if (finished) onComplete?.();
+      });
+    },
+    [scannerAnim]
+  );
+
   useEffect(() => {
     getPreferredServingUnit()
       .then((unit) => {
@@ -144,59 +166,76 @@ export default function AddFoodScreen() {
       .catch((err) => console.log('[AddFood] Error loading unit pref:', err));
   }, []);
 
+  const loadFoodIntoForm = useCallback(async (id: string) => {
+    try {
+      const local = await foodsRepo.getFoodById(id);
+      if (!local) return;
+
+      const norm = foodsRepo.localFoodToNormalizedFood(local);
+      setSelectedFood(norm);
+      setName(norm.name);
+      setQuery(norm.name);
+      setShowSuggestions(false);
+      setIsCustomized(false);
+      setScannerOpen(false);
+      animateScanner(0);
+
+      const detected = detectUnitFromName(norm.name);
+      const savedUnit = local.unitLabel && local.servingWeightG
+        ? { unitLabel: local.unitLabel, servingWeightG: local.servingWeightG }
+        : null;
+      const useUnits = !!(savedUnit || detected);
+      const unitConfig = savedUnit ?? detected;
+      const foodWithServing = useUnits && unitConfig
+        ? { ...norm, servingWeightGrams: unitConfig.servingWeightG }
+        : norm;
+
+      if (useUnits && unitConfig) {
+        setUnitKind('serving');
+        setUnitId('piece');
+        setUnitLabel(unitConfig.unitLabel);
+        setServingWeightG(unitConfig.servingWeightG);
+        setQuantityInput('1');
+      } else {
+        setUnitKind('mass');
+        setUnitId('g');
+        setQuantityInput('100');
+      }
+
+      const value = useUnits ? 1 : 100;
+      const unit = useUnits ? 'piece' : 'g';
+      const kind = useUnits ? 'serving' : 'mass';
+      const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unit, kind);
+      const macros = result.ok ? result.macros : foodService.computeMacrosForServing(norm, 100);
+      computedMacrosRef.current = macros;
+      setProtein(String(macros.protein_g));
+      setCarbs(String(macros.carbs_g));
+      setFat(String(macros.fat_g));
+      setScalingReason(result.ok ? null : result.reason);
+    } catch (err) {
+      console.log('[AddFood] Error loading barcode food:', err);
+    }
+  }, [animateScanner]);
+
   useEffect(() => {
     const id = params.fromBarcode;
     if (!id || typeof id !== 'string') return;
-    foodsRepo
-      .getFoodById(id)
-      .then((local) => {
-        if (local) {
-          const norm = foodsRepo.localFoodToNormalizedFood(local);
-          setSelectedFood(norm);
-          setName(norm.name);
-          setQuery(norm.name);
-          setShowSuggestions(false);
-          const detected = detectUnitFromName(norm.name);
-          const savedUnit = local.unitLabel && local.servingWeightG
-            ? { unitLabel: local.unitLabel, servingWeightG: local.servingWeightG }
-            : null;
-          const useUnits = !!(savedUnit || detected);
-          const foodWithServing = useUnits
-            ? { ...norm, servingWeightGrams: (savedUnit ?? detected!).servingWeightG }
-            : norm;
-          if (useUnits) {
-            setUnitKind('serving');
-            setUnitId('piece');
-            const u = savedUnit ?? detected!;
-            setUnitLabel(u.unitLabel);
-            setServingWeightG(u.servingWeightG);
-            setQuantityInput('1');
-          } else {
-            setUnitKind('mass');
-            setUnitId('g');
-            setQuantityInput('100');
-          }
-          const value = useUnits ? 1 : 100;
-          const unit = useUnits ? 'piece' : 'g';
-          const kind = useUnits ? 'serving' : 'mass';
-          const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unit, kind);
-          const macros = result.ok ? result.macros : foodService.computeMacrosForServing(norm, 100);
-          computedMacrosRef.current = macros;
-          setProtein(String(macros.protein_g));
-          setCarbs(String(macros.carbs_g));
-          setFat(String(macros.fat_g));
-          setScalingReason(result.ok ? null : result.reason);
-        }
-      })
-      .catch((err) => console.log('[AddFood] Error loading barcode food:', err));
-  }, [params.fromBarcode]);
+    loadFoodIntoForm(id);
+  }, [loadFoodIntoForm, params.fromBarcode]);
 
   const handleScanBarcode = useCallback(() => {
-    router.push('/barcode-scanner');
+    Keyboard.dismiss();
+    setShowSuggestions(false);
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, []);
+    if (scannerOpen) {
+      animateScanner(0, () => setScannerOpen(false));
+      return;
+    }
+    setScannerOpen(true);
+    animateScanner(1);
+  }, [animateScanner, scannerOpen]);
 
   const computedCalories =
     (parseFloat(protein) || 0) * 4 +
@@ -670,6 +709,33 @@ export default function AddFoodScreen() {
     [quantityInput, unitKind, selectedFood, servingWeightG]
   );
 
+  const searchShellStyle = {
+    height: scannerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [54, 0],
+    }),
+    opacity: scannerAnim.interpolate({
+      inputRange: [0, 0.85, 1],
+      outputRange: [1, 0.08, 0],
+    }),
+    marginBottom: scannerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 0],
+    }),
+  };
+
+  const scannerShellStyle = {
+    height: scannerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, scannerViewportWidth || 320],
+    }),
+    opacity: scannerAnim,
+    marginTop: scannerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 4],
+    }),
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -719,38 +785,63 @@ export default function AddFoodScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.searchSection}>
-            <View style={styles.searchContainer}>
-              <Search size={18} color={Colors.textTertiary} style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                value={query}
-                onChangeText={handleSearch}
-                placeholder={
-                  apiAvailable
-                    ? 'Search foods or enter name...'
-                    : 'Enter food name...'
-                }
-                placeholderTextColor={Colors.textTertiary}
-                autoFocus
-                testID="food-search-input"
-              />
-              {query.length > 0 && (
-                <TouchableOpacity
-                  onPress={handleClearSelection}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <X size={18} color={Colors.textTertiary} />
-                </TouchableOpacity>
-              )}
-              {isSearching && (
-                <ActivityIndicator
-                  size="small"
-                  color={Colors.primary}
-                  style={styles.searchSpinner}
+          <View
+            style={styles.searchSection}
+            onLayout={(event) => {
+              const width = Math.round(event.nativeEvent.layout.width);
+              if (width > 0 && width !== scannerViewportWidth) {
+                setScannerViewportWidth(width);
+              }
+            }}
+          >
+            <Animated.View style={[styles.searchShell, searchShellStyle]}>
+              <View style={styles.searchContainer}>
+                <Search size={18} color={Colors.textTertiary} style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={query}
+                  onChangeText={handleSearch}
+                  placeholder={
+                    apiAvailable
+                      ? 'Search foods or enter name...'
+                      : 'Enter food name...'
+                  }
+                  placeholderTextColor={Colors.textTertiary}
+                  autoFocus={!scannerOpen}
+                  editable={!scannerOpen}
+                  testID="food-search-input"
                 />
-              )}
-            </View>
+                {query.length > 0 && !scannerOpen && (
+                  <TouchableOpacity
+                    onPress={handleClearSelection}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <X size={18} color={Colors.textTertiary} />
+                  </TouchableOpacity>
+                )}
+                {isSearching && !scannerOpen && (
+                  <ActivityIndicator
+                    size="small"
+                    color={Colors.primary}
+                    style={styles.searchSpinner}
+                  />
+                )}
+              </View>
+            </Animated.View>
+
+            <Animated.View style={[styles.scannerShell, scannerShellStyle]}>
+              {scannerOpen ? (
+                <BarcodeScannerPanel
+                  variant="inline"
+                  onCancel={() => {
+                    animateScanner(0, () => setScannerOpen(false));
+                  }}
+                  onSaved={(foodId) => {
+                    void loadFoodIntoForm(foodId);
+                  }}
+                />
+              ) : null}
+            </Animated.View>
 
             {!apiAvailable && (
               <View style={styles.apiNotice}>
@@ -767,8 +858,8 @@ export default function AddFoodScreen() {
                 activeOpacity={0.7}
                 testID="scan-barcode-button"
               >
-                <Scan size={18} color={Colors.primary} />
-                <Text style={styles.scanBarcodeText}>Scan Barcode</Text>
+                {scannerOpen ? <X size={18} color={Colors.primary} /> : <Scan size={18} color={Colors.primary} />}
+                <Text style={styles.scanBarcodeText}>{scannerOpen ? 'Close Scanner' : 'Scan Barcode'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.savedFoodsLink}
@@ -1221,6 +1312,9 @@ const styles = StyleSheet.create({
   searchSection: {
     marginBottom: 8,
   },
+  searchShell: {
+    overflow: 'hidden',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1229,6 +1323,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     borderRadius: 14,
     paddingHorizontal: 14,
+  },
+  scannerShell: {
+    overflow: 'hidden',
   },
   searchIcon: {
     marginRight: 10,
@@ -1256,7 +1353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 12,
+    marginTop: 6,
   },
   scanBarcodeBtn: {
     flexDirection: 'row',
@@ -1265,7 +1362,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.primary,
   },

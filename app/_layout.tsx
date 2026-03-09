@@ -8,6 +8,7 @@ import { UserProvider, useUser } from "../providers/UserProvider";
 import { DailyLogProvider, useDailyLog } from "../providers/DailyLogProvider";
 import { MeasurementsProvider } from "../providers/MeasurementsProvider";
 import { GoalSettingsProvider } from "../providers/GoalSettingsProvider";
+import AppBackground from "../components/ui/AppBackground";
 import Colors from "../constants/colors";
 
 SplashScreen.preventAutoHideAsync();
@@ -42,19 +43,20 @@ function RootLayoutNav() {
     <Stack
       screenOptions={{
         headerBackTitle: "Back",
-        headerStyle: { backgroundColor: Colors.background },
+        headerStyle: { backgroundColor: 'transparent' },
         headerTintColor: Colors.text,
-        contentStyle: { backgroundColor: Colors.background },
+        contentStyle: { backgroundColor: 'transparent' },
       }}
       initialRouteName="index"
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ headerShown: false, animation: 'none' }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen
         name="welcome"
         options={{
           headerShown: false,
           gestureEnabled: false,
+          animation: 'none',
         }}
       />
       <Stack.Screen
@@ -62,6 +64,7 @@ function RootLayoutNav() {
         options={{
           headerShown: false,
           gestureEnabled: false,
+          animation: 'none',
         }}
       />
       <Stack.Screen
@@ -71,6 +74,7 @@ function RootLayoutNav() {
           title: "Add Measurement",
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
+          contentStyle: { backgroundColor: Colors.background },
         }}
       />
       <Stack.Screen
@@ -80,6 +84,7 @@ function RootLayoutNav() {
           title: "Measurement History",
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
+          contentStyle: { backgroundColor: Colors.background },
         }}
       />
       <Stack.Screen
@@ -89,6 +94,7 @@ function RootLayoutNav() {
           title: "Set Target",
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
+          contentStyle: { backgroundColor: Colors.background },
         }}
       />
       <Stack.Screen
@@ -98,6 +104,7 @@ function RootLayoutNav() {
           title: "Add Food",
           headerStyle: { backgroundColor: Colors.card },
           headerTintColor: Colors.text,
+          contentStyle: { backgroundColor: Colors.background },
         }}
       />
       <Stack.Screen
@@ -107,6 +114,7 @@ function RootLayoutNav() {
           title: "Scan Barcode",
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
+          contentStyle: { backgroundColor: Colors.background },
         }}
       />
       <Stack.Screen
@@ -116,6 +124,7 @@ function RootLayoutNav() {
           title: "Saved Foods",
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
+          contentStyle: { backgroundColor: Colors.background },
         }}
       />
       <Stack.Screen
@@ -125,6 +134,7 @@ function RootLayoutNav() {
           title: "Edit Entry",
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
+          contentStyle: { backgroundColor: Colors.background },
         }}
       />
       <Stack.Screen
@@ -134,13 +144,14 @@ function RootLayoutNav() {
           title: "Day",
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
+          contentStyle: { backgroundColor: Colors.background },
         }}
       />
       <Stack.Screen
         name="legal-document"
         options={{
           title: "",
-          headerStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: 'transparent' },
           headerTintColor: Colors.text,
         }}
       />
@@ -156,7 +167,9 @@ export default function RootLayout() {
           <DailyLogProvider>
             <MeasurementsProvider>
               <GoalSettingsProvider>
-                <AppContent />
+                <AppBackground>
+                  <AppContent />
+                </AppBackground>
               </GoalSettingsProvider>
             </MeasurementsProvider>
           </DailyLogProvider>

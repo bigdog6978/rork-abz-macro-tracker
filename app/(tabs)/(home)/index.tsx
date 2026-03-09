@@ -331,7 +331,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: 'transparent',
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
   },
   scrollContent: {

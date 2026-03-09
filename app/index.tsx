@@ -15,6 +15,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import { useUser } from '../providers/UserProvider';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import Colors from '../constants/colors';
+import { Gradients } from '../theme/tokens';
 
 const LOGO_SIZE = 112;
 const WORDMARK_SIZE = 36;
@@ -91,7 +92,7 @@ export default function SplashScreen() {
       onPress={handlePress}
     >
       <LinearGradient
-        colors={['#272727', '#000000']}
+        colors={Gradients.screen}
         style={StyleSheet.absoluteFill}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
