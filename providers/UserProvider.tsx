@@ -97,6 +97,11 @@ function normalizeStoredProfile(stored: LegacyUserProfile | null | undefined): U
   };
 }
 
+function mergeDefined<T extends object>(base: T, updates: Partial<T>): T {
+  const definedEntries = Object.entries(updates).filter(([, value]) => value !== undefined);
+  return { ...base, ...Object.fromEntries(definedEntries) as Partial<T> };
+}
+
 export const [UserProvider, useUser] = createContextHook(() => {
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -138,7 +143,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const updateProfile = useCallback(
     (updates: Partial<UserProfile>) => {
-      const updated = { ...profile, ...updates };
+      const updated = mergeDefined(profile, updates);
       setProfile(updated);
       saveMutation.mutate(updated);
     },
@@ -147,7 +152,7 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const completeOnboarding = useCallback(
     (profileData: Omit<UserProfile, 'onboardingComplete'>) => {
-      const updated = { ...profile, ...profileData, onboardingComplete: true };
+      const updated = { ...mergeDefined(profile, profileData), onboardingComplete: true };
       setProfile(updated);
       saveMutation.mutate(updated);
     },

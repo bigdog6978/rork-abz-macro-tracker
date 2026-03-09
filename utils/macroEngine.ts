@@ -1,4 +1,14 @@
-import { ActivityLevel, EatingStyle, Goal, MacroTargets, UserProfile } from '../types';
+import {
+  ACTIVITY_LABELS,
+  ActivityLevel,
+  EATING_STYLE_LABELS,
+  EatingStyle,
+  GOAL_LABELS,
+  Goal,
+  MacroCalculationDetails,
+  MacroTargets,
+  UserProfile,
+} from '../types';
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
@@ -97,6 +107,75 @@ function calculateFatTarget(profile: UserProfile): number {
   return baseFat;
 }
 
+function getGoalAdjustmentInfo(profile: UserProfile, estimatedTdee: number) {
+  switch (profile.goal) {
+    case 'cut':
+      return {
+        goalLabel: GOAL_LABELS.cut,
+        calorieAdjustmentLabel: 'Fat Loss (-20%)',
+        calorieAdjustmentValue: Math.round(estimatedTdee * 0.8) - Math.round(estimatedTdee),
+      };
+    case 'gain':
+      return {
+        goalLabel: GOAL_LABELS.gain,
+        calorieAdjustmentLabel: 'Muscle Gain (+10%)',
+        calorieAdjustmentValue: Math.round(estimatedTdee * 1.1) - Math.round(estimatedTdee),
+      };
+    case 'recompose': {
+      const recompAdjustment = getRecompCalorieAdjustment(profile);
+      return {
+        goalLabel: GOAL_LABELS.recompose,
+        calorieAdjustmentLabel: `Body Recomposition (${Math.round(recompAdjustment * 100)}%)`,
+        calorieAdjustmentValue:
+          Math.round(estimatedTdee * (1 + recompAdjustment)) - Math.round(estimatedTdee),
+      };
+    }
+    case 'maintain':
+    default:
+      return {
+        goalLabel: GOAL_LABELS.maintain,
+        calorieAdjustmentLabel: 'Maintenance (0%)',
+        calorieAdjustmentValue: 0,
+      };
+  }
+}
+
+function getProteinRuleLabel(profile: UserProfile): string {
+  if (profile.bodyFatPercent != null && !Number.isNaN(profile.bodyFatPercent)) {
+    return `${PROTEIN_FROM_LEAN_MASS[profile.goal]} g/lb lean mass (0.7 g/lb floor)`;
+  }
+  return `${PROTEIN_FROM_ACTIVITY[profile.activityLevel]} g/lb body weight (0.7 g/lb floor)`;
+}
+
+function buildCalculationDetails(
+  profile: UserProfile,
+  targets: Omit<MacroTargets, 'calculationDetails'>
+): MacroCalculationDetails {
+  const estimatedBmr = Math.round(calculateBMR(profile));
+  const estimatedTdee = Math.round(calculateTDEE(profile));
+  const activityMultiplier = ACTIVITY_MULTIPLIERS[profile.activityLevel];
+  const { goalLabel, calorieAdjustmentLabel, calorieAdjustmentValue } = getGoalAdjustmentInfo(
+    profile,
+    estimatedTdee
+  );
+
+  return {
+    bmrFormula: 'Mifflin-St Jeor',
+    estimatedBmr,
+    activityLevelLabel: ACTIVITY_LABELS[profile.activityLevel],
+    activityMultiplier,
+    estimatedTdee,
+    goalLabel,
+    calorieAdjustmentLabel,
+    calorieAdjustmentValue,
+    eatingStyleLabel: EATING_STYLE_LABELS[profile.eatingStyle],
+    proteinRuleLabel: getProteinRuleLabel(profile),
+    proteinTargetGrams: targets.protein_g,
+    carbTargetGrams: targets.carbs_g,
+    fatTargetGrams: targets.fat_g,
+  };
+}
+
 export function applyEatingStyleOverrides(
   profile: UserProfile,
   base: Omit<MacroTargets, 'calories'>
@@ -124,7 +203,11 @@ export function applyEatingStyleOverrides(
   if (fat_g < 0) fat_g = 0;
 
   const calories = protein_g * 4 + carbs_g * 4 + fat_g * 9;
-  return { calories, protein_g, carbs_g, fat_g };
+  const targets = { calories, protein_g, carbs_g, fat_g };
+  return {
+    ...targets,
+    calculationDetails: buildCalculationDetails(profile, targets),
+  };
 }
 
 export function calculateMacros(profile: UserProfile): MacroTargets {

@@ -28,6 +28,7 @@ import EmptyState from '../../../components/ui/EmptyState';
 import CalorieGauge from '../../../components/ui/CalorieGauge';
 import { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
+import WhyTheseMacrosCard from '../../../components/ui/WhyTheseMacrosCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_HORIZONTAL_PADDING = 18;
@@ -222,23 +223,29 @@ export default function DashboardScreen() {
         {/* Macro Dials */}
         <Animated.View style={{ opacity: stagger[2], transform: [{ translateY: stagger[2].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
           <PremiumCard style={styles.macroDialCard}>
-            <MacroDial
-              label="Protein"
-              consumed={todayTotals.protein_g}
-              target={macros.protein_g}
-              color={Colors.protein}
-            />
-            <MacroDial
-              label="Carbs"
-              consumed={todayTotals.carbs_g}
-              target={macros.carbs_g}
-              color={Colors.carbs}
-            />
-            <MacroDial
-              label="Fat"
-              consumed={todayTotals.fat_g}
-              target={macros.fat_g}
-              color={Colors.fat}
+            <View style={styles.macroDialRow}>
+              <MacroDial
+                label="Protein"
+                consumed={todayTotals.protein_g}
+                target={macros.protein_g}
+                color={Colors.protein}
+              />
+              <MacroDial
+                label="Carbs"
+                consumed={todayTotals.carbs_g}
+                target={macros.carbs_g}
+                color={Colors.carbs}
+              />
+              <MacroDial
+                label="Fat"
+                consumed={todayTotals.fat_g}
+                target={macros.fat_g}
+                color={Colors.fat}
+              />
+            </View>
+            <WhyTheseMacrosCard
+              macros={macros}
+              onViewMethodology={() => router.push('/settings/nutrition-science' as never)}
             />
           </PremiumCard>
         </Animated.View>
@@ -463,9 +470,12 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   macroDialCard: {
-    flexDirection: 'row',
     padding: Spacing.lg,
     marginTop: Spacing.lg,
+    gap: Spacing.md,
+  },
+  macroDialRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     gap: Spacing.md,
   },

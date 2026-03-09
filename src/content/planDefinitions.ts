@@ -1,9 +1,9 @@
 /**
- * Goal and Eating Style definitions for onboarding and Settings.
+ * Goal, Activity Level, and Eating Style definitions for onboarding and Settings.
  * Used for progressive disclosure ("Learn more") in UI.
  */
 
-import type { Goal, EatingStyle } from '../../types';
+import type { ActivityLevel, Goal, EatingStyle } from '../../types';
 
 export interface LearnMoreSection {
   heading: string;
@@ -12,6 +12,13 @@ export interface LearnMoreSection {
 
 export interface GoalDefinition {
   id: Goal;
+  title: string;
+  shortDescription: string;
+  learnMore: LearnMoreSection[];
+}
+
+export interface ActivityLevelDefinition {
+  id: ActivityLevel;
   title: string;
   shortDescription: string;
   learnMore: LearnMoreSection[];
@@ -28,85 +35,40 @@ export interface EatingStyleDefinition {
 export const GOAL_DEFINITIONS: Record<Goal, GoalDefinition> = {
   cut: {
     id: 'cut',
-    title: 'Fat Loss (Cut)',
+    title: 'Fat Loss',
     shortDescription:
-      'Create a calorie deficit to drop body fat while keeping strength and muscle.',
+      'Designed to reduce body fat while preserving lean muscle mass.',
     learnMore: [
       {
-        heading: 'What it means',
-        body: "A 'cut' targets fat loss first. Protein stays high and calories are set below maintenance so you can lean out without feeling flat or weak.",
-      },
-      {
-        heading: 'How calories work',
-        body: 'We set calories below maintenance based on your activity level and chosen pace.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Protein is prioritized. Calories and macros are calculated from your body stats, goal, activity level, and optional body fat.',
-      },
-      {
-        heading: 'Best for',
-        body: 'Leaning out, improving definition, or making a weight class.',
-      },
-      {
-        heading: 'Notes',
-        body: 'Track 1–2 weeks and adjust if weight change is too fast or too slow.',
+        heading: 'Definition',
+        body:
+          'Designed to reduce body fat while preserving lean muscle mass. Calories are set below maintenance while maintaining higher protein intake.',
       },
     ],
   },
   gain: {
     id: 'gain',
-    title: 'Muscle Gain (Build)',
+    title: 'Muscle Gain',
     shortDescription:
-      'Create a controlled surplus to add muscle with minimal fat gain.',
+      'Supports muscle growth with extra calories and strong protein intake.',
     learnMore: [
       {
-        heading: 'What it means',
-        body: "A 'build' targets strength and size. Calories are set above maintenance so training performance and recovery stay high.",
-      },
-      {
-        heading: 'How calories work',
-        body: 'We set calories above maintenance. The goal is steady progress without excessive fat gain.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Protein, carbs, and fat are calculated from your stats and activity. Eating Style changes food choices, not your base targets.',
-      },
-      {
-        heading: 'Best for',
-        body: 'Adding size/strength, improving lifts, or fueling hard training blocks.',
-      },
-      {
-        heading: 'Notes',
-        body: 'If scale weight is rising too quickly, reduce calories slightly and recheck weekly.',
+        heading: 'Definition',
+        body:
+          'Supports muscle growth by providing a calorie surplus along with sufficient protein and carbohydrates for recovery and performance.',
       },
     ],
   },
   recompose: {
     id: 'recompose',
-    title: 'Recomposition',
+    title: 'Body Recomposition',
     shortDescription:
-      'Build muscle and lose fat slowly by staying near maintenance with high protein.',
+      'Aims to reduce body fat while building or preserving muscle.',
     learnMore: [
       {
-        heading: 'What it means',
-        body: "Recomp is the slow-and-steady option. You'll train hard, keep protein high, and hover near maintenance to improve body composition over time.",
-      },
-      {
-        heading: 'How calories work',
-        body: 'Calories are set near maintenance with small adjustments based on trends.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Protein stays high. Calories and macros are derived centrally and adjusted only when your Eating Style requires it.',
-      },
-      {
-        heading: 'Best for',
-        body: 'Beginners, returning lifters, or anyone who wants sustainable progress.',
-      },
-      {
-        heading: 'Notes',
-        body: 'Progress is slower than a dedicated cut or build—consistency wins here.',
+        heading: 'Definition',
+        body:
+          'Aims to reduce body fat while building or preserving muscle through optimized protein intake and balanced calories.',
       },
     ],
   },
@@ -114,27 +76,70 @@ export const GOAL_DEFINITIONS: Record<Goal, GoalDefinition> = {
     id: 'maintain',
     title: 'Maintenance',
     shortDescription:
-      'Hold your current weight while supporting performance and recovery.',
+      'Balances calories with daily energy expenditure to hold your current weight.',
     learnMore: [
       {
-        heading: 'What it means',
-        body: "Maintenance keeps you steady. It's perfect between phases or when life is busy and you want structure without pushing hard.",
+        heading: 'Definition',
+        body:
+          'Maintains your current body weight by balancing calorie intake with daily energy expenditure.',
       },
+    ],
+  },
+};
+
+export const ACTIVITY_LEVEL_DEFINITIONS: Record<ActivityLevel, ActivityLevelDefinition> = {
+  sedentary: {
+    id: 'sedentary',
+    title: 'Sedentary',
+    shortDescription: 'Little or no structured exercise.',
+    learnMore: [
       {
-        heading: 'How calories work',
-        body: 'Calories are set at estimated maintenance and refined with weekly check-ins.',
+        heading: 'Definition',
+        body: 'Little or no structured exercise. Typical of desk jobs or low daily movement.',
       },
+    ],
+  },
+  light_activity: {
+    id: 'light_activity',
+    title: 'Light Activity',
+    shortDescription: 'Light exercise or physical activity 1-3 days per week.',
+    learnMore: [
       {
-        heading: 'Macro targets',
-        body: 'Protein stays strong. Calories and macros are derived centrally from your profile.',
+        heading: 'Definition',
+        body: 'Light exercise or physical activity 1-3 days per week.',
       },
+    ],
+  },
+  moderate_training: {
+    id: 'moderate_training',
+    title: 'Moderate Training',
+    shortDescription: 'Moderate exercise or training 3-5 days per week.',
+    learnMore: [
       {
-        heading: 'Best for',
-        body: 'Staying consistent, maintaining strength, or taking a diet break.',
+        heading: 'Definition',
+        body: 'Moderate exercise or training 3-5 days per week.',
       },
+    ],
+  },
+  strength_training: {
+    id: 'strength_training',
+    title: 'Very Active',
+    shortDescription: 'Hard training or physical activity 6-7 days per week.',
+    learnMore: [
       {
-        heading: 'Notes',
-        body: 'If weight drifts up or down, adjust calories slightly and monitor.',
+        heading: 'Definition',
+        body: 'Hard training or physical activity 6-7 days per week.',
+      },
+    ],
+  },
+  endurance_training: {
+    id: 'endurance_training',
+    title: 'Athlete',
+    shortDescription: 'Intense training, sports participation, or physically demanding occupation.',
+    learnMore: [
+      {
+        heading: 'Definition',
+        body: 'Intense training, sports participation, or physically demanding occupation.',
       },
     ],
   },
@@ -143,29 +148,14 @@ export const GOAL_DEFINITIONS: Record<Goal, GoalDefinition> = {
 export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition> = {
   standard: {
     id: 'standard',
-    title: 'Standard',
-    shortDescription: 'Flexible macros with no restrictions—simple and adaptable.',
-    preview: 'Protein: 0.9 g/lb • Carbs: flexible • Fat: flexible',
+    title: 'Balanced (Standard)',
+    shortDescription: 'Traditional macro distribution designed for general health and sustainable nutrition.',
+    preview: 'Balanced • Flexible • Sustainable',
     learnMore: [
       {
-        heading: 'What it means',
-        body: 'A flexible baseline eating style with no ingredient rules. Meal plans use a broad variety of foods.',
-      },
-      {
-        heading: 'How food selection works',
-        body: 'Meals can include lean proteins, starches, fruits, vegetables, and fats without a special restriction pattern.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Eating Style does not change your base macro targets. Your targets come from the macro engine.',
-      },
-      {
-        heading: 'Best for',
-        body: 'Anyone who wants flexibility without strict rules.',
-      },
-      {
-        heading: 'Notes',
-        body: 'These are starting targets; adjust based on results and adherence.',
+        heading: 'Definition',
+        body:
+          'Traditional macro distribution designed for general health and sustainable nutrition.',
       },
     ],
   },
@@ -173,28 +163,13 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
     id: 'mediterranean',
     title: 'Mediterranean',
     shortDescription:
-      'Whole-food meals built around lean protein, plants, olive oil, legumes, and grains.',
+      'Balanced macro approach emphasizing whole foods, healthy fats, and moderate carbohydrates.',
     preview: 'Whole foods • Lean protein • Healthy fats',
     learnMore: [
       {
-        heading: 'What it means',
-        body: 'Mediterranean emphasizes food quality: fish, lean proteins, legumes, whole grains, olive oil, fruits, and vegetables.',
-      },
-      {
-        heading: 'How food selection works',
-        body: 'Meal plans bias toward olive oil, fish, yogurt, legumes, grains, and minimally processed foods.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Eating Style does not change your base macro targets.',
-      },
-      {
-        heading: 'Best for',
-        body: 'Users who want a balanced, whole-food approach that is easy to sustain.',
-      },
-      {
-        heading: 'Notes',
-        body: 'Great for general wellness and meal variety.',
+        heading: 'Definition',
+        body:
+          'Balanced macro approach emphasizing whole foods, healthy fats, and moderate carbohydrates.',
       },
     ],
   },
@@ -286,28 +261,12 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
     id: 'keto',
     title: 'Keto',
     shortDescription:
-      'Very low carb to support appetite control and stable energy—protein stays strong.',
+      'Very low carbohydrate intake with higher fat consumption to support ketosis.',
     preview: 'Protein: 0.9 g/lb • Carbs: ≤30 g • Fat: high',
     learnMore: [
       {
-        heading: 'What it means',
-        body: 'Keto keeps carbs very low so your body relies more on fat for fuel. Many people find it helps control hunger.',
-      },
-      {
-        heading: 'How calories work',
-        body: 'Calories still follow your Goal. Keto only changes macro distribution by capping carbs and shifting remaining calories to fat.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Carbs are capped around 20–30 g per day. Protein stays anchored by the macro engine and remaining calories go to fat.',
-      },
-      {
-        heading: 'Best for',
-        body: 'People who do well on low carb, prefer fatty foods, or struggle with cravings.',
-      },
-      {
-        heading: 'Notes',
-        body: 'Electrolytes matter. Consider sodium/potassium/magnesium, especially in week 1.',
+        heading: 'Definition',
+        body: 'Very low carbohydrate intake with higher fat consumption to support ketosis.',
       },
     ],
   },
@@ -315,28 +274,12 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
     id: 'carnivore',
     title: 'Carnivore',
     shortDescription:
-      'Animal-based, ultra-low carb, high satiety—built around protein-first meals.',
+      'Animal-based eating style emphasizing protein and fats from animal foods.',
     preview: 'Protein: 1.0–1.2 g/lb • Carbs: ~0 • Fat: remainder',
     learnMore: [
       {
-        heading: 'What it means',
-        body: 'Carnivore focuses on animal foods with minimal to zero carbs. Protein is prioritized and fat is adjusted for satiety and your Goal.',
-      },
-      {
-        heading: 'How calories work',
-        body: 'Calories still follow your Goal. Carnivore sets carbs near zero and fills the remaining calories with fat after protein is set.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Carbs stay around 5 g per day from trace sources. Protein is unchanged and remaining calories become fat.',
-      },
-      {
-        heading: 'Best for',
-        body: 'High satiety dieting, simplicity, and people who feel best on animal-based foods.',
-      },
-      {
-        heading: 'Notes',
-        body: 'Choose leaner cuts if fat loss stalls; choose fattier cuts if energy is low.',
+        heading: 'Definition',
+        body: 'Animal-based eating style emphasizing protein and fats from animal foods.',
       },
     ],
   },
@@ -344,6 +287,10 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
 
 export function getGoalDefinition(goal: Goal): GoalDefinition {
   return GOAL_DEFINITIONS[goal];
+}
+
+export function getActivityLevelDefinition(activityLevel: ActivityLevel): ActivityLevelDefinition {
+  return ACTIVITY_LEVEL_DEFINITIONS[activityLevel];
 }
 
 export function getEatingStyleDefinition(eatingStyle: EatingStyle): EatingStyleDefinition {

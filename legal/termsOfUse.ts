@@ -1,115 +1,158 @@
-export const TERMS_LAST_UPDATED = 'February 24, 2026';
+export const TERMS_LAST_UPDATED = 'March 8, 2026';
 
-export const TERMS_OF_USE = `TERMS OF USE
+export const TERMS_OF_USE = `Terms of Use
+Physiq: Macro Tracker
+Last Updated: March 8, 2026
 
-Last Updated: ${TERMS_LAST_UPDATED}
+Welcome to Physiq: Macro Tracker ("Physiq", "we", "our", or "us"). These Terms of Use govern your use of the Physiq mobile application, website, and related services (collectively, the "Service").
 
-1. AGREEMENT TO TERMS
+By downloading, installing, or using Physiq, you agree to these Terms of Use. If you do not agree to these terms, you must not use the Service.
 
-These Terms of Use ("Terms") govern your use of the Physiq Macro Tracker mobile application (the "App"), owned and operated by Physiq Macro Tracker ("Company," "we," "us," or "our").
+1. Eligibility
 
-By downloading, installing, or using the App through the Apple App Store or Google Play Store, you agree to be bound by these Terms. If you do not agree, do not use the App.
+You must be at least 13 years old to use the Service.
 
-2. LICENSE
+By using Physiq, you represent and warrant that:
 
-The App is licensed, not sold, to you.
+You are at least 13 years of age
+You have the legal capacity to agree to these Terms
+You will use the Service in compliance with all applicable laws
 
-Subject to your compliance with these Terms, Physiq Macro Tracker grants you a limited, non-exclusive, non-transferable, revocable license to download and use the App for personal, non-commercial purposes on devices you own or control.
+2. Description of the Service
 
-For users who download the App through Apple's App Store:
+Physiq: Macro Tracker is a nutrition and fitness application that helps users:
 
-Your use of the App is also subject to the Apple Standard Licensed Application End User License Agreement (EULA). In the event of any conflict between these Terms and the Apple Standard EULA, the Apple Standard EULA will govern.
+Calculate daily macro nutrient targets
+Track food consumption
+Search food nutrition databases
+Scan food barcodes
+Save frequently used foods
+View macro summaries and dietary insights
 
-For users who download the App through Google Play:
+The Service may also include web-based tools such as macro calculators and informational nutrition content.
 
-Your use of the App is subject to Google Play's Terms of Service in addition to these Terms.
+3. Health and Medical Disclaimer
 
-3. NO MEDICAL ADVICE
+Physiq provides informational nutrition tools only.
 
-Physiq is a nutrition and macro tracking tool for informational and educational purposes only.
+The Service:
 
-The App:
-• Does not provide medical advice
-• Does not diagnose, treat, cure, or prevent any disease
-• Is not a substitute for professional medical guidance
+Is not a medical device
+Does not provide medical advice
+Is not intended to diagnose, treat, cure, or prevent any disease
 
-Always consult a qualified healthcare provider before making dietary or fitness changes.
+Nutrition calculations and macro recommendations are estimates based on general formulas and user inputs.
 
-You assume full responsibility for your health decisions.
+You should consult a qualified healthcare professional before making changes to your diet, exercise program, or health routine.
 
-4. LOCAL DATA STORAGE
+Use of the Service is at your own risk.
 
-All food logs, macro tracking data, weight entries, and related information entered into the App are stored locally on your device.
+4. Accuracy of Information
 
-Physiq Macro Tracker:
-• Does not collect personal data
-• Does not store your health data
-• Does not maintain cloud backups of your tracking information
+While we strive to provide accurate information:
 
-If you delete the App, your locally stored data may be permanently removed unless backed up by your device's operating system.
+Nutrition values may come from third-party databases
+Food entries may be user-generated
+Macro calculations rely on user-provided data
 
-5. ACCEPTABLE USE
+Therefore:
 
-You agree not to:
+We do not guarantee the accuracy, completeness, or reliability of any nutritional data provided by the Service.
 
-• Reverse engineer, decompile, or disassemble the App
-• Modify or create derivative works
-• Use the App for unlawful purposes
-• Attempt to interfere with the App's functionality or security
+5. User Responsibilities
 
-6. THIRD-PARTY SERVICES
+When using Physiq, you agree to:
 
-The App may retrieve nutritional data from third-party sources such as USDA FoodData Central.
+Provide accurate information when entering data
+Use the Service for personal, non-commercial use
+Not attempt to reverse engineer, modify, or exploit the app
+Not use the Service in any unlawful manner
 
-Physiq Macro Tracker is not responsible for:
-• The accuracy of third-party data
-• Changes made by third-party providers
-• The availability of third-party services
+You are responsible for maintaining the security of your device and any data stored on it.
 
-Use of third-party services may be subject to their respective terms and policies.
+6. Intellectual Property
 
-7. DISCLAIMER OF WARRANTIES
+All content and materials within the Service, including but not limited to:
 
-The App is provided "AS IS" and "AS AVAILABLE" without warranties of any kind, express or implied.
+Software
+Design
+Branding
+Logos
+Graphics
+Algorithms
+Text and content
 
-To the fullest extent permitted by law, Physiq Macro Tracker disclaims all warranties, including:
+are the property of Physiq or its licensors and are protected by intellectual property laws.
 
-• Accuracy of nutritional data
-• Fitness for a particular purpose
-• Non-infringement
-• Availability or uninterrupted operation
+You may not reproduce, distribute, or create derivative works without prior written permission.
 
-8. LIMITATION OF LIABILITY
+7. Food Database Sources
 
-To the maximum extent permitted by law, Physiq Macro Tracker shall not be liable for:
+Nutrition information displayed in the app may come from third-party sources, including but not limited to:
 
-• Any indirect, incidental, special, consequential, or punitive damages
-• Loss of data
-• Health outcomes related to use of the App
-• Device-related issues arising from App use
+USDA FoodData Central
+Public food nutrition databases
+Barcode lookup databases
 
-Your use of the App is at your own risk.
+Physiq does not control these sources and is not responsible for inaccuracies in third-party data.
 
-9. TERMINATION
+8. Purchases and Pricing
 
-These Terms remain in effect until terminated.
+Physiq may offer:
 
-Your rights under these Terms automatically terminate if you fail to comply with them.
+Paid apps
+Premium features
+Future subscription services
 
-You may stop using the App at any time by uninstalling it.
+All purchases made through the Apple App Store or Google Play Store are processed through those platforms and subject to their payment policies.
 
-10. GOVERNING LAW
+We do not store payment information.
 
-These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to conflict of law principles.
+9. Limitation of Liability
 
-11. CHANGES TO THESE TERMS
+To the maximum extent permitted by law:
 
-We may update these Terms from time to time. When updated, the "Last Updated" date will be revised.
+Physiq and its owners, developers, and affiliates shall not be liable for any indirect, incidental, consequential, or special damages resulting from:
 
-Continued use of the App after changes constitutes acceptance of the updated Terms.
+Use of the Service
+Reliance on nutrition calculations
+Inaccurate food database information
+Health outcomes related to dietary changes
 
-12. CONTACT INFORMATION
+Your use of the Service is entirely at your own risk.
 
-Physiq Macro Tracker
+10. Termination
+
+We reserve the right to suspend or terminate access to the Service at any time if users violate these Terms.
+
+Users may discontinue use of the Service at any time by deleting the app.
+
+11. Third-Party Services
+
+The Service may rely on third-party services such as:
+
+Food nutrition databases
+Barcode lookup APIs
+Analytics providers
+
+These services operate under their own privacy policies and terms.
+
+12. Modifications to the Service
+
+We reserve the right to modify, suspend, or discontinue any part of the Service at any time without notice.
+
+We may also update these Terms periodically.
+
+Continued use of the Service after updates constitutes acceptance of the revised Terms.
+
+13. Governing Law
+
+These Terms shall be governed and interpreted in accordance with the laws of the United States, without regard to conflict of law principles.
+
+14. Contact Information
+
+If you have questions about these Terms of Use, you may contact us at:
+
 Email: support@physiqmacros.com
+Website: https://physiqmacros.com
 `;

@@ -268,14 +268,14 @@ export default function SettingsScreen() {
 
           {editMode === 'nutrition' ? (
             <View style={styles.editor}>
-              <Text style={styles.fieldLabel}>Goal</Text>
+              <Text style={styles.nutritionSectionLabel}>Goal</Text>
               <View style={styles.chipWrap}>
                 {(Object.keys(GOAL_LABELS) as Goal[]).map((value) => (
                   <Chip key={value} active={goal === value} label={GOAL_LABELS[value]} onPress={() => setGoal(value)} />
                 ))}
               </View>
 
-              <Text style={styles.fieldLabel}>Activity Level</Text>
+              <Text style={styles.nutritionSectionLabel}>Activity Level</Text>
               <View style={styles.chipWrap}>
                 {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((value) => (
                   <Chip
@@ -287,7 +287,7 @@ export default function SettingsScreen() {
                 ))}
               </View>
 
-              <Text style={styles.fieldLabel}>Eating Style</Text>
+              <Text style={styles.nutritionSectionLabel}>Eating Style</Text>
               <View style={styles.chipWrap}>
                 {(Object.keys(EATING_STYLE_LABELS) as EatingStyle[]).map((value) => (
                   <Chip
@@ -299,7 +299,7 @@ export default function SettingsScreen() {
                 ))}
               </View>
 
-              <Text style={styles.fieldLabel}>Dietary Restrictions & Preferences</Text>
+              <Text style={styles.nutritionSectionLabel}>Dietary Restrictions & Preferences</Text>
               <View style={styles.chipWrap}>
                 {(Object.keys(DIETARY_MODIFIER_LABELS) as DietaryModifier[]).map((modifier) => (
                   <Chip
@@ -367,6 +367,16 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.rowCopy}>
               <Text style={styles.rowTitle}>Contact & Support</Text>
+            </View>
+            <ChevronRight size={16} color={Colors.textTertiary} />
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/settings/nutrition-science' as never)}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.primaryMuted }]}>
+              <FileText size={16} color={Colors.primary} />
+            </View>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Nutrition Science & References</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -506,6 +516,13 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  nutritionSectionLabel: {
+    color: Colors.text,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',

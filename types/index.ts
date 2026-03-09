@@ -91,6 +91,23 @@ export interface MacroTargets {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  calculationDetails?: MacroCalculationDetails;
+}
+
+export interface MacroCalculationDetails {
+  bmrFormula: string;
+  estimatedBmr: number;
+  activityLevelLabel: string;
+  activityMultiplier: number;
+  estimatedTdee: number;
+  goalLabel: string;
+  calorieAdjustmentLabel: string;
+  calorieAdjustmentValue: number;
+  eatingStyleLabel: string;
+  proteinRuleLabel: string;
+  proteinTargetGrams: number;
+  carbTargetGrams: number;
+  fatTargetGrams: number;
 }
 
 export interface NutrientsPer100g {

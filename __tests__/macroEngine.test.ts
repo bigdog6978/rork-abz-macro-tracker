@@ -44,6 +44,18 @@ describe('macroEngine', () => {
     expect(macros.calories).toBe(macros.protein_g * 4 + macros.carbs_g * 4 + macros.fat_g * 9);
   });
 
+  it('includes calculation details for transparency UI', () => {
+    const profile = makeProfile({ goal: 'cut', activityLevel: 'moderate_training' });
+    const macros = calculateMacros(profile);
+
+    expect(macros.calculationDetails).toBeDefined();
+    expect(macros.calculationDetails?.bmrFormula).toBe('Mifflin-St Jeor');
+    expect(macros.calculationDetails?.activityLevelLabel).toBe('Moderate Training');
+    expect(macros.calculationDetails?.proteinTargetGrams).toBe(macros.protein_g);
+    expect(macros.calculationDetails?.carbTargetGrams).toBe(macros.carbs_g);
+    expect(macros.calculationDetails?.fatTargetGrams).toBe(macros.fat_g);
+  });
+
   it('caps keto carbs and shifts remaining calories to fat', () => {
     const profile = makeProfile({
       eatingStyle: 'keto',

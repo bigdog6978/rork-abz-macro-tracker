@@ -19,6 +19,10 @@ export default function SettingsLayout() {
         name="allergies"
         options={{ title: "Allergies" }}
       />
+      <Stack.Screen
+        name="nutrition-science"
+        options={{ title: "Macro Calculation Methodology" }}
+      />
     </Stack>
   );
 }

@@ -13,8 +13,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, ChevronRight, Zap } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Info, Zap } from 'lucide-react-native';
 import Colors from '../constants/colors';
+import PlanDefinitionSheet from '../components/ui/PlanDefinitionSheet';
 import { useUser } from '../providers/UserProvider';
 import {
   ACTIVITY_DESCRIPTIONS,
@@ -33,6 +34,12 @@ import {
   MeasurementSystem,
   Sex,
 } from '../types';
+import {
+  getActivityLevelDefinition,
+  getEatingStyleDefinition,
+  getGoalDefinition,
+  LearnMoreSection,
+} from '../src/content/planDefinitions';
 import { calculateMacros } from '../utils/macroEngine';
 
 const TOTAL_STEPS = 5;
@@ -57,6 +64,9 @@ export default function OnboardingScreen() {
   const [eatingStyle, setEatingStyle] = useState<EatingStyle>('standard');
   const [dietModifiers, setDietModifiers] = useState<DietaryModifier[]>([]);
   const [dietNotes, setDietNotes] = useState('');
+  const [definitionSheetVisible, setDefinitionSheetVisible] = useState(false);
+  const [definitionSheetTitle, setDefinitionSheetTitle] = useState('');
+  const [definitionSheetSections, setDefinitionSheetSections] = useState<LearnMoreSection[]>([]);
 
   const animateProgress = useCallback(
     (nextStep: number) => {
@@ -125,7 +135,6 @@ export default function OnboardingScreen() {
       dietModifiers,
       dietNotes: dietNotes.trim(),
       measurementSystem,
-      firstName: undefined,
     };
   }, [
     activityLevel,
@@ -187,10 +196,37 @@ export default function OnboardingScreen() {
     );
   };
 
+  const openDefinitionSheet = useCallback((title: string, sections: LearnMoreSection[]) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setDefinitionSheetTitle(title);
+    setDefinitionSheetSections(sections);
+    setDefinitionSheetVisible(true);
+  }, []);
+
+  const renderStepHeader = (title: string, subtitle: string, onLearnMore?: () => void) => (
+    <>
+      <View style={styles.stepHeaderRow}>
+        <Text style={styles.stepTitle}>{title}</Text>
+        {onLearnMore ? (
+          <TouchableOpacity
+            style={styles.learnMoreButton}
+            onPress={onLearnMore}
+            activeOpacity={0.8}
+          >
+            <Info size={14} color={Colors.primary} />
+            <Text style={styles.learnMoreText}>Learn More</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+      <Text style={styles.stepSubtitle}>{subtitle}</Text>
+    </>
+  );
+
   const renderProfileStep = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Profile</Text>
-      <Text style={styles.stepSubtitle}>Tell us the basics so we can calculate your targets.</Text>
+      {renderStepHeader('Profile', 'Tell us the basics so we can calculate your targets.')}
 
       <View style={styles.row}>
         <View style={styles.field}>
@@ -317,8 +353,18 @@ export default function OnboardingScreen() {
 
   const renderGoalStep = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Goal</Text>
-      <Text style={styles.stepSubtitle}>Choose the outcome you want your nutrition to support.</Text>
+      {renderStepHeader(
+        'Goal',
+        'Choose the outcome you want your nutrition to support.',
+        () =>
+          openDefinitionSheet('Goal Definitions', (Object.keys(GOAL_LABELS) as Goal[]).map((value) => {
+            const definition = getGoalDefinition(value);
+            return {
+              heading: definition.title,
+              body: definition.learnMore.map((section) => section.body).join('\n'),
+            };
+          }))
+      )}
       <View style={styles.choiceList}>
         {(Object.keys(GOAL_LABELS) as Goal[]).map((value) =>
           renderChoice(value, goal, setGoal, GOAL_LABELS[value], GOAL_DESCRIPTIONS[value])
@@ -329,8 +375,21 @@ export default function OnboardingScreen() {
 
   const renderActivityStep = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Activity Level</Text>
-      <Text style={styles.stepSubtitle}>This helps us estimate calorie, protein, and carb needs.</Text>
+      {renderStepHeader(
+        'Activity Level',
+        'This helps us estimate calorie, protein, and carb needs.',
+        () =>
+          openDefinitionSheet(
+            'Activity Level Definitions',
+            (Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((value) => {
+              const definition = getActivityLevelDefinition(value);
+              return {
+                heading: definition.title,
+                body: definition.learnMore.map((section) => section.body).join('\n'),
+              };
+            })
+          )
+      )}
       <View style={styles.choiceList}>
         {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((value) =>
           renderChoice(value, activityLevel, setActivityLevel, ACTIVITY_LABELS[value], ACTIVITY_DESCRIPTIONS[value])
@@ -341,8 +400,21 @@ export default function OnboardingScreen() {
 
   const renderEatingStyleStep = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Eating Style</Text>
-      <Text style={styles.stepSubtitle}>Eating style affects the foods used in your meal plan.</Text>
+      {renderStepHeader(
+        'Eating Style',
+        'Eating style affects the foods used in your meal plan.',
+        () =>
+          openDefinitionSheet(
+            'Eating Style Definitions',
+            (Object.keys(EATING_STYLE_LABELS) as EatingStyle[]).map((value) => {
+              const definition = getEatingStyleDefinition(value);
+              return {
+                heading: definition.title,
+                body: definition.learnMore.map((section) => section.body).join('\n'),
+              };
+            })
+          )
+      )}
       <View style={styles.choiceList}>
         {(Object.keys(EATING_STYLE_LABELS) as EatingStyle[]).map((value) =>
           renderChoice(value, eatingStyle, setEatingStyle, EATING_STYLE_LABELS[value], EATING_STYLE_DESCRIPTIONS[value])
@@ -453,6 +525,13 @@ export default function OnboardingScreen() {
           <ChevronRight size={18} color={Colors.white} />
         </TouchableOpacity>
       </View>
+
+      <PlanDefinitionSheet
+        visible={definitionSheetVisible}
+        title={definitionSheetTitle}
+        sections={definitionSheetSections}
+        onClose={() => setDefinitionSheetVisible(false)}
+      />
     </View>
   );
 }
@@ -504,16 +583,34 @@ const styles = StyleSheet.create({
   stepContainer: {
     gap: 16,
   },
+  stepHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   stepTitle: {
     color: Colors.text,
     fontSize: 30,
     fontWeight: '800',
     letterSpacing: -0.5,
+    flex: 1,
   },
   stepSubtitle: {
     color: Colors.textSecondary,
     fontSize: 15,
     lineHeight: 22,
+  },
+  learnMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  learnMoreText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   row: {
     flexDirection: 'row',
