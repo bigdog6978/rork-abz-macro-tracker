@@ -38,8 +38,27 @@ const PROTEIN_FROM_ACTIVITY: Record<ActivityLevel, number> = {
   endurance_training: 0.9,
 };
 
+const MIN_PLAUSIBLE_BODY_FAT_PERCENT = 3;
+const MAX_PLAUSIBLE_BODY_FAT_PERCENT = 70;
+
+function getSafeWeightLb(profile: UserProfile): number {
+  return Number.isFinite(profile.weightLb) && profile.weightLb > 0 ? profile.weightLb : 1;
+}
+
+function getValidBodyFatPercent(profile: UserProfile): number | undefined {
+  if (!Number.isFinite(profile.bodyFatPercent)) return undefined;
+  if (
+    profile.bodyFatPercent == null ||
+    profile.bodyFatPercent < MIN_PLAUSIBLE_BODY_FAT_PERCENT ||
+    profile.bodyFatPercent > MAX_PLAUSIBLE_BODY_FAT_PERCENT
+  ) {
+    return undefined;
+  }
+  return profile.bodyFatPercent;
+}
+
 export function calculateBMR(profile: UserProfile): number {
-  const weightKg = profile.weightLb * 0.45359237;
+  const weightKg = getSafeWeightLb(profile) * 0.45359237;
   if (profile.sex === 'male') {
     return 10 * weightKg + 6.25 * profile.heightCm - 5 * profile.age + 5;
   }
@@ -52,9 +71,10 @@ export function calculateTDEE(profile: UserProfile): number {
 
 export function getRecompCalorieAdjustment(profile: UserProfile): number {
   if (profile.goal !== 'recompose') return 0;
-  if (profile.bodyFatPercent == null) return 0;
+  const bodyFatPercent = getValidBodyFatPercent(profile);
+  if (bodyFatPercent == null) return 0;
   const highBodyFatThreshold = profile.sex === 'male' ? 20 : 30;
-  return profile.bodyFatPercent >= highBodyFatThreshold ? -0.05 : 0;
+  return bodyFatPercent >= highBodyFatThreshold ? -0.05 : 0;
 }
 
 export function calculateCalorieTarget(profile: UserProfile): number {
@@ -81,28 +101,36 @@ export function calculateCalorieTarget(profile: UserProfile): number {
 }
 
 export function getLeanMassLb(profile: UserProfile): number {
-  if (profile.bodyFatPercent == null || Number.isNaN(profile.bodyFatPercent)) {
-    return profile.weightLb;
+  const weightLb = getSafeWeightLb(profile);
+  const bodyFatPercent = getValidBodyFatPercent(profile);
+  if (bodyFatPercent == null) {
+    return weightLb;
   }
-  return profile.weightLb * (1 - profile.bodyFatPercent / 100);
+  return weightLb * (1 - bodyFatPercent / 100);
 }
 
 function calculateProteinTarget(profile: UserProfile): number {
-  const baseProtein =
-    profile.bodyFatPercent != null && !Number.isNaN(profile.bodyFatPercent)
-      ? getLeanMassLb(profile) * PROTEIN_FROM_LEAN_MASS[profile.goal]
-      : profile.weightLb * PROTEIN_FROM_ACTIVITY[profile.activityLevel];
+  const weightLb = getSafeWeightLb(profile);
+  const validBodyFatPercent = getValidBodyFatPercent(profile);
+  const bodyWeightProteinAnchor = weightLb * PROTEIN_FROM_ACTIVITY[profile.activityLevel];
 
-  return Math.max(baseProtein, profile.weightLb * 0.7);
+  if (validBodyFatPercent != null) {
+    const leanMassLb = getLeanMassLb(profile);
+    const baseProtein = leanMassLb * PROTEIN_FROM_LEAN_MASS[profile.goal];
+    return Math.max(baseProtein, bodyWeightProteinAnchor, weightLb * 0.7);
+  }
+
+  return Math.max(bodyWeightProteinAnchor, weightLb * 0.7);
 }
 
 function calculateFatTarget(profile: UserProfile): number {
-  const baseFat = profile.weightLb * 0.3;
+  const weightLb = getSafeWeightLb(profile);
+  const baseFat = weightLb * 0.3;
   if (profile.eatingStyle === 'keto') {
-    return Math.max(baseFat, profile.weightLb * 0.5);
+    return Math.max(baseFat, weightLb * 0.5);
   }
   if (profile.eatingStyle === 'carnivore') {
-    return Math.max(baseFat, profile.weightLb * 0.45);
+    return Math.max(baseFat, weightLb * 0.45);
   }
   return baseFat;
 }
@@ -141,8 +169,8 @@ function getGoalAdjustmentInfo(profile: UserProfile, estimatedTdee: number) {
 }
 
 function getProteinRuleLabel(profile: UserProfile): string {
-  if (profile.bodyFatPercent != null && !Number.isNaN(profile.bodyFatPercent)) {
-    return `${PROTEIN_FROM_LEAN_MASS[profile.goal]} g/lb lean mass (0.7 g/lb floor)`;
+  if (getValidBodyFatPercent(profile) != null) {
+    return `${PROTEIN_FROM_LEAN_MASS[profile.goal]} g/lb lean mass, floored by ${PROTEIN_FROM_ACTIVITY[profile.activityLevel]} g/lb body weight`;
   }
   return `${PROTEIN_FROM_ACTIVITY[profile.activityLevel]} g/lb body weight (0.7 g/lb floor)`;
 }

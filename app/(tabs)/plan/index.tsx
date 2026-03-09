@@ -52,6 +52,49 @@ function computePlanTotals(meals: MealSlot[]): MacroTargets {
   }
   return { calories, protein_g, carbs_g, fat_g };
 }
+
+function areMacroTargetsEqual(a: MacroTargets | undefined, b: MacroTargets | undefined): boolean {
+  if (!a || !b) return false;
+  return (
+    a.calories === b.calories &&
+    a.protein_g === b.protein_g &&
+    a.carbs_g === b.carbs_g &&
+    a.fat_g === b.fat_g
+  );
+}
+
+function areStringListsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((value, index) => value === sortedB[index]);
+}
+
+function buildGeneratedPlanKey(input: {
+  goal: string;
+  activityLevel: string;
+  eatingStyle: string;
+  measurementSystem: string;
+  modifiers: string[];
+  allergies: string[];
+  macros: MacroTargets;
+  generationSeed: number;
+}): string {
+  return [
+    'generated',
+    input.goal,
+    input.activityLevel,
+    input.eatingStyle,
+    input.measurementSystem,
+    [...input.modifiers].sort().join(','),
+    [...input.allergies].sort().join(','),
+    input.macros.calories,
+    input.macros.protein_g,
+    input.macros.carbs_g,
+    input.macros.fat_g,
+    input.generationSeed,
+  ].join('|');
+}
 import { getSubstitutes, applySubstitution } from '../../../utils/substitutions/substituteEngine';
 import { SubstituteResult } from '../../../utils/substitutions/types';
 import { mealNameToType } from '../../../constants/mealSwapCatalog';
@@ -870,6 +913,40 @@ export default function PlanScreen() {
     queryFn: getAllergies,
   });
   const allergies = allergiesQuery.data ?? [];
+  const measurementSystem = profile.measurementSystem ?? 'us';
+  const activePlan = activePlanQuery.data;
+  const [generationSeed, setGenerationSeed] = useState(0);
+  const generatedPlanKey = useMemo(
+    () =>
+      buildGeneratedPlanKey({
+        goal: profile.goal,
+        activityLevel: profile.activityLevel,
+        eatingStyle: profile.eatingStyle,
+        measurementSystem,
+        modifiers: profile.dietModifiers ?? [],
+        allergies: allergies.map((item) => item.normalized),
+        macros,
+        generationSeed,
+      }),
+    [
+      allergies,
+      generationSeed,
+      macros,
+      measurementSystem,
+      profile.activityLevel,
+      profile.dietModifiers,
+      profile.eatingStyle,
+      profile.goal,
+    ]
+  );
+  const activePlanMatchesCurrentTargets = useMemo(() => {
+    if (!activePlan) return false;
+    return (
+      activePlan.eatingStyle === profile.eatingStyle &&
+      areStringListsEqual(activePlan.dietaryModifiers ?? [], profile.dietModifiers ?? []) &&
+      areMacroTargetsEqual(activePlan.macroTargets, macros)
+    );
+  }, [activePlan, macros, profile.dietModifiers, profile.eatingStyle]);
 
   const basePlan = useMemo(() => {
     return getMealPlanForEatingStyle(
@@ -877,9 +954,10 @@ export default function PlanScreen() {
       profile.dietModifiers ?? [],
       macros,
       profile.measurementSystem ?? 'us',
-      allergies
+      allergies,
+      generationSeed
     );
-  }, [profile.eatingStyle, profile.dietModifiers, profile.goal, macros, profile.measurementSystem, allergies]);
+  }, [profile.eatingStyle, profile.dietModifiers, profile.goal, macros, profile.measurementSystem, allergies, generationSeed]);
 
   const [substitutionMap, setSubstitutionMap] = useState<
     Record<string, MealSuggestion>
@@ -889,22 +967,25 @@ export default function PlanScreen() {
   const [activePlanLoaded, setActivePlanLoaded] = useState(false);
 
   useEffect(() => {
-    if (activePlanQuery.data && !activePlanLoaded) {
-      const saved = activePlanQuery.data;
-      console.log('[PlanScreen] Loading active plan:', saved.name);
-      const migrated: Record<string, MealSuggestion> = {};
-      (saved.meals ?? []).forEach((meal, mealIdx) => {
-        (meal.suggestions ?? []).forEach((food, foodIdx) => {
-          const slotKey = `plan-${mealIdx}-${foodIdx}`;
-          migrated[slotKey] = { ...food, id: slotKey };
-        });
-      });
-      setSubstitutionMap(migrated);
-      setActivePlanLoaded(true);
+    if (!activePlan || !activePlanMatchesCurrentTargets) {
+      setSubstitutionMap({});
+      setActivePlanLoaded(false);
+      return;
     }
-  }, [activePlanQuery.data, activePlanLoaded]);
 
-  const planKey = activePlanQuery.data?.id ?? 'base';
+    console.log('[PlanScreen] Loading active plan:', activePlan.name);
+    const migrated: Record<string, MealSuggestion> = {};
+    (activePlan.meals ?? []).forEach((meal, mealIdx) => {
+      (meal.suggestions ?? []).forEach((food, foodIdx) => {
+        const slotKey = `plan-${mealIdx}-${foodIdx}`;
+        migrated[slotKey] = { ...food, id: slotKey };
+      });
+    });
+    setSubstitutionMap(migrated);
+    setActivePlanLoaded(true);
+  }, [activePlan, activePlanMatchesCurrentTargets]);
+
+  const planKey = activePlanMatchesCurrentTargets && activePlan ? activePlan.id : generatedPlanKey;
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -916,10 +997,9 @@ export default function PlanScreen() {
     return () => { cancelled = true; };
   }, [planKey]);
 
-  const activePlanMeals = activePlanQuery.data?.meals;
-  const isUsingActivePlan = !!activePlanQuery.data && activePlanLoaded;
+  const activePlanMeals = activePlanMatchesCurrentTargets ? activePlan?.meals : undefined;
+  const isUsingActivePlan = !!activePlanMeals && activePlanLoaded;
 
-  const measurementSystem = profile.measurementSystem ?? 'us';
   const plan: DayPlan = useMemo(() => {
     const applySubstitutionsAndQuantity = (meals: MealSlot[]) =>
       meals.map((meal, mealIdx) => ({
@@ -967,7 +1047,7 @@ export default function PlanScreen() {
       meals: applySubstitutionsAndQuantity(basePlan.meals),
       planUnavailable: basePlan.planUnavailable ?? false,
     };
-  }, [basePlan, substitutionMap, quantityMap, isUsingActivePlan, activePlanMeals, measurementSystem]);
+  }, [activePlanMeals, basePlan, isUsingActivePlan, measurementSystem, quantityMap, substitutionMap]);
 
   const planTotals = useMemo(() => computePlanTotals(plan.meals), [plan.meals]);
 
@@ -1242,7 +1322,7 @@ export default function PlanScreen() {
   }, [planName, savePlanMutation, closeSaveModal]);
 
   const savedPlans = savedPlansQuery.data ?? [];
-  const activePlanName = activePlanQuery.data?.name;
+  const activePlanName = activePlanMatchesCurrentTargets ? activePlan?.name : undefined;
 
   if (!profile.onboardingComplete) {
     return (
@@ -1280,6 +1360,7 @@ export default function PlanScreen() {
                     setSubstitutionMap({});
                     setQuantityMap({});
                     setActivePlanLoaded(false);
+                    setGenerationSeed((current) => current + 1);
                     loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES).then((existing) => {
                       if (existing && keyToClear in existing) {
                         const next = { ...existing };

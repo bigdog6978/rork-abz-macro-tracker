@@ -8,6 +8,7 @@ import {
   normalizeLegacyActivityLevel,
   UserProfile,
 } from '../types';
+import { normalizeStoredProfile } from '../utils/profileNormalization';
 
 function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
   return {
@@ -80,6 +81,53 @@ describe('macroEngine', () => {
     expect(macros.calories).toBe(macros.protein_g * 4 + macros.carbs_g * 4 + macros.fat_g * 9);
   });
 
+  it('keeps protein grounded when valid body fat is provided', () => {
+    const profile = makeProfile({
+      sex: 'female',
+      weightLb: 135,
+      bodyFatPercent: 33,
+      goal: 'maintain',
+      activityLevel: 'moderate_training',
+      eatingStyle: 'carnivore',
+    });
+    const macros = calculateMacros(profile);
+
+    expect(macros.protein_g).toBe(122);
+    expect(macros.protein_g).toBeGreaterThan(100);
+    expect(macros.fat_g).toBeGreaterThan(0);
+  });
+
+  it('does not let high body fat collapse protein below the body-weight activity anchor', () => {
+    const profile = makeProfile({
+      sex: 'female',
+      weightLb: 135,
+      bodyFatPercent: 65,
+      goal: 'maintain',
+      activityLevel: 'strength_training',
+      eatingStyle: 'mediterranean',
+    });
+    const macros = calculateMacros(profile);
+
+    expect(macros.protein_g).toBe(135);
+  });
+
+  it('ignores implausible body fat values instead of inflating protein', () => {
+    const invalidBodyFat = calculateMacros(makeProfile({
+      weightLb: 200,
+      bodyFatPercent: -5,
+      goal: 'cut',
+      activityLevel: 'moderate_training',
+    }));
+    const fallback = calculateMacros(makeProfile({
+      weightLb: 200,
+      bodyFatPercent: undefined,
+      goal: 'cut',
+      activityLevel: 'moderate_training',
+    }));
+
+    expect(invalidBodyFat.protein_g).toBe(fallback.protein_g);
+  });
+
   it('uses activity multipliers for TDEE', () => {
     const sedentary = calculateTDEE(makeProfile({ activityLevel: 'sedentary' }));
     const endurance = calculateTDEE(makeProfile({ activityLevel: 'endurance_training' }));
@@ -101,5 +149,21 @@ describe('migration adapters', () => {
     expect(normalizeLegacyActivityLevel('moderately_active')).toBe('moderate_training');
     expect(normalizeLegacyActivityLevel('very_active')).toBe('strength_training');
     expect(normalizeLegacyActivityLevel('extra_active')).toBe('endurance_training');
+  });
+
+  it('converts implausible metric-stored weight values that were saved in kilograms', () => {
+    const normalized = normalizeStoredProfile({
+      firstName: 'Charlie',
+      sex: 'female',
+      age: 32,
+      heightCm: 165,
+      weightLb: 61,
+      measurementSystem: 'metric',
+      activityLevel: 'moderate_training',
+      goal: 'cut',
+      onboardingComplete: true,
+    });
+
+    expect(normalized.weightLb).toBeCloseTo(134.5, 1);
   });
 });

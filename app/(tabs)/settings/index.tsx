@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -56,6 +56,22 @@ export default function SettingsScreen() {
   const [dietModifiers, setDietModifiers] = useState<DietaryModifier[]>(profile.dietModifiers);
   const [dietNotes, setDietNotes] = useState(profile.dietNotes ?? '');
 
+  useEffect(() => {
+    setMeasurementSystem(profile.measurementSystem);
+    setWeightLb(profile.weightLb.toString());
+    setWeightKg(lbToKg(profile.weightLb).toString());
+    const nextHeight = cmToFtIn(profile.heightCm);
+    setHeightFt(String(nextHeight.ft));
+    setHeightIn(String(nextHeight.inches));
+    setHeightCm(String(profile.heightCm));
+    setBodyFatPercent(profile.bodyFatPercent?.toString() ?? '');
+    setGoal(profile.goal);
+    setActivityLevel(profile.activityLevel);
+    setEatingStyle(profile.eatingStyle);
+    setDietModifiers(profile.dietModifiers);
+    setDietNotes(profile.dietNotes ?? '');
+  }, [profile]);
+
   const allergiesQuery = useQuery({
     queryKey: ['user_allergies'],
     queryFn: getAllergies,
@@ -63,20 +79,26 @@ export default function SettingsScreen() {
   const allergies = allergiesQuery.data ?? [];
 
   const handleSaveProfile = useCallback(() => {
-    const nextHeightCm =
+    const parsedHeightCm =
       measurementSystem === 'us'
         ? ftInToCm(parseInt(heightFt, 10) || 5, parseInt(heightIn, 10) || 9)
         : parseFloat(heightCm) || profile.heightCm;
-    const nextWeightLb =
+    const parsedWeightLb =
       measurementSystem === 'us'
         ? parseFloat(weightLb) || profile.weightLb
         : kgToLb(parseFloat(weightKg) || lbToKg(profile.weightLb));
     const nextBodyFat = parseFloat(bodyFatPercent);
+    const nextHeightCm = Number.isFinite(parsedHeightCm) && parsedHeightCm > 0 ? parsedHeightCm : profile.heightCm;
+    const nextWeightLb = Number.isFinite(parsedWeightLb) && parsedWeightLb > 0 ? parsedWeightLb : profile.weightLb;
+    const normalizedBodyFat =
+      Number.isFinite(nextBodyFat) && nextBodyFat >= 3 && nextBodyFat <= 70
+        ? nextBodyFat
+        : undefined;
 
     updateProfile({
       heightCm: nextHeightCm,
       weightLb: nextWeightLb,
-      bodyFatPercent: Number.isFinite(nextBodyFat) ? nextBodyFat : undefined,
+      bodyFatPercent: normalizedBodyFat,
       measurementSystem,
     });
     setEditMode('none');

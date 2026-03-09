@@ -6,10 +6,11 @@ export function getMealPlanForEatingStyle(
   modifiers: DietaryModifier[],
   macros?: MacroTargets,
   measurementSystem: MeasurementSystem = 'us',
-  allergies: UserAllergy[] = []
+  allergies: UserAllergy[] = [],
+  generationSeed = 0
 ): DayPlan {
   const targets = macros ?? { calories: 2000, protein_g: 150, carbs_g: 200, fat_g: 67 };
-  return generateMealPlan(targets, eatingStyle, modifiers, measurementSystem, allergies);
+  return generateMealPlan(targets, eatingStyle, modifiers, measurementSystem, allergies, generationSeed);
 }
 
 export const getMealPlanForStrategy = getMealPlanForEatingStyle;

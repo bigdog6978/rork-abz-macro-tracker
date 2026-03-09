@@ -233,7 +233,7 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
     id: 'paleo',
     title: 'Paleo',
     shortDescription: 'Whole-food meals with grains, legumes, and most dairy removed.',
-    preview: 'Whole foods • No grains/legumes • Protein-forward',
+    preview: 'Whole foods • No grains/legumes • Macros stay goal-based',
     learnMore: [
       {
         heading: 'What it means',
@@ -262,11 +262,15 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
     title: 'Keto',
     shortDescription:
       'Very low carbohydrate intake with higher fat consumption to support ketosis.',
-    preview: 'Protein: 0.9 g/lb • Carbs: ≤30 g • Fat: high',
+    preview: 'Carbs: 20-30 g • Protein stays goal-based • Fat fills the remainder',
     learnMore: [
       {
         heading: 'Definition',
         body: 'Very low carbohydrate intake with higher fat consumption to support ketosis.',
+      },
+      {
+        heading: 'Macro targets',
+        body: 'Keto keeps protein anchored to your body size, goal, and activity level. It primarily lowers carbs and raises fat to fit the calorie target.',
       },
     ],
   },
@@ -275,11 +279,15 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
     title: 'Carnivore',
     shortDescription:
       'Animal-based eating style emphasizing protein and fats from animal foods.',
-    preview: 'Protein: 1.0–1.2 g/lb • Carbs: ~0 • Fat: remainder',
+    preview: 'Carbs: ~5 g • Protein stays goal-based • Fat fills the remainder',
     learnMore: [
       {
         heading: 'Definition',
         body: 'Animal-based eating style emphasizing protein and fats from animal foods.',
+      },
+      {
+        heading: 'Macro targets',
+        body: 'Carnivore keeps protein anchored to your body size, goal, and activity level. It uses trace carbs and shifts the rest of the calories toward fat.',
       },
     ],
   },

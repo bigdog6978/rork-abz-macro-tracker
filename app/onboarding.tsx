@@ -117,18 +117,23 @@ export default function OnboardingScreen() {
       measurementSystem === 'us'
         ? ftInToCm(parseInt(heightFt, 10) || 5, parseInt(heightIn, 10) || 9)
         : parseFloat(heightCm) || 175;
-    const finalWeightLb =
+    const parsedWeightLb =
       measurementSystem === 'us'
         ? parseFloat(weightLb) || 180
         : kgToLb(parseFloat(weightKg) || 82);
     const parsedBodyFat = parseFloat(bodyFatPercent);
+    const finalWeightLb = Number.isFinite(parsedWeightLb) && parsedWeightLb > 0 ? parsedWeightLb : 180;
+    const normalizedBodyFat =
+      Number.isFinite(parsedBodyFat) && parsedBodyFat >= 3 && parsedBodyFat <= 70
+        ? parsedBodyFat
+        : undefined;
 
     return {
       age: parseInt(age, 10) || 28,
       sex,
       heightCm: finalHeightCm,
       weightLb: finalWeightLb,
-      bodyFatPercent: Number.isFinite(parsedBodyFat) ? parsedBodyFat : undefined,
+      bodyFatPercent: normalizedBodyFat,
       goal,
       activityLevel,
       eatingStyle,
@@ -402,7 +407,7 @@ export default function OnboardingScreen() {
     <View style={styles.stepContainer}>
       {renderStepHeader(
         'Eating Style',
-        'Eating style affects the foods used in your meal plan.',
+        'Eating style shapes your meal plan foods and, for keto/carnivore, the carb-fat split of your macros.',
         () =>
           openDefinitionSheet(
             'Eating Style Definitions',

@@ -28,6 +28,8 @@ interface StrategyBlueprints {
   meals: MealBlueprint[];
 }
 
+type StrategyBlueprintVariant = StrategyBlueprints[];
+
 const BALANCED_BLUEPRINTS: StrategyBlueprints = {
   meals: [
     {
@@ -64,12 +66,48 @@ const BALANCED_BLUEPRINTS: StrategyBlueprints = {
   ],
 };
 
+const BALANCED_BLUEPRINTS_ALT: StrategyBlueprints = {
+  meals: [
+    {
+      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+      foods: [
+        { foodId: 'greek_yogurt', role: 'protein' },
+        { foodId: 'oats_dry', role: 'carb' },
+        { foodId: 'banana', role: 'carb' },
+      ],
+    },
+    {
+      name: 'Lunch', icon: 'sun', percentage: 0.35,
+      foods: [
+        { foodId: 'turkey_breast', role: 'protein' },
+        { foodId: 'quinoa', role: 'carb' },
+        { foodId: 'mixed_greens', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Dinner', icon: 'moon', percentage: 0.30,
+      foods: [
+        { foodId: 'cod', role: 'protein' },
+        { foodId: 'brown_rice', role: 'carb' },
+        { foodId: 'broccoli', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Snacks', icon: 'cookie', percentage: 0.10,
+      foods: [
+        { foodId: 'whey_protein', role: 'protein' },
+        { foodId: 'apple', role: 'carb' },
+      ],
+    },
+  ],
+};
+
 const HIGH_PROTEIN_BLUEPRINTS: StrategyBlueprints = {
   meals: [
     {
       name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
       foods: [
-        { foodId: 'eggs', role: 'protein' },
+        { foodId: 'greek_yogurt', role: 'protein' },
         { foodId: 'turkey_breast', role: 'protein' },
         { foodId: 'oats_dry', role: 'carb' },
       ],
@@ -172,6 +210,42 @@ const KETO_BLUEPRINTS: StrategyBlueprints = {
   ],
 };
 
+const KETO_BLUEPRINTS_ALT: StrategyBlueprints = {
+  meals: [
+    {
+      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+      foods: [
+        { foodId: 'eggs', role: 'protein' },
+        { foodId: 'cheddar', role: 'fat' },
+        { foodId: 'avocado', role: 'fat' },
+      ],
+    },
+    {
+      name: 'Lunch', icon: 'sun', percentage: 0.35,
+      foods: [
+        { foodId: 'salmon', role: 'protein' },
+        { foodId: 'olive_oil', role: 'fat' },
+        { foodId: 'mixed_greens', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Dinner', icon: 'moon', percentage: 0.30,
+      foods: [
+        { foodId: 'ground_beef_80', role: 'protein' },
+        { foodId: 'butter', role: 'fat' },
+        { foodId: 'cauliflower', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Snacks', icon: 'cookie', percentage: 0.10,
+      foods: [
+        { foodId: 'macadamia', role: 'fat' },
+        { foodId: 'string_cheese', role: 'protein' },
+      ],
+    },
+  ],
+};
+
 const CARNIVORE_BLUEPRINTS: StrategyBlueprints = {
   meals: [
     {
@@ -179,7 +253,7 @@ const CARNIVORE_BLUEPRINTS: StrategyBlueprints = {
       foods: [
         { foodId: 'eggs', role: 'protein' },
         { foodId: 'bacon', role: 'fat' },
-        { foodId: 'beef_liver', role: 'protein' },
+        { foodId: 'butter', role: 'fat' },
       ],
     },
     {
@@ -187,20 +261,57 @@ const CARNIVORE_BLUEPRINTS: StrategyBlueprints = {
       foods: [
         { foodId: 'ground_beef_80', role: 'protein' },
         { foodId: 'butter', role: 'fat' },
-        { foodId: 'bone_broth', role: 'protein' },
+        { foodId: 'bacon', role: 'fat' },
       ],
     },
     {
       name: 'Dinner', icon: 'moon', percentage: 0.30,
       foods: [
         { foodId: 'ribeye', role: 'protein' },
-        { foodId: 'shrimp', role: 'protein' },
+        { foodId: 'butter', role: 'fat' },
+        { foodId: 'cheddar', role: 'fat' },
       ],
     },
     {
       name: 'Snacks', icon: 'cookie', percentage: 0.10,
       foods: [
-        { foodId: 'beef_jerky', role: 'protein' },
+        { foodId: 'string_cheese', role: 'fat' },
+        { foodId: 'hard_boiled_eggs', role: 'protein' },
+      ],
+    },
+  ],
+};
+
+const CARNIVORE_BLUEPRINTS_ALT: StrategyBlueprints = {
+  meals: [
+    {
+      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+      foods: [
+        { foodId: 'hard_boiled_eggs', role: 'protein' },
+        { foodId: 'cheddar', role: 'fat' },
+        { foodId: 'bacon', role: 'fat' },
+      ],
+    },
+    {
+      name: 'Lunch', icon: 'sun', percentage: 0.35,
+      foods: [
+        { foodId: 'ribeye', role: 'protein' },
+        { foodId: 'butter', role: 'fat' },
+        { foodId: 'hard_boiled_eggs', role: 'protein' },
+      ],
+    },
+    {
+      name: 'Dinner', icon: 'moon', percentage: 0.30,
+      foods: [
+        { foodId: 'ground_beef_80', role: 'protein' },
+        { foodId: 'cheddar', role: 'fat' },
+        { foodId: 'bacon', role: 'fat' },
+      ],
+    },
+    {
+      name: 'Snacks', icon: 'cookie', percentage: 0.10,
+      foods: [
+        { foodId: 'string_cheese', role: 'fat' },
         { foodId: 'hard_boiled_eggs', role: 'protein' },
       ],
     },
@@ -310,6 +421,78 @@ const MEDITERRANEAN_BLUEPRINTS: StrategyBlueprints = {
       name: 'Snacks', icon: 'cookie', percentage: 0.10,
       foods: [
         { foodId: 'mixed_nuts', role: 'fat' },
+        { foodId: 'dates', role: 'carb' },
+      ],
+    },
+  ],
+};
+
+const MEDITERRANEAN_LEAN_BLUEPRINTS: StrategyBlueprints = {
+  meals: [
+    {
+      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+      foods: [
+        { foodId: 'greek_yogurt', role: 'protein' },
+        { foodId: 'pita', role: 'carb' },
+        { foodId: 'berries', role: 'carb' },
+      ],
+    },
+    {
+      name: 'Lunch', icon: 'sun', percentage: 0.35,
+      foods: [
+        { foodId: 'chicken_breast', role: 'protein' },
+        { foodId: 'tabbouleh', role: 'carb' },
+        { foodId: 'mixed_greens', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Dinner', icon: 'moon', percentage: 0.30,
+      foods: [
+        { foodId: 'sea_bass', role: 'protein' },
+        { foodId: 'couscous', role: 'carb' },
+        { foodId: 'roasted_veggies', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Snacks', icon: 'cookie', percentage: 0.10,
+      foods: [
+        { foodId: 'greek_yogurt', role: 'protein' },
+        { foodId: 'dates', role: 'carb' },
+      ],
+    },
+  ],
+};
+
+const MEDITERRANEAN_BLUEPRINTS_ALT: StrategyBlueprints = {
+  meals: [
+    {
+      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+      foods: [
+        { foodId: 'greek_yogurt', role: 'protein' },
+        { foodId: 'berries', role: 'carb' },
+        { foodId: 'pita', role: 'carb' },
+      ],
+    },
+    {
+      name: 'Lunch', icon: 'sun', percentage: 0.35,
+      foods: [
+        { foodId: 'chicken_breast', role: 'protein' },
+        { foodId: 'couscous', role: 'carb' },
+        { foodId: 'roasted_veggies', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Dinner', icon: 'moon', percentage: 0.30,
+      foods: [
+        { foodId: 'sea_bass', role: 'protein' },
+        { foodId: 'tabbouleh', role: 'carb' },
+        { foodId: 'roasted_veggies', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Snacks', icon: 'cookie', percentage: 0.10,
+      foods: [
+        { foodId: 'greek_yogurt', role: 'protein' },
         { foodId: 'dates', role: 'carb' },
       ],
     },
@@ -558,24 +741,42 @@ function applyFoodSwaps(
   return current;
 }
 
+function pickVariant(variants: StrategyBlueprintVariant, generationSeed = 0): StrategyBlueprints {
+  if (variants.length === 0) {
+    throw new Error('No meal plan variants available');
+  }
+  const index = Math.abs(generationSeed) % variants.length;
+  return variants[index];
+}
+
 function selectBlueprint(
-  eatingStyle: EatingStyle
+  eatingStyle: EatingStyle,
+  macros: MacroTargets,
+  generationSeed = 0
 ): StrategyBlueprints {
+  const fatRatio = macros.calories > 0 ? (macros.fat_g * 9) / macros.calories : 0;
+  const proteinRatio = macros.calories > 0 ? (macros.protein_g * 4) / macros.calories : 0;
+
   switch (eatingStyle) {
     case 'mediterranean':
-      return MEDITERRANEAN_BLUEPRINTS;
+      return fatRatio <= 0.28
+        ? pickVariant([MEDITERRANEAN_LEAN_BLUEPRINTS, MEDITERRANEAN_BLUEPRINTS_ALT], generationSeed)
+        : pickVariant([MEDITERRANEAN_BLUEPRINTS, MEDITERRANEAN_BLUEPRINTS_ALT], generationSeed);
     case 'vegan':
       return VEGAN_BALANCED_BLUEPRINTS;
     case 'vegetarian':
       return VEGETARIAN_BALANCED_BLUEPRINTS;
     case 'keto':
-      return KETO_BLUEPRINTS;
+      return pickVariant([KETO_BLUEPRINTS, KETO_BLUEPRINTS_ALT], generationSeed);
     case 'carnivore':
-      return CARNIVORE_BLUEPRINTS;
+      return pickVariant([CARNIVORE_BLUEPRINTS, CARNIVORE_BLUEPRINTS_ALT], generationSeed);
     case 'paleo':
     case 'standard':
+      if (proteinRatio > 0.38) {
+        return HIGH_PROTEIN_BLUEPRINTS;
+      }
     default:
-      return BALANCED_BLUEPRINTS;
+      return pickVariant([BALANCED_BLUEPRINTS, BALANCED_BLUEPRINTS_ALT], generationSeed);
   }
 }
 
@@ -613,11 +814,14 @@ function applyIFTimings(meals: MealBlueprint[]): MealBlueprint[] {
   ];
 }
 
-const TOLERANCE = { protein: 3, carbs: 5, fat: 3, calories: 50 };
-const MIN_SCALE = 0.25;
-const MAX_SCALE = 3.0;
-const SOLVER_ITERATIONS = 40;
-const SOLVER_STEP = 0.7;
+const DAILY_TOLERANCE = { protein: 8, carbs: 15, fat: 6, calories: 60 };
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 2.5;
+const SOLVER_ITERATIONS = 80;
+const DAILY_RECONCILIATION_ITERATIONS = 160;
+
+type MacroKey = 'protein_g' | 'carbs_g' | 'fat_g';
+type MacroTolerance = { protein: number; carbs: number; fat: number; calories: number };
 
 function getMealTargets(daily: MacroTargets, pct: number): MacroTargets {
   return {
@@ -628,13 +832,82 @@ function getMealTargets(daily: MacroTargets, pct: number): MacroTargets {
   };
 }
 
-function withinTolerance(actual: MacroTargets, target: MacroTargets): boolean {
+function withinTolerance(
+  actual: MacroTargets,
+  target: MacroTargets,
+  tolerance: MacroTolerance = DAILY_TOLERANCE
+): boolean {
   return (
-    Math.abs(actual.calories - target.calories) <= TOLERANCE.calories &&
-    Math.abs(actual.protein_g - target.protein_g) <= TOLERANCE.protein &&
-    Math.abs(actual.carbs_g - target.carbs_g) <= TOLERANCE.carbs &&
-    Math.abs(actual.fat_g - target.fat_g) <= TOLERANCE.fat
+    Math.abs(actual.calories - target.calories) <= tolerance.calories &&
+    Math.abs(actual.protein_g - target.protein_g) <= tolerance.protein &&
+    Math.abs(actual.carbs_g - target.carbs_g) <= tolerance.carbs &&
+    Math.abs(actual.fat_g - target.fat_g) <= tolerance.fat
   );
+}
+
+function getMealTolerance(target: MacroTargets): MacroTolerance {
+  return {
+    protein: Math.max(2, Math.round(target.protein_g * 0.08)),
+    carbs: Math.max(4, Math.round(target.carbs_g * 0.08)),
+    fat: Math.max(2, Math.round(target.fat_g * 0.1)),
+    calories: Math.max(25, Math.round(target.calories * 0.08)),
+  };
+}
+
+function scoreTargets(actual: MacroTargets, target: MacroTargets): number {
+  const calErr = Math.abs(actual.calories - target.calories) / Math.max(target.calories, 1);
+  const pErr = Math.abs(actual.protein_g - target.protein_g) / Math.max(target.protein_g, 1);
+  const cErr = Math.abs(actual.carbs_g - target.carbs_g) / Math.max(target.carbs_g, 1);
+  const fErr = Math.abs(actual.fat_g - target.fat_g) / Math.max(target.fat_g, 1);
+  return calErr * 0.9 + pErr * 2.2 + cErr * 1.6 + fErr * 1.9;
+}
+
+function getMacroGap(actual: MacroTargets, target: MacroTargets, key: MacroKey): number {
+  return target[key] - actual[key];
+}
+
+function getRolePriority(role: MealFoodRef['role'], key: MacroKey): number {
+  if (key === 'protein_g') {
+    if (role === 'protein') return 3;
+    if (role === 'complete') return 2;
+    if (role === 'fat') return 1;
+    return 0;
+  }
+  if (key === 'carbs_g') {
+    if (role === 'carb') return 3;
+    if (role === 'complete') return 2;
+    if (role === 'veggie') return 1;
+    return 0;
+  }
+  if (role === 'fat') return 3;
+  if (role === 'protein' || role === 'complete') return 1;
+  return 0;
+}
+
+function getCandidateOrder(
+  resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[],
+  key: MacroKey
+): number[] {
+  return resolvedFoods
+    .map(({ food, ref }, idx) => ({
+      idx,
+      priority: getRolePriority(ref.role, key),
+      density: food.per100g[key],
+    }))
+    .filter((item) => item.priority > 0 && item.density > 0)
+    .sort((a, b) => {
+      if (a.priority !== b.priority) return b.priority - a.priority;
+      return b.density - a.density;
+    })
+    .map((item) => item.idx);
+}
+
+function getAdjustmentOrder(actual: MacroTargets, target: MacroTargets): MacroKey[] {
+  return (['protein_g', 'carbs_g', 'fat_g'] as MacroKey[]).sort((a, b) => {
+    const aErr = Math.abs(getMacroGap(actual, target, a)) / Math.max(target[a], 1);
+    const bErr = Math.abs(getMacroGap(actual, target, b)) / Math.max(target[b], 1);
+    return bErr - aErr;
+  });
 }
 
 function scaleMealToTargets(
@@ -701,8 +974,8 @@ function solveMealMacros(
   resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[],
   target: MacroTargets
 ): number[] {
-  const n = resolvedFoods.length;
   let mults = resolvedFoods.map(() => 1);
+  const mealTolerance = getMealTolerance(target);
 
   const getTotals = (m: number[]) => {
     let cal = 0, p = 0, c = 0, f = 0;
@@ -719,93 +992,54 @@ function solveMealMacros(
 
   for (let iter = 0; iter < SOLVER_ITERATIONS; iter++) {
     const tot = getTotals(mults);
-    if (withinTolerance(tot, target)) break;
+    if (withinTolerance(tot, target, mealTolerance)) break;
 
-    const proteinFoods = resolvedFoods
-      .map((r, i) => ({ i, p: r.food.per100g.protein_g * r.food.basePortionG / 100 }))
-      .filter((x) => x.p > 0.5)
-      .sort((a, b) => b.p - a.p);
-    const carbFoods = resolvedFoods
-      .map((r, i) => ({ i, c: r.food.per100g.carbs_g * r.food.basePortionG / 100 }))
-      .filter((x) => x.c > 0.5)
-      .sort((a, b) => b.c - a.c);
-    const fatFoods = resolvedFoods
-      .map((r, i) => ({ i, f: r.food.per100g.fat_g * r.food.basePortionG / 100 }))
-      .filter((x) => x.f > 0.5)
-      .sort((a, b) => b.f - a.f);
+    const currentScore = scoreTargets(tot, target);
+    let bestScore = currentScore;
+    let bestMults = mults;
 
-    const step = SOLVER_STEP;
-    if (tot.protein_g < target.protein_g - TOLERANCE.protein && proteinFoods[0]) {
-      const idx = proteinFoods[0].i;
-      const need = target.protein_g - tot.protein_g;
-      const contrib = resolvedFoods[idx].food.per100g.protein_g * resolvedFoods[idx].food.basePortionG / 100;
-      if (contrib > 0) {
-        const delta = need / contrib;
-        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) + delta * step));
-      }
-    } else if (tot.protein_g > target.protein_g + TOLERANCE.protein && proteinFoods[0]) {
-      const idx = proteinFoods[0].i;
-      const excess = tot.protein_g - target.protein_g;
-      const contrib = resolvedFoods[idx].food.per100g.protein_g * resolvedFoods[idx].food.basePortionG / 100;
-      if (contrib > 0) {
-        const delta = excess / contrib;
-        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) - delta * step));
+    const macroOrder = getAdjustmentOrder(tot, target);
+    for (const key of macroOrder) {
+      const gap = getMacroGap(tot, target, key);
+      const tolerance =
+        key === 'protein_g'
+          ? mealTolerance.protein
+          : key === 'carbs_g'
+            ? mealTolerance.carbs
+            : mealTolerance.fat;
+
+      if (Math.abs(gap) <= tolerance) continue;
+
+      const factors = gap > 0 ? [1.18, 1.12, 1.08] : [0.82, 0.88, 0.94];
+      const candidateIndices = getCandidateOrder(resolvedFoods, key).slice(0, 4);
+
+      for (const idx of candidateIndices) {
+        for (const factor of factors) {
+          const nextMults = [...mults];
+          nextMults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (nextMults[idx] ?? 1) * factor));
+          if (Math.abs(nextMults[idx] - (mults[idx] ?? 1)) < 0.001) continue;
+
+          const candidateScore = scoreTargets(getTotals(nextMults), target);
+          if (candidateScore + 0.0001 < bestScore) {
+            bestScore = candidateScore;
+            bestMults = nextMults;
+          }
+        }
       }
     }
 
-    if (tot.carbs_g < target.carbs_g - TOLERANCE.carbs && carbFoods[0]) {
-      const idx = carbFoods[0].i;
-      const need = target.carbs_g - tot.carbs_g;
-      const contrib = resolvedFoods[idx].food.per100g.carbs_g * resolvedFoods[idx].food.basePortionG / 100;
-      if (contrib > 0) {
-        const delta = need / contrib;
-        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) + delta * step));
-      }
-    } else if (tot.carbs_g > target.carbs_g + TOLERANCE.carbs && carbFoods[0]) {
-      const idx = carbFoods[0].i;
-      const excess = tot.carbs_g - target.carbs_g;
-      const contrib = resolvedFoods[idx].food.per100g.carbs_g * resolvedFoods[idx].food.basePortionG / 100;
-      if (contrib > 0) {
-        const delta = excess / contrib;
-        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) - delta * step));
-      }
+    if (bestScore + 0.0001 >= currentScore) {
+      break;
     }
 
-    if (tot.fat_g < target.fat_g - TOLERANCE.fat && fatFoods[0]) {
-      const idx = fatFoods[0].i;
-      const need = target.fat_g - tot.fat_g;
-      const contrib = resolvedFoods[idx].food.per100g.fat_g * resolvedFoods[idx].food.basePortionG / 100;
-      if (contrib > 0) {
-        const delta = need / contrib;
-        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) + delta * step));
-      }
-    } else if (tot.fat_g > target.fat_g + TOLERANCE.fat && fatFoods[0]) {
-      const idx = fatFoods[0].i;
-      const excess = tot.fat_g - target.fat_g;
-      const contrib = resolvedFoods[idx].food.per100g.fat_g * resolvedFoods[idx].food.basePortionG / 100;
-      if (contrib > 0) {
-        const delta = excess / contrib;
-        mults[idx] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[idx] ?? 1) - delta * step));
-      }
-    }
-
-    if (Math.abs(tot.calories - target.calories) > TOLERANCE.calories) {
-      const calScale = target.calories / Math.max(tot.calories, 1);
-      for (let i = 0; i < n; i++) {
-        mults[i] = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (mults[i] ?? 1) * calScale));
-      }
-    }
+    mults = bestMults;
   }
 
   return mults;
 }
 
-function reconcileDailyTotals(
-  meals: MealSlot[],
-  dailyTarget: MacroTargets,
-  measurementSystem: MeasurementSystem = 'us'
-): MealSlot[] {
-  const getDailyTotals = (m: MealSlot[]) => m.reduce(
+function getDailyTotals(meals: MealSlot[]): MacroTargets {
+  return meals.reduce(
     (acc, meal) => {
       meal.suggestions.forEach((s) => {
         acc.calories += s.calories;
@@ -817,66 +1051,144 @@ function reconcileDailyTotals(
     },
     { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
   );
+}
 
-  let dailyFromPlan = getDailyTotals(meals);
-  if (withinTolerance(dailyFromPlan, dailyTarget)) return meals;
+function cloneMeals(meals: MealSlot[]): MealSlot[] {
+  return meals.map((meal) => ({
+    ...meal,
+    suggestions: meal.suggestions.map((suggestion) => ({ ...suggestion })),
+  }));
+}
 
-  let toScale = meals;
-  // First try: adjust snack to close calorie gap (snack is most flexible)
-  const snackIdx = meals.findIndex((m) => m.name.toLowerCase().includes('snack'));
-  if (snackIdx >= 0 && meals[snackIdx].suggestions.length > 0) {
-    const snack = meals[snackIdx];
-    const totalSnackCal = snack.suggestions.reduce((s, x) => s + x.calories, 0);
-    if (totalSnackCal > 0) {
-      const gap = dailyTarget.calories - dailyFromPlan.calories;
-      const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, (totalSnackCal + gap) / totalSnackCal));
-      const scaledSuggestions = snack.suggestions.map((s) => {
-        const newG = Math.round(s.portionGrams * scale);
-        const food = FOODS[s.foodId];
-        if (!food) return s;
-        const macros = computeMacros(food, newG);
-        return {
-          ...s,
-          portionGrams: newG,
-          portion: formatPortionLabel(food, newG, measurementSystem),
-          calories: Math.round(macros.calories),
-          protein_g: Math.round(macros.protein_g * 10) / 10,
-          carbs_g: Math.round(macros.carbs_g * 10) / 10,
-          fat_g: Math.round(macros.fat_g * 10) / 10,
-        };
-      });
-      const updated = [...meals];
-      updated[snackIdx] = { ...snack, suggestions: scaledSuggestions };
-      toScale = updated;
-      dailyFromPlan = getDailyTotals(updated);
-      if (withinTolerance(dailyFromPlan, dailyTarget)) return updated;
+function getSuggestionRolePriority(
+  suggestion: MealSuggestion,
+  food: FoodItemData,
+  key: MacroKey
+): number {
+  if (key === 'protein_g') {
+    if (suggestion.category === 'protein') return 3;
+    if (suggestion.category === 'mixed') return 2;
+    return food.per100g.protein_g > 10 ? 1 : 0;
+  }
+  if (key === 'carbs_g') {
+    if (suggestion.category === 'carb') return 3;
+    if (suggestion.category === 'mixed') return 2;
+    if (suggestion.category === 'veggie') return 1;
+    return 0;
+  }
+  if (suggestion.category === 'fat') return 3;
+  if (suggestion.category === 'mixed') return 2;
+  return food.per100g.fat_g > 8 ? 1 : 0;
+}
+
+function adjustSuggestionPortion(
+  meals: MealSlot[],
+  mealIdx: number,
+  suggestionIdx: number,
+  factor: number,
+  measurementSystem: MeasurementSystem
+): MealSlot[] {
+  const nextMeals = cloneMeals(meals);
+  const suggestion = nextMeals[mealIdx].suggestions[suggestionIdx];
+  const food = FOODS[suggestion.foodId];
+  if (!food) return meals;
+
+  const targetGrams = Math.round(
+    Math.max(MIN_SCALE, Math.min(MAX_SCALE, (suggestion.portionGrams / food.basePortionG) * factor)) *
+      food.basePortionG
+  );
+  const macros = computeMacros(food, targetGrams);
+  nextMeals[mealIdx].suggestions[suggestionIdx] = {
+    ...suggestion,
+    portionGrams: targetGrams,
+    portion: formatPortionLabel(food, targetGrams, measurementSystem),
+    calories: Math.round(macros.calories),
+    protein_g: Math.round(macros.protein_g * 10) / 10,
+    carbs_g: Math.round(macros.carbs_g * 10) / 10,
+    fat_g: Math.round(macros.fat_g * 10) / 10,
+  };
+
+  return nextMeals;
+}
+
+function reconcileDailyTotals(
+  meals: MealSlot[],
+  dailyTarget: MacroTargets,
+  measurementSystem: MeasurementSystem = 'us'
+): MealSlot[] {
+  let workingMeals = cloneMeals(meals);
+
+  for (let iter = 0; iter < DAILY_RECONCILIATION_ITERATIONS; iter++) {
+    const totals = getDailyTotals(workingMeals);
+    if (withinTolerance(totals, dailyTarget, DAILY_TOLERANCE)) {
+      return workingMeals;
     }
+
+    const currentScore = scoreTargets(totals, dailyTarget);
+    let bestScore = currentScore;
+    let bestMeals = workingMeals;
+
+    const macroOrder = getAdjustmentOrder(totals, dailyTarget);
+    for (const key of macroOrder) {
+      const gap = getMacroGap(totals, dailyTarget, key);
+      const tolerance =
+        key === 'protein_g'
+          ? DAILY_TOLERANCE.protein
+          : key === 'carbs_g'
+            ? DAILY_TOLERANCE.carbs
+            : DAILY_TOLERANCE.fat;
+
+      if (Math.abs(gap) <= tolerance) continue;
+
+      const factors = gap > 0 ? [1.25, 1.15, 1.08] : [0.75, 0.85, 0.92];
+      const candidates = workingMeals.flatMap((meal, mealIdx) =>
+        meal.suggestions
+          .map((suggestion, suggestionIdx) => {
+            const food = FOODS[suggestion.foodId];
+            if (!food) return null;
+            return {
+              mealIdx,
+              suggestionIdx,
+              priority: getSuggestionRolePriority(suggestion, food, key),
+              density: food.per100g[key],
+            };
+          })
+          .filter((candidate): candidate is NonNullable<typeof candidate> => {
+            return candidate != null && candidate.priority > 0 && candidate.density > 0;
+          })
+      )
+      .sort((a, b) => {
+        if (a.priority !== b.priority) return b.priority - a.priority;
+        return b.density - a.density;
+      })
+      .slice(0, 8);
+
+      for (const candidate of candidates) {
+        for (const factor of factors) {
+          const nextMeals = adjustSuggestionPortion(
+            workingMeals,
+            candidate.mealIdx,
+            candidate.suggestionIdx,
+            factor,
+            measurementSystem
+          );
+          const candidateScore = scoreTargets(getDailyTotals(nextMeals), dailyTarget);
+          if (candidateScore + 0.0001 < bestScore) {
+            bestScore = candidateScore;
+            bestMeals = nextMeals;
+          }
+        }
+      }
+    }
+
+    if (bestScore + 0.0001 >= currentScore) {
+      return workingMeals;
+    }
+
+    workingMeals = bestMeals;
   }
 
-  // Second pass: scale ALL meals proportionally to hit daily target
-  let result = toScale;
-  let totals = getDailyTotals(result);
-  const calScale = dailyTarget.calories / Math.max(totals.calories, 1);
-  const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, calScale));
-  result = result.map((meal) => ({
-    ...meal,
-    suggestions: meal.suggestions.map((s) => {
-      const newG = Math.round(s.portionGrams * scale);
-      const food = FOODS[s.foodId];
-      if (!food) return s;
-      const macros = computeMacros(food, newG);
-      return {
-        ...s,
-        portionGrams: newG,
-        portion: formatPortionLabel(food, newG, measurementSystem),
-        calories: Math.round(macros.calories),
-        protein_g: Math.round(macros.protein_g * 10) / 10,
-        carbs_g: Math.round(macros.carbs_g * 10) / 10,
-        fat_g: Math.round(macros.fat_g * 10) / 10,
-      };
-    }),
-  }));
-  return result;
+  return workingMeals;
 }
 
 export function generateMealPlan(
@@ -884,10 +1196,11 @@ export function generateMealPlan(
   eatingStyle: EatingStyle,
   modifiers: DietaryModifier[],
   measurementSystem: MeasurementSystem = 'us',
-  allergies: UserAllergy[] = []
+  allergies: UserAllergy[] = [],
+  generationSeed = 0
 ): DayPlan {
   const effectiveModifiers = eatingStyle === 'paleo' ? [...modifiers, 'paleo'] : modifiers;
-  const blueprint = selectBlueprint(eatingStyle);
+  const blueprint = selectBlueprint(eatingStyle, macros, generationSeed);
   const isIF = effectiveModifiers.includes('intermittent_fasting');
 
   let mealBlueprints = [...blueprint.meals];
