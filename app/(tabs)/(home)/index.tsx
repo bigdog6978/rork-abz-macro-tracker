@@ -20,7 +20,7 @@ import { useStaggerFadeIn } from '../../../utils/motion';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
-import { MACRO_STRATEGY_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier } from '../../../types';
+import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier } from '../../../types';
 import PremiumCard from '../../../components/ui/PremiumCard';
 import GreetingHeader from '../../../components/ui/GreetingHeader';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
@@ -63,12 +63,12 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     if (userLoading) return;
-    if (!profile.first_name) {
+    if (!profile.firstName) {
       router.replace('/welcome' as never);
-    } else if (!profile.onboarding_complete) {
+    } else if (!profile.onboardingComplete) {
       router.replace('/onboarding' as never);
     }
-  }, [userLoading, profile.first_name, profile.onboarding_complete]);
+  }, [userLoading, profile.firstName, profile.onboardingComplete]);
 
   const handleAddFood = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -97,12 +97,12 @@ export default function DashboardScreen() {
     [removeEntry]
   );
 
-  if (userLoading || !profile.first_name || !profile.onboarding_complete) {
+  if (userLoading || !profile.firstName || !profile.onboardingComplete) {
     return <View style={styles.container} />;
   }
 
   const caloriesRemaining = Math.max(macros.calories - todayTotals.calories, 0);
-  const greeting = getGreeting(profile.first_name);
+  const greeting = getGreeting(profile.firstName);
   const progress = getProgressLevel(todayTotals.calories, macros.calories);
 
   const statusText = (() => {
@@ -122,17 +122,17 @@ export default function DashboardScreen() {
         {/* Greeting */}
         <Animated.View style={[styles.greetingBlock, { opacity: stagger[0], transform: [{ translateY: stagger[0].interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
           <GreetingHeader
-            firstName={profile.first_name}
+            firstName={profile.firstName}
             progress={progress}
             statusText={statusText}
           />
           <View style={styles.strategyRow}>
             <View style={styles.strategyTag}>
               <Text style={styles.strategyTagText}>
-                {MACRO_STRATEGY_LABELS[profile.macro_strategy ?? 'balanced']} Protocol
+                {EATING_STYLE_LABELS[profile.eatingStyle]}
               </Text>
             </View>
-            {(profile.dietary_modifiers ?? []).map((mod: DietaryModifier) => (
+            {(profile.dietModifiers ?? []).map((mod: DietaryModifier) => (
               <View key={mod} style={styles.modifierTag}>
                 <Text style={styles.modifierTagText}>{DIETARY_MODIFIER_LABELS[mod]}</Text>
               </View>
@@ -167,7 +167,6 @@ export default function DashboardScreen() {
                         },
                       ]}
                       numberOfLines={1}
-                      includeFontPadding={false}
                       maxFontSizeMultiplier={1}
                     >
                       {formatNumber(caloriesRemaining)}
@@ -175,7 +174,6 @@ export default function DashboardScreen() {
                     <Text
                       style={[styles.dialSub, { fontSize: dialSubSize, marginTop: dialSubGap }]}
                       numberOfLines={1}
-                      includeFontPadding={false}
                       maxFontSizeMultiplier={1}
                     >
                       cal left

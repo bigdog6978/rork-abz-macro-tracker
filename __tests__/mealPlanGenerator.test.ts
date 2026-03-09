@@ -4,7 +4,7 @@
  */
 
 import { generateMealPlan } from '../utils/mealPlanGenerator';
-import { MacroTargets, MacroStrategy, DietaryModifier, UserAllergy } from '../types';
+import { MacroTargets, UserAllergy } from '../types';
 
 const TOLERANCE = { protein: 3, carbs: 5, fat: 3, calories: 50 };
 const TEST_TOLERANCE = { protein: 45, carbs: 90, fat: 55, calories: 120 };
@@ -36,38 +36,38 @@ function withinTolerance(actual: MacroTargets, target: MacroTargets, tol = TOLER
 
 describe('MealPlanGenerator', () => {
   describe('solver reaches tolerance', () => {
-    it('balanced strategy: plan totals match targets within tolerance', () => {
+    it('standard eating style: plan totals match targets within tolerance', () => {
       const targets: MacroTargets = { calories: 2000, protein_g: 150, carbs_g: 200, fat_g: 67 };
-      const plan = generateMealPlan(targets, 'balanced', [], 'us');
+      const plan = generateMealPlan(targets, 'standard', [], 'us');
       const totals = sumPlanTotals(plan);
       expect(withinTolerance(totals, targets, TEST_TOLERANCE)).toBe(true);
     });
 
-    it('high_protein strategy: plan totals match targets within tolerance', () => {
+    it('standard eating style still supports high-protein targets', () => {
       const targets: MacroTargets = { calories: 2200, protein_g: 180, carbs_g: 180, fat_g: 73 };
-      const plan = generateMealPlan(targets, 'high_protein', [], 'us');
+      const plan = generateMealPlan(targets, 'standard', [], 'us');
       const totals = sumPlanTotals(plan);
       expect(totals.calories).toBeGreaterThan(1800);
       expect(totals.protein_g).toBeGreaterThan(140);
     });
 
-    it('keto strategy: plan totals match targets within tolerance', () => {
+    it('keto eating style: plan totals match targets within tolerance', () => {
       const targets: MacroTargets = { calories: 1800, protein_g: 120, carbs_g: 25, fat_g: 140 };
       const plan = generateMealPlan(targets, 'keto', [], 'us');
       const totals = sumPlanTotals(plan);
       expect(withinTolerance(totals, targets, TEST_TOLERANCE)).toBe(true);
     });
 
-    it('low_carb strategy: plan totals match targets within tolerance', () => {
+    it('keto eating style supports lower-carb targets', () => {
       const targets: MacroTargets = { calories: 1900, protein_g: 140, carbs_g: 80, fat_g: 120 };
-      const plan = generateMealPlan(targets, 'low_carb', [], 'us');
+      const plan = generateMealPlan(targets, 'keto', [], 'us');
       const totals = sumPlanTotals(plan);
       expect(withinTolerance(totals, targets, TEST_TOLERANCE)).toBe(true);
     });
 
     it('different target set (cut): plan totals match within tolerance', () => {
       const targets: MacroTargets = { calories: 1500, protein_g: 130, carbs_g: 120, fat_g: 50 };
-      const plan = generateMealPlan(targets, 'balanced', [], 'us');
+      const plan = generateMealPlan(targets, 'standard', [], 'us');
       const totals = sumPlanTotals(plan);
       expect(withinTolerance(totals, targets, TEST_TOLERANCE)).toBe(true);
     });
@@ -104,7 +104,7 @@ describe('MealPlanGenerator', () => {
       const allergies: UserAllergy[] = [
         { id: '1', name: 'Dairy', normalized: 'dairy', createdAt: 0, updatedAt: 0 },
       ];
-      const plan = generateMealPlan(targets, 'balanced', [], 'us', allergies);
+      const plan = generateMealPlan(targets, 'standard', [], 'us', allergies);
       const foodIds = plan.meals.flatMap((m) => m.suggestions.map((s) => s.foodId));
       const dairyIds = ['greek_yogurt', 'cottage_cheese', 'cheddar', 'mozzarella', 'feta', 'cream_cheese', 'butter', 'string_cheese', 'whey_protein'];
       for (const id of dairyIds) {
@@ -117,8 +117,8 @@ describe('MealPlanGenerator', () => {
     it('different targets produce different plans', () => {
       const t1: MacroTargets = { calories: 2000, protein_g: 150, carbs_g: 200, fat_g: 67 };
       const t2: MacroTargets = { calories: 2500, protein_g: 180, carbs_g: 220, fat_g: 83 };
-      const plan1 = generateMealPlan(t1, 'balanced', [], 'us');
-      const plan2 = generateMealPlan(t2, 'balanced', [], 'us');
+      const plan1 = generateMealPlan(t1, 'standard', [], 'us');
+      const plan2 = generateMealPlan(t2, 'standard', [], 'us');
       const tot1 = sumPlanTotals(plan1);
       const tot2 = sumPlanTotals(plan2);
       expect(tot1.calories).not.toBe(tot2.calories);

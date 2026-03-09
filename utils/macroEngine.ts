@@ -1,180 +1,136 @@
-import {
-  UserProfile,
-  MacroTargets,
-  ActivityLevel,
-  Goal,
-  GoalRate,
-  DietaryPreference,
-  MacroStrategy,
-} from '../types';
+import { ActivityLevel, EatingStyle, Goal, MacroTargets, UserProfile } from '../types';
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
-  lightly_active: 1.375,
-  moderately_active: 1.55,
-  very_active: 1.725,
-  extra_active: 1.9,
+  light_activity: 1.35,
+  moderate_training: 1.5,
+  strength_training: 1.65,
+  endurance_training: 1.75,
 };
 
-const CUT_ADJUSTMENTS: Record<GoalRate, number> = {
-  slow: -0.1,
-  moderate: -0.15,
-  aggressive: -0.25,
+const MIN_CALORIES = {
+  male: 1500,
+  female: 1200,
+} as const;
+
+const PROTEIN_FROM_LEAN_MASS: Record<Goal, number> = {
+  cut: 1.1,
+  gain: 0.95,
+  maintain: 0.85,
+  recompose: 1.0,
 };
 
-const GAIN_ADJUSTMENTS: Record<GoalRate, number> = {
-  slow: 0.05,
-  moderate: 0.1,
-  aggressive: 0.15,
+const PROTEIN_FROM_ACTIVITY: Record<ActivityLevel, number> = {
+  sedentary: 0.7,
+  light_activity: 0.8,
+  moderate_training: 0.9,
+  strength_training: 1.0,
+  endurance_training: 0.9,
 };
-
-const RECOMPOSE_ADJUSTMENT = -0.05;
 
 export function calculateBMR(profile: UserProfile): number {
-  const weight_kg = profile.weight_lb * 0.453592;
+  const weightKg = profile.weightLb * 0.45359237;
   if (profile.sex === 'male') {
-    return 10 * weight_kg + 6.25 * profile.height_cm - 5 * profile.age + 5;
+    return 10 * weightKg + 6.25 * profile.heightCm - 5 * profile.age + 5;
   }
-  return 10 * weight_kg + 6.25 * profile.height_cm - 5 * profile.age - 161;
+  return 10 * weightKg + 6.25 * profile.heightCm - 5 * profile.age - 161;
 }
 
 export function calculateTDEE(profile: UserProfile): number {
-  const bmr = calculateBMR(profile);
-  return Math.round(bmr * ACTIVITY_MULTIPLIERS[profile.activity_level]);
+  return calculateBMR(profile) * ACTIVITY_MULTIPLIERS[profile.activityLevel];
+}
+
+export function getRecompCalorieAdjustment(profile: UserProfile): number {
+  if (profile.goal !== 'recompose') return 0;
+  if (profile.bodyFatPercent == null) return 0;
+  const highBodyFatThreshold = profile.sex === 'male' ? 20 : 30;
+  return profile.bodyFatPercent >= highBodyFatThreshold ? -0.05 : 0;
 }
 
 export function calculateCalorieTarget(profile: UserProfile): number {
   const tdee = calculateTDEE(profile);
+  let adjustedCalories = tdee;
 
-  if (profile.goal === 'maintain') {
-    return tdee;
-  }
-
-  if (profile.goal === 'cut') {
-    const adjustment = CUT_ADJUSTMENTS[profile.goal_rate];
-    return Math.round(tdee * (1 + adjustment));
-  }
-
-  if (profile.goal === 'recompose') {
-    return Math.round(tdee * (1 + RECOMPOSE_ADJUSTMENT));
-  }
-
-  const adjustment = GAIN_ADJUSTMENTS[profile.goal_rate];
-  return Math.round(tdee * (1 + adjustment));
-}
-
-function getProteinPerLb(goal: Goal): number {
-  switch (goal) {
+  switch (profile.goal) {
     case 'cut':
-      return 1.0;
-    case 'recompose':
-      return 1.1;
+      adjustedCalories = tdee * 0.8;
+      break;
     case 'gain':
-      return 0.9;
+      adjustedCalories = tdee * 1.1;
+      break;
+    case 'recompose':
+      adjustedCalories = tdee * (1 + getRecompCalorieAdjustment(profile));
+      break;
     case 'maintain':
-      return 0.85;
-  }
-}
-
-function getFatCaloriePercentage(preference: DietaryPreference): number {
-  switch (preference) {
-    case 'keto':
-      return 0.70;
-    case 'carnivore':
-      return 0.65;
-    case 'vegetarian':
-      return 0.25;
-    case 'mediterranean':
-      return 0.35;
-    case 'balanced':
-      return 0.30;
-  }
-}
-
-function getFatPercentFromStrategy(strategy: MacroStrategy): number {
-  switch (strategy) {
-    case 'keto':
-      return 0.70;
-    case 'carnivore':
-      return 0.65;
-    case 'low_carb':
-      return 0.45;
-    case 'high_protein':
-      return 0.25;
-    case 'low_fat':
-      return 0.15;
-    case 'performance':
-      return 0.20;
-    case 'mediterranean':
-      return 0.35;
-    case 'balanced':
-      return 0.30;
-  }
-}
-
-function getProteinMultiplierFromStrategy(strategy: MacroStrategy, goal: Goal): number {
-  const base = getProteinPerLb(goal);
-  switch (strategy) {
-    case 'high_protein':
-      return Math.min(base + 0.2, 1.2);
-    case 'performance':
-      return base;
     default:
-      return base;
+      adjustedCalories = tdee;
+      break;
   }
+
+  return Math.max(MIN_CALORIES[profile.sex], Math.round(adjustedCalories));
 }
 
-export function calculateMacros(profile: UserProfile): MacroTargets {
-  const calories = calculateCalorieTarget(profile);
-  const strategy = profile.macro_strategy ?? undefined;
+export function getLeanMassLb(profile: UserProfile): number {
+  if (profile.bodyFatPercent == null || Number.isNaN(profile.bodyFatPercent)) {
+    return profile.weightLb;
+  }
+  return profile.weightLb * (1 - profile.bodyFatPercent / 100);
+}
 
-  const proteinPerLb = strategy
-    ? getProteinMultiplierFromStrategy(strategy, profile.goal)
-    : getProteinPerLb(profile.goal);
-  const protein_g = Math.round(profile.weight_lb * proteinPerLb);
+function calculateProteinTarget(profile: UserProfile): number {
+  const baseProtein =
+    profile.bodyFatPercent != null && !Number.isNaN(profile.bodyFatPercent)
+      ? getLeanMassLb(profile) * PROTEIN_FROM_LEAN_MASS[profile.goal]
+      : profile.weightLb * PROTEIN_FROM_ACTIVITY[profile.activityLevel];
+
+  return Math.max(baseProtein, profile.weightLb * 0.7);
+}
+
+function calculateFatTarget(profile: UserProfile): number {
+  const baseFat = profile.weightLb * 0.3;
+  if (profile.eatingStyle === 'keto') {
+    return Math.max(baseFat, profile.weightLb * 0.5);
+  }
+  if (profile.eatingStyle === 'carnivore') {
+    return Math.max(baseFat, profile.weightLb * 0.45);
+  }
+  return baseFat;
+}
+
+export function applyEatingStyleOverrides(
+  profile: UserProfile,
+  base: Omit<MacroTargets, 'calories'>
+): MacroTargets {
+  const targetCalories = calculateCalorieTarget(profile);
+  let protein_g = Math.round(base.protein_g);
+  let fat_g = Math.max(0, Math.round(base.fat_g));
+
   const proteinCalories = protein_g * 4;
+  const minimumFatCalories = fat_g * 9;
 
-  const fatPercent = strategy
-    ? getFatPercentFromStrategy(strategy)
-    : getFatCaloriePercentage(profile.preference);
-  let fatCalories = Math.round(calories * fatPercent);
-  let fat_g = Math.round(fatCalories / 9);
+  let carbs_g = Math.max(0, Math.round((targetCalories - proteinCalories - minimumFatCalories) / 4));
 
-  let carbCalories = calories - proteinCalories - fatCalories;
-  let carbs_g = Math.round(carbCalories / 4);
-
-  const effectiveStrategy = strategy ?? profile.preference;
-
-  if (effectiveStrategy === 'keto' && carbs_g > 50) {
-    carbs_g = 50;
-    carbCalories = carbs_g * 4;
-    fatCalories = calories - proteinCalories - carbCalories;
-    fat_g = Math.round(fatCalories / 9);
+  if (profile.eatingStyle === 'keto') {
+    carbs_g = Math.min(30, Math.max(20, carbs_g > 0 ? carbs_g : 30));
+    fat_g = Math.max(fat_g, Math.round((targetCalories - protein_g * 4 - carbs_g * 4) / 9));
   }
 
-  if (effectiveStrategy === 'low_carb' && carbs_g > 100) {
-    carbs_g = 100;
-    carbCalories = carbs_g * 4;
-    fatCalories = calories - proteinCalories - carbCalories;
-    fat_g = Math.round(fatCalories / 9);
-  }
-
-  if ((effectiveStrategy === 'carnivore' || profile.preference === 'carnivore') && carbs_g > 20) {
-    carbs_g = 20;
-    carbCalories = carbs_g * 4;
-    fatCalories = calories - proteinCalories - carbCalories;
-    fat_g = Math.round(fatCalories / 9);
+  if (profile.eatingStyle === 'carnivore') {
+    carbs_g = 5;
+    fat_g = Math.max(fat_g, Math.round((targetCalories - protein_g * 4 - carbs_g * 4) / 9));
   }
 
   if (carbs_g < 0) carbs_g = 0;
   if (fat_g < 0) fat_g = 0;
 
-  return {
-    calories,
-    protein_g,
-    carbs_g,
-    fat_g,
-  };
+  const calories = protein_g * 4 + carbs_g * 4 + fat_g * 9;
+  return { calories, protein_g, carbs_g, fat_g };
+}
+
+export function calculateMacros(profile: UserProfile): MacroTargets {
+  const protein_g = calculateProteinTarget(profile);
+  const fat_g = calculateFatTarget(profile);
+  return applyEatingStyleOverrides(profile, { protein_g, fat_g, carbs_g: 0 });
 }
 
 export function macrosFromEntry(entry: { protein_g: number; carbs_g: number; fat_g: number }): number {

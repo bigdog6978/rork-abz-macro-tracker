@@ -1,234 +1,138 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
   Alert,
   Platform,
-  InteractionManager,
-  Modal,
-  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { User, Calculator, Trash2, ChevronRight, Shield, RefreshCw, FileText, ScrollText, Mail, Ruler, Bell, Bookmark, Target, AlertCircle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { getAllergies } from '../../../storage/allergiesRepo';
+import { AlertCircle, ChevronRight, FileText, Mail, RefreshCw, Shield, Trash2, User } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
-import { Radius, Spacing, Shadows } from '../../../theme/tokens';
-import { formatNumber } from '../../../utils/formatNumber';
+import { Radius, Shadows, Spacing } from '../../../theme/tokens';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
-import { useMeasurements } from '../../../providers/MeasurementsProvider';
-import { useGoalSettings } from '../../../providers/GoalSettingsProvider';
-import { PromptCadence, CADENCE_LABELS } from '../../../features/progress/types';
-import * as foodService from '../../../features/food/foodService';
+import { getAllergies } from '../../../storage/allergiesRepo';
 import {
   ACTIVITY_LABELS,
-  GOAL_LABELS,
-  GOAL_RATE_LABELS,
-  MACRO_STRATEGY_LABELS,
-  MACRO_STRATEGY_DESCRIPTIONS,
-  DIETARY_MODIFIER_LABELS,
   ActivityLevel,
-  Goal,
-  GoalRate,
-  MacroStrategy,
-  DietaryModifier,
-  Sex,
-  MeasurementSystem,
-  strategyToPreference,
-  lbToKg,
-  kgToLb,
   cmToFtIn,
+  DietaryModifier,
+  DIETARY_MODIFIER_LABELS,
+  EATING_STYLE_LABELS,
+  EatingStyle,
   ftInToCm,
+  Goal,
+  GOAL_LABELS,
+  kgToLb,
+  lbToKg,
+  MeasurementSystem,
 } from '../../../types';
-import { GOAL_DEFINITIONS, MACRO_STRATEGY_DEFINITIONS } from '../../../src/content/planDefinitions';
-import PlanDefinitionSheet from '../../../components/ui/PlanDefinitionSheet';
-import { formatTargetSummary } from '../../../features/progress/progressScoring';
-import { fromDateKey } from '../../../utils/dateKey';
 
-type EditMode = 'none' | 'profile' | 'goal' | 'strategy';
+type EditMode = 'none' | 'profile' | 'nutrition';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { profile, macros, updateProfile, resetProfile } = useUser();
   const { clearAll } = useDailyLog();
-  const { promptSettings, updateCadence, records } = useMeasurements();
-  const { target, saveGoalSettings } = useGoalSettings();
-  const router = useRouter();
+
   const [editMode, setEditMode] = useState<EditMode>('none');
-  const [usdaHealth, setUsdaHealth] = useState<{
-    ok: boolean;
-    error?: string;
-    status?: number;
-    keySuffix?: string;
-    keyLength?: number;
-    usdaMessage?: string;
-    source?: string;
-    baseUrl?: string;
-  } | null>(null);
-
-  const [age, setAge] = useState(profile.age.toString());
-  const [sex, setSex] = useState<Sex>(profile.sex);
-  const [measurementSystem, setMeasurementSystem] = useState<MeasurementSystem>(profile.measurement_system ?? 'us');
-  const initFtIn = cmToFtIn(profile.height_cm);
-  const [heightCm, setHeightCm] = useState(profile.height_cm.toString());
-  const [heightFt, setHeightFt] = useState(initFtIn.ft.toString());
-  const [heightIn, setHeightIn] = useState(initFtIn.inches.toString());
-  const [weightLb, setWeightLb] = useState(profile.weight_lb.toString());
-  const [weightKg, setWeightKg] = useState(lbToKg(profile.weight_lb).toString());
-  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(profile.activity_level);
+  const [measurementSystem, setMeasurementSystem] = useState<MeasurementSystem>(profile.measurementSystem);
+  const [weightLb, setWeightLb] = useState(profile.weightLb.toString());
+  const [weightKg, setWeightKg] = useState(lbToKg(profile.weightLb).toString());
+  const height = useMemo(() => cmToFtIn(profile.heightCm), [profile.heightCm]);
+  const [heightFt, setHeightFt] = useState(String(height.ft));
+  const [heightIn, setHeightIn] = useState(String(height.inches));
+  const [heightCm, setHeightCm] = useState(String(profile.heightCm));
+  const [bodyFatPercent, setBodyFatPercent] = useState(profile.bodyFatPercent?.toString() ?? '');
   const [goal, setGoal] = useState<Goal>(profile.goal);
-  const [goalRate, setGoalRate] = useState<GoalRate>(profile.goal_rate);
-  const [macroStrategy, setMacroStrategy] = useState<MacroStrategy>(profile.macro_strategy ?? 'balanced');
-  const [dietaryModifiers, setDietaryModifiers] = useState<DietaryModifier[]>(profile.dietary_modifiers ?? []);
-
-  const [definitionSheet, setDefinitionSheet] = useState<
-    { type: 'goal'; id: Goal } | { type: 'strategy'; id: MacroStrategy } | null
-  >(null);
-  const [viewAllDefinitionsVisible, setViewAllDefinitionsVisible] = useState(false);
+  const [activityLevel, setActivityLevel] = useState<ActivityLevel>(profile.activityLevel);
+  const [eatingStyle, setEatingStyle] = useState<EatingStyle>(profile.eatingStyle);
+  const [dietModifiers, setDietModifiers] = useState<DietaryModifier[]>(profile.dietModifiers);
+  const [dietNotes, setDietNotes] = useState(profile.dietNotes ?? '');
 
   const allergiesQuery = useQuery({
     queryKey: ['user_allergies'],
     queryFn: getAllergies,
   });
   const allergies = allergiesQuery.data ?? [];
-  const allergiesSubtitle = allergies.length === 0
-    ? 'None'
-    : allergies.length <= 2
-      ? allergies.map((a) => a.name).join(', ')
-      : `${allergies[0].name}, ${allergies[1].name} +${allergies.length - 2}`;
 
   const handleSaveProfile = useCallback(() => {
-    const finalHeightCm = measurementSystem === 'us'
-      ? ftInToCm(parseInt(heightFt, 10) || 5, parseInt(heightIn, 10) || 9)
-      : parseFloat(heightCm) || profile.height_cm;
-    const finalWeightLb = measurementSystem === 'us'
-      ? parseFloat(weightLb) || profile.weight_lb
-      : kgToLb(parseFloat(weightKg) || 82);
+    const nextHeightCm =
+      measurementSystem === 'us'
+        ? ftInToCm(parseInt(heightFt, 10) || 5, parseInt(heightIn, 10) || 9)
+        : parseFloat(heightCm) || profile.heightCm;
+    const nextWeightLb =
+      measurementSystem === 'us'
+        ? parseFloat(weightLb) || profile.weightLb
+        : kgToLb(parseFloat(weightKg) || lbToKg(profile.weightLb));
+    const nextBodyFat = parseFloat(bodyFatPercent);
+
     updateProfile({
-      age: parseInt(age, 10) || profile.age,
-      sex,
-      height_cm: finalHeightCm,
-      weight_lb: finalWeightLb,
-      activity_level: activityLevel,
-      measurement_system: measurementSystem,
+      heightCm: nextHeightCm,
+      weightLb: nextWeightLb,
+      bodyFatPercent: Number.isFinite(nextBodyFat) ? nextBodyFat : undefined,
+      measurementSystem,
     });
     setEditMode('none');
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [age, sex, heightCm, heightFt, heightIn, weightLb, weightKg, measurementSystem, activityLevel, updateProfile, profile]);
+  }, [bodyFatPercent, heightCm, heightFt, heightIn, measurementSystem, profile.heightCm, profile.weightLb, updateProfile, weightKg, weightLb]);
 
-  const handleSaveGoal = useCallback(() => {
+  const handleSaveNutrition = useCallback(() => {
     updateProfile({
       goal,
-      goal_rate: goalRate,
-    });
-    saveGoalSettings({ goalType: goal });
-    setEditMode('none');
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-  }, [goal, goalRate, updateProfile, saveGoalSettings]);
-
-  const toggleModifier = useCallback((mod: DietaryModifier) => {
-    setDietaryModifiers((prev) => {
-      if (prev.includes(mod)) {
-        let next = prev.filter((m) => m !== mod);
-        if (mod === 'vegan') {
-          next = next.filter((m) => m !== 'vegetarian');
-        }
-        return next;
-      }
-      let next = [...prev, mod];
-      if (mod === 'vegan' && !next.includes('vegetarian')) {
-        next.push('vegetarian');
-      }
-      return next;
-    });
-  }, []);
-
-  const handleSaveStrategy = useCallback(() => {
-    updateProfile({
-      macro_strategy: macroStrategy,
-      preference: strategyToPreference(macroStrategy),
-      dietary_modifiers: dietaryModifiers,
+      activityLevel,
+      eatingStyle,
+      dietModifiers,
+      dietNotes: dietNotes.trim(),
     });
     setEditMode('none');
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [macroStrategy, dietaryModifiers, updateProfile]);
+  }, [activityLevel, dietModifiers, dietNotes, eatingStyle, goal, updateProfile]);
 
-  const handleUsdaHealthCheck = useCallback(() => {
-    setUsdaHealth(null);
-    InteractionManager.runAfterInteractions(() => {
-      foodService
-        .usdaHealthCheck()
-        .then((result) => {
-          setUsdaHealth({
-            ok: Boolean(result.ok),
-            error: typeof result.error === 'string' ? result.error : undefined,
-            status: typeof result.status === 'number' ? result.status : undefined,
-            keySuffix: typeof result.keySuffix === 'string' ? result.keySuffix : undefined,
-            keyLength: typeof result.keyLength === 'number' ? result.keyLength : undefined,
-            usdaMessage: typeof result.usdaMessage === 'string' ? result.usdaMessage : undefined,
-            source: typeof result.source === 'string' ? result.source : undefined,
-            baseUrl: typeof result.baseUrl === 'string' ? result.baseUrl : undefined,
-          });
-        })
-        .catch((err: any) => {
-          setUsdaHealth({
-            ok: false,
-            error: err?.message ?? 'Unexpected error during verification',
-          });
-        });
-    });
+  const toggleModifier = useCallback((modifier: DietaryModifier) => {
+    setDietModifiers((current) =>
+      current.includes(modifier)
+        ? current.filter((item) => item !== modifier)
+        : [...current, modifier]
+    );
   }, []);
 
   const handleResetData = useCallback(() => {
-    Alert.alert(
-      'Reset All Data',
-      'This will clear your food logs. Your profile will be kept. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: () => {
-            clearAll();
-            if (Platform.OS !== 'web') {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            }
-          },
-        },
-      ]
-    );
+    Alert.alert('Clear Food Logs', 'This will delete your food logs but keep your profile.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => clearAll(),
+      },
+    ]);
   }, [clearAll]);
 
   const handleResetProfile = useCallback(() => {
-    Alert.alert(
-      'Reset Profile',
-      'This will clear your profile and food logs. You will need to complete onboarding again. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset Everything',
-          style: 'destructive',
-          onPress: async () => {
-            await clearAll();
-            await resetProfile();
-          },
+    Alert.alert('Reset Everything', 'This will clear your profile and send you back through onboarding.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reset',
+        style: 'destructive',
+        onPress: async () => {
+          await clearAll();
+          await resetProfile();
         },
-      ]
-    );
+      },
+    ]);
   }, [clearAll, resetProfile]);
 
-  if (!profile.onboarding_complete) {
+  if (!profile.onboardingComplete) {
     return (
       <View style={styles.container}>
         <View style={styles.emptyState}>
@@ -238,627 +142,273 @@ export default function SettingsScreen() {
     );
   }
 
+  const allergySummary =
+    allergies.length === 0
+      ? 'None'
+      : allergies.length <= 2
+        ? allergies.map((item) => item.name).join(', ')
+        : `${allergies[0].name}, ${allergies[1].name} +${allergies.length - 2}`;
+
+  const currentWeightLabel =
+    profile.measurementSystem === 'us'
+      ? `${profile.weightLb} lb`
+      : `${lbToKg(profile.weightLb)} kg`;
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.macroSummary}>
-          <Text style={styles.macroSummaryTitle}>Current Targets</Text>
-          <View style={styles.macroSummaryRow}>
-            <View style={styles.macroSummaryItem}>
-              <Text style={[styles.macroSummaryValue, { color: Colors.calories }]}>{formatNumber(macros.calories)}</Text>
-              <Text style={styles.macroSummaryLabel}>Calories</Text>
-            </View>
-            <View style={styles.macroSummaryDivider} />
-            <View style={styles.macroSummaryItem}>
-              <Text style={[styles.macroSummaryValue, { color: Colors.protein }]}>{formatNumber(macros.protein_g)}g</Text>
-              <Text style={styles.macroSummaryLabel}>Protein</Text>
-            </View>
-            <View style={styles.macroSummaryDivider} />
-            <View style={styles.macroSummaryItem}>
-              <Text style={[styles.macroSummaryValue, { color: Colors.carbs }]}>{formatNumber(macros.carbs_g)}g</Text>
-              <Text style={styles.macroSummaryLabel}>Carbs</Text>
-            </View>
-            <View style={styles.macroSummaryDivider} />
-            <View style={styles.macroSummaryItem}>
-              <Text style={[styles.macroSummaryValue, { color: Colors.fat }]}>{formatNumber(macros.fat_g)}g</Text>
-              <Text style={styles.macroSummaryLabel}>Fat</Text>
-            </View>
+          <Text style={styles.sectionTitle}>Current Targets</Text>
+          <View style={styles.macroRow}>
+            <MetricCard label="Calories" value={String(macros.calories)} color={Colors.calories} />
+            <MetricCard label="Protein" value={`${macros.protein_g}g`} color={Colors.protein} />
+            <MetricCard label="Carbs" value={`${macros.carbs_g}g`} color={Colors.carbs} />
+            <MetricCard label="Fat" value={`${macros.fat_g}g`} color={Colors.fat} />
           </View>
         </View>
 
         <View style={styles.sectionCard}>
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => setEditMode(editMode === 'profile' ? 'none' : 'profile')}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.primaryMuted }]}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => setEditMode(editMode === 'profile' ? 'none' : 'profile')}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.primaryMuted }]}>
               <User size={16} color={Colors.primary} />
             </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Profile</Text>
-              <Text style={styles.settingsValue}>
-                {profile.age}y · {profile.sex} · {(profile.measurement_system ?? 'us') === 'us' ? `${profile.weight_lb}lb` : `${lbToKg(profile.weight_lb)}kg`}
-              </Text>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Body Stats</Text>
+              <Text style={styles.rowSubtitle}>{profile.age}y · {profile.sex} · {currentWeightLabel}</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
           </TouchableOpacity>
 
-          {editMode === 'profile' && (
-            <View style={styles.editPanel}>
-              <View style={styles.editRow}>
-                <View style={styles.editField}>
-                  <Text style={styles.editFieldLabel}>Age</Text>
+          {editMode === 'profile' ? (
+            <View style={styles.editor}>
+              <Text style={styles.fieldLabel}>Units</Text>
+              <View style={styles.segmentRow}>
+                <TouchableOpacity
+                  style={[styles.segment, measurementSystem === 'us' && styles.segmentActive]}
+                  onPress={() => setMeasurementSystem('us')}
+                >
+                  <Text style={[styles.segmentText, measurementSystem === 'us' && styles.segmentTextActive]}>US</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.segment, measurementSystem === 'metric' && styles.segmentActive]}
+                  onPress={() => setMeasurementSystem('metric')}
+                >
+                  <Text style={[styles.segmentText, measurementSystem === 'metric' && styles.segmentTextActive]}>Metric</Text>
+                </TouchableOpacity>
+              </View>
+
+              {measurementSystem === 'us' ? (
+                <View style={styles.inputRow}>
                   <TextInput
-                    style={styles.editInput}
-                    value={age}
-                    onChangeText={setAge}
+                    style={[styles.input, styles.inputHalf]}
+                    value={heightFt}
+                    onChangeText={setHeightFt}
                     keyboardType="number-pad"
+                    placeholder="ft"
+                    placeholderTextColor={Colors.textTertiary}
+                  />
+                  <TextInput
+                    style={[styles.input, styles.inputHalf]}
+                    value={heightIn}
+                    onChangeText={setHeightIn}
+                    keyboardType="number-pad"
+                    placeholder="in"
                     placeholderTextColor={Colors.textTertiary}
                   />
                 </View>
-                <View style={styles.editField}>
-                  <Text style={styles.editFieldLabel}>Sex</Text>
-                  <View style={styles.editSegments}>
-                    <TouchableOpacity
-                      style={[styles.editSegment, sex === 'male' && styles.editSegmentActive]}
-                      onPress={() => setSex('male')}
-                    >
-                      <Text style={[styles.editSegmentText, sex === 'male' && styles.editSegmentTextActive]}>M</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.editSegment, sex === 'female' && styles.editSegmentActive]}
-                      onPress={() => setSex('female')}
-                    >
-                      <Text style={[styles.editSegmentText, sex === 'female' && styles.editSegmentTextActive]}>F</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-              <View style={styles.editField}>
-                <Text style={styles.editFieldLabel}>Units</Text>
-                <View style={styles.editSegments}>
-                  <TouchableOpacity
-                    style={[styles.editSegment, measurementSystem === 'us' && styles.editSegmentActive]}
-                    onPress={() => setMeasurementSystem('us')}
-                  >
-                    <Text style={[styles.editSegmentText, measurementSystem === 'us' && styles.editSegmentTextActive]}>US</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.editSegment, measurementSystem === 'metric' && styles.editSegmentActive]}
-                    onPress={() => setMeasurementSystem('metric')}
-                  >
-                    <Text style={[styles.editSegmentText, measurementSystem === 'metric' && styles.editSegmentTextActive]}>Metric</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              {measurementSystem === 'us' ? (
-                <View style={styles.editRow}>
-                  <View style={styles.editField}>
-                    <Text style={styles.editFieldLabel}>Height (ft)</Text>
-                    <TextInput
-                      style={styles.editInput}
-                      value={heightFt}
-                      onChangeText={setHeightFt}
-                      keyboardType="number-pad"
-                      placeholderTextColor={Colors.textTertiary}
-                    />
-                  </View>
-                  <View style={styles.editField}>
-                    <Text style={styles.editFieldLabel}>Height (in)</Text>
-                    <TextInput
-                      style={styles.editInput}
-                      value={heightIn}
-                      onChangeText={setHeightIn}
-                      keyboardType="number-pad"
-                      placeholderTextColor={Colors.textTertiary}
-                    />
-                  </View>
-                  <View style={styles.editField}>
-                    <Text style={styles.editFieldLabel}>Weight (lb)</Text>
-                    <TextInput
-                      style={styles.editInput}
-                      value={weightLb}
-                      onChangeText={setWeightLb}
-                      keyboardType="decimal-pad"
-                      placeholderTextColor={Colors.textTertiary}
-                    />
-                  </View>
-                </View>
               ) : (
-                <View style={styles.editRow}>
-                  <View style={styles.editField}>
-                    <Text style={styles.editFieldLabel}>Height (cm)</Text>
-                    <TextInput
-                      style={styles.editInput}
-                      value={heightCm}
-                      onChangeText={setHeightCm}
-                      keyboardType="decimal-pad"
-                      placeholderTextColor={Colors.textTertiary}
-                    />
-                  </View>
-                  <View style={styles.editField}>
-                    <Text style={styles.editFieldLabel}>Weight (kg)</Text>
-                    <TextInput
-                      style={styles.editInput}
-                      value={weightKg}
-                      onChangeText={setWeightKg}
-                      keyboardType="decimal-pad"
-                      placeholderTextColor={Colors.textTertiary}
-                    />
-                  </View>
-                </View>
+                <TextInput
+                  style={styles.input}
+                  value={heightCm}
+                  onChangeText={setHeightCm}
+                  keyboardType="decimal-pad"
+                  placeholder="Height (cm)"
+                  placeholderTextColor={Colors.textTertiary}
+                />
               )}
-              <View style={styles.editField}>
-                <Text style={styles.editFieldLabel}>Activity</Text>
-                <View style={styles.editChips}>
-                  {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((level) => (
-                    <TouchableOpacity
-                      key={level}
-                      style={[styles.editChip, activityLevel === level && styles.editChipActive]}
-                      onPress={() => setActivityLevel(level)}
-                    >
-                      <Text style={[styles.editChipText, activityLevel === level && styles.editChipTextActive]}>
-                        {ACTIVITY_LABELS[level]}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-                <Text style={styles.saveButtonText}>Save Profile</Text>
+
+              <TextInput
+                style={styles.input}
+                value={measurementSystem === 'us' ? weightLb : weightKg}
+                onChangeText={measurementSystem === 'us' ? setWeightLb : setWeightKg}
+                keyboardType="decimal-pad"
+                placeholder={measurementSystem === 'us' ? 'Weight (lb)' : 'Weight (kg)'}
+                placeholderTextColor={Colors.textTertiary}
+              />
+
+              <TextInput
+                style={styles.input}
+                value={bodyFatPercent}
+                onChangeText={setBodyFatPercent}
+                keyboardType="decimal-pad"
+                placeholder="Body fat % (optional)"
+                placeholderTextColor={Colors.textTertiary}
+              />
+
+              <TouchableOpacity style={styles.primaryButton} onPress={handleSaveProfile}>
+                <Text style={styles.primaryButtonText}>Save Body Stats</Text>
               </TouchableOpacity>
             </View>
-          )}
+          ) : null}
 
-          <View style={styles.settingsDivider} />
+          <View style={styles.divider} />
 
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => setEditMode(editMode === 'goal' ? 'none' : 'goal')}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.successMuted }]}>
-              <Calculator size={16} color={Colors.success} />
+          <TouchableOpacity style={styles.settingsRow} onPress={() => setEditMode(editMode === 'nutrition' ? 'none' : 'nutrition')}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.fatMuted }]}>
+              <RefreshCw size={16} color={Colors.fat} />
             </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Goal</Text>
-              <Text style={styles.settingsValue}>
-                {GOAL_LABELS[profile.goal]} · {GOAL_RATE_LABELS[profile.goal_rate]}
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Nutrition Setup</Text>
+              <Text style={styles.rowSubtitle}>
+                {GOAL_LABELS[profile.goal]} · {ACTIVITY_LABELS[profile.activityLevel]} · {EATING_STYLE_LABELS[profile.eatingStyle]}
               </Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
           </TouchableOpacity>
 
-          {editMode === 'goal' && (
-            <View style={styles.editPanel}>
-              <View style={styles.editChips}>
-                {(Object.keys(GOAL_LABELS) as Goal[]).map((g) => (
-                  <TouchableOpacity
-                    key={g}
-                    style={[styles.editChip, goal === g && styles.editChipActive]}
-                    onPress={() => setGoal(g)}
-                  >
-                    <Text style={[styles.editChipText, goal === g && styles.editChipTextActive]}>
-                      {GOAL_LABELS[g]}
-                    </Text>
-                  </TouchableOpacity>
+          {editMode === 'nutrition' ? (
+            <View style={styles.editor}>
+              <Text style={styles.fieldLabel}>Goal</Text>
+              <View style={styles.chipWrap}>
+                {(Object.keys(GOAL_LABELS) as Goal[]).map((value) => (
+                  <Chip key={value} active={goal === value} label={GOAL_LABELS[value]} onPress={() => setGoal(value)} />
                 ))}
               </View>
-              {goal !== 'maintain' && goal !== 'recompose' && (
-                <View style={styles.editChips}>
-                  {(Object.keys(GOAL_RATE_LABELS) as GoalRate[]).map((rate) => (
-                    <TouchableOpacity
-                      key={rate}
-                      style={[styles.editChip, goalRate === rate && styles.editChipActive]}
-                      onPress={() => setGoalRate(rate)}
-                    >
-                      <Text style={[styles.editChipText, goalRate === rate && styles.editChipTextActive]}>
-                        {GOAL_RATE_LABELS[rate]}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveGoal}>
-                <Text style={styles.saveButtonText}>Save Goal</Text>
+
+              <Text style={styles.fieldLabel}>Activity Level</Text>
+              <View style={styles.chipWrap}>
+                {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((value) => (
+                  <Chip
+                    key={value}
+                    active={activityLevel === value}
+                    label={ACTIVITY_LABELS[value]}
+                    onPress={() => setActivityLevel(value)}
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>Eating Style</Text>
+              <View style={styles.chipWrap}>
+                {(Object.keys(EATING_STYLE_LABELS) as EatingStyle[]).map((value) => (
+                  <Chip
+                    key={value}
+                    active={eatingStyle === value}
+                    label={EATING_STYLE_LABELS[value]}
+                    onPress={() => setEatingStyle(value)}
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>Dietary Restrictions & Preferences</Text>
+              <View style={styles.chipWrap}>
+                {(Object.keys(DIETARY_MODIFIER_LABELS) as DietaryModifier[]).map((modifier) => (
+                  <Chip
+                    key={modifier}
+                    active={dietModifiers.includes(modifier)}
+                    label={DIETARY_MODIFIER_LABELS[modifier]}
+                    onPress={() => toggleModifier(modifier)}
+                  />
+                ))}
+              </View>
+
+              <TextInput
+                style={[styles.input, styles.notesInput]}
+                value={dietNotes}
+                onChangeText={setDietNotes}
+                multiline
+                placeholder="Other dietary notes"
+                placeholderTextColor={Colors.textTertiary}
+              />
+
+              <TouchableOpacity style={styles.primaryButton} onPress={handleSaveNutrition}>
+                <Text style={styles.primaryButtonText}>Save Nutrition Setup</Text>
               </TouchableOpacity>
             </View>
-          )}
+          ) : null}
+        </View>
 
-          <View style={styles.settingsDivider} />
-
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => router.push('/set-target' as never)}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.primaryMuted }]}>
-              <Target size={16} color={Colors.primary} />
-            </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Goal & Targets</Text>
-              <Text style={styles.settingsValue}>
-                {target
-                  ? formatTargetSummary(
-                      target,
-                      target.deadlineDateKey
-                        ? fromDateKey(target.deadlineDateKey).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                          })
-                        : undefined
-                    )
-                  : 'Set a measurable target'}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
-
-          <View style={styles.settingsDivider} />
-
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => router.push('/settings/allergies' as never)}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.warningMuted }]}>
+        <View style={styles.sectionCard}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/settings/allergies' as never)}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.warningMuted }]}>
               <AlertCircle size={16} color={Colors.warning} />
             </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Allergies</Text>
-              <Text style={styles.settingsValue}>{allergiesSubtitle}</Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
-
-          <View style={styles.settingsDivider} />
-
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => setEditMode(editMode === 'strategy' ? 'none' : 'strategy')}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.fatMuted }]}>
-              <RefreshCw size={16} color={Colors.fat} />
-            </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Macro Strategy</Text>
-              <Text style={styles.settingsValue}>
-                {MACRO_STRATEGY_LABELS[profile.macro_strategy ?? 'balanced']}
-                {(profile.dietary_modifiers ?? []).length > 0
-                  ? ` · ${(profile.dietary_modifiers ?? []).map((m: DietaryModifier) => DIETARY_MODIFIER_LABELS[m]).join(', ')}`
-                  : ''}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
-
-          {editMode === 'strategy' && (
-            <View style={styles.editPanel}>
-              <Text style={styles.editFieldLabel}>Strategy</Text>
-              <View style={styles.editChips}>
-                {(Object.keys(MACRO_STRATEGY_LABELS) as MacroStrategy[]).map((strat) => (
-                  <TouchableOpacity
-                    key={strat}
-                    style={[styles.editChip, macroStrategy === strat && styles.editChipActive]}
-                    onPress={() => setMacroStrategy(strat)}
-                  >
-                    <Text style={[styles.editChipText, macroStrategy === strat && styles.editChipTextActive]}>
-                      {MACRO_STRATEGY_LABELS[strat]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={[styles.editFieldLabel, { marginTop: 12 }]}>Modifiers</Text>
-              <View style={styles.editChips}>
-                {(Object.keys(DIETARY_MODIFIER_LABELS) as DietaryModifier[]).map((mod) => (
-                  <TouchableOpacity
-                    key={mod}
-                    style={[styles.editChip, dietaryModifiers.includes(mod) && styles.editChipActive]}
-                    onPress={() => toggleModifier(mod)}
-                  >
-                    <Text style={[styles.editChipText, dietaryModifiers.includes(mod) && styles.editChipTextActive]}>
-                      {DIETARY_MODIFIER_LABELS[mod]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSaveStrategy}>
-                <Text style={styles.saveButtonText}>Save Strategy</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.legalSectionTitle}>My Plan</Text>
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setDefinitionSheet({ type: 'goal', id: profile.goal });
-            }}
-            accessibilityLabel={`View details for current goal: ${GOAL_DEFINITIONS[profile.goal].title}`}
-            accessibilityRole="button"
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.successMuted }]}>
-              <Calculator size={16} color={Colors.success} />
-            </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Current Goal</Text>
-              <Text style={styles.settingsValue}>
-                {GOAL_DEFINITIONS[profile.goal].title}
-              </Text>
-            </View>
-            <Text style={styles.learnMoreLinkText}>View details</Text>
-          </TouchableOpacity>
-          <View style={styles.settingsDivider} />
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setDefinitionSheet({ type: 'strategy', id: profile.macro_strategy ?? 'balanced' });
-            }}
-            accessibilityLabel={`View details for current strategy: ${MACRO_STRATEGY_DEFINITIONS[profile.macro_strategy ?? 'balanced'].title}`}
-            accessibilityRole="button"
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.fatMuted }]}>
-              <RefreshCw size={16} color={Colors.fat} />
-            </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Current Macro Strategy</Text>
-              <Text style={styles.settingsValue}>
-                {MACRO_STRATEGY_DEFINITIONS[profile.macro_strategy ?? 'balanced'].title}
-              </Text>
-            </View>
-            <Text style={styles.learnMoreLinkText}>View details</Text>
-          </TouchableOpacity>
-          <View style={styles.settingsDivider} />
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => {
-              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setViewAllDefinitionsVisible(true);
-            }}
-            accessibilityLabel="View all goal and strategy definitions"
-            accessibilityRole="button"
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.primaryMuted }]}>
-              <Bookmark size={16} color={Colors.primary} />
-            </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>View all definitions</Text>
-              <Text style={styles.settingsValue}>Goals and Macro Strategies</Text>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Allergies</Text>
+              <Text style={styles.rowSubtitle}>{allergySummary}</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.sectionCard}>
-          <Text style={styles.legalSectionTitle}>Measurements</Text>
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => router.push('/add-measurement' as any)}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.successMuted }]}>
-              <Ruler size={16} color={Colors.success} />
-            </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Add Measurement</Text>
-              <Text style={styles.settingsValue}>{records.length} recorded</Text>
-            </View>
-            <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
-          <View style={styles.settingsDivider} />
-          <View style={styles.settingsRow}>
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.warningMuted }]}>
-              <Bell size={16} color={Colors.warning} />
-            </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Reminder Cadence</Text>
-            </View>
-          </View>
-          <View style={styles.cadenceChips}>
-            {(['weekly', 'biweekly', 'monthly', 'off'] as PromptCadence[]).map((c) => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.cadenceChip, promptSettings?.cadence === c && styles.cadenceChipActive]}
-                onPress={() => {
-                  updateCadence(c);
-                  if (Platform.OS !== 'web') {
-                    Haptics.selectionAsync();
-                  }
-                }}
-              >
-                <Text style={[styles.cadenceChipText, promptSettings?.cadence === c && styles.cadenceChipTextActive]}>
-                  {CADENCE_LABELS[c]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.legalSectionTitle}>Legal</Text>
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.carbsMuted }]}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.carbsMuted }]}>
               <Shield size={16} color={Colors.carbs} />
             </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Privacy Policy</Text>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Privacy Policy</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
           </TouchableOpacity>
-          <View style={styles.settingsDivider} />
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.warningMuted }]}>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.warningMuted }]}>
               <FileText size={16} color={Colors.warning} />
             </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Terms of Use</Text>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Terms of Use</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
           </TouchableOpacity>
-          <View style={styles.settingsDivider} />
-          <TouchableOpacity
-            style={styles.settingsRow}
-            onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'contact' } })}
-          >
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.successMuted }]}>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'contact' } })}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.successMuted }]}>
               <Mail size={16} color={Colors.success} />
             </View>
-            <View style={styles.settingsInfo}>
-              <Text style={styles.settingsLabel}>Contact & Support</Text>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Contact & Support</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.dangerSection}>
-          <TouchableOpacity style={styles.dangerRow} onPress={handleResetData}>
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.dangerMuted }]}>
+        <View style={styles.sectionCard}>
+          <TouchableOpacity style={styles.settingsRow} onPress={handleResetData}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.dangerMuted }]}>
               <Trash2 size={16} color={Colors.danger} />
             </View>
-            <Text style={styles.dangerText}>Clear Food Logs</Text>
+            <View style={styles.rowCopy}>
+              <Text style={[styles.rowTitle, { color: Colors.danger }]}>Clear Food Logs</Text>
+            </View>
           </TouchableOpacity>
-          <View style={styles.settingsDivider} />
-          <TouchableOpacity style={styles.dangerRow} onPress={handleResetProfile}>
-            <View style={[styles.settingsIcon, { backgroundColor: Colors.dangerMuted }]}>
+          <View style={styles.divider} />
+          <TouchableOpacity style={styles.settingsRow} onPress={handleResetProfile}>
+            <View style={[styles.iconBadge, { backgroundColor: Colors.dangerMuted }]}>
               <Trash2 size={16} color={Colors.danger} />
             </View>
-            <Text style={styles.dangerText}>Reset Everything</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.devSection}>
-          <Text style={styles.devSectionTitle}>Food Search</Text>
-          <TouchableOpacity
-            style={styles.devRow}
-            onPress={() => router.push('/saved-foods' as any)}
-            activeOpacity={0.7}
-          >
-            <Bookmark size={16} color={Colors.primary} />
-            <Text style={styles.devRowText}>Saved Foods</Text>
-            <ChevronRight size={16} color={Colors.textTertiary} style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.devRow, { marginTop: 8 }]}
-            onPress={handleUsdaHealthCheck}
-            activeOpacity={0.7}
-          >
-            <RefreshCw size={16} color={Colors.primary} />
-            <Text style={styles.devRowText}>Verify USDA API</Text>
-          </TouchableOpacity>
-          {usdaHealth && (
-            <View style={styles.devResult}>
-              <Text style={styles.devResultText}>
-                {usdaHealth.ok
-                  ? `OK (status ${usdaHealth.status})`
-                  : `Error: ${usdaHealth.error ?? usdaHealth.status ?? 'unknown'}`}
-              </Text>
-              {usdaHealth.keySuffix && (
-                <Text style={styles.devResultText}>Key: {usdaHealth.keySuffix} (len: {usdaHealth.keyLength ?? '?'})</Text>
-              )}
-              {usdaHealth.usdaMessage && (
-                <Text style={[styles.devResultText, { marginTop: 4 }]} numberOfLines={3}>
-                  USDA: {usdaHealth.usdaMessage}
-                </Text>
-              )}
-              {(usdaHealth.source || usdaHealth.baseUrl) && (
-                <Text style={[styles.devResultText, { marginTop: 4 }]}>
-                  {[usdaHealth.source && `source: ${usdaHealth.source}`, usdaHealth.baseUrl && `baseUrl: ${usdaHealth.baseUrl}`].filter(Boolean).join(' · ')}
-                </Text>
-              )}
+            <View style={styles.rowCopy}>
+              <Text style={[styles.rowTitle, { color: Colors.danger }]}>Reset Everything</Text>
             </View>
-          )}
-        </View>
-
-        <View style={styles.footer}>
-          <View style={styles.footerRow}>
-            <Shield size={14} color={Colors.textTertiary} />
-            <Text style={styles.footerText}>For general fitness guidance only</Text>
-          </View>
-          <Text style={styles.footerVersion}>Physiq v1.2.1</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+    </View>
+  );
+}
 
-      {definitionSheet && (
-        <PlanDefinitionSheet
-          visible={!!definitionSheet}
-          title={
-            definitionSheet.type === 'goal'
-              ? GOAL_DEFINITIONS[definitionSheet.id].title
-              : MACRO_STRATEGY_DEFINITIONS[definitionSheet.id].title
-          }
-          sections={
-            definitionSheet.type === 'goal'
-              ? GOAL_DEFINITIONS[definitionSheet.id].learnMore
-              : MACRO_STRATEGY_DEFINITIONS[definitionSheet.id].learnMore
-          }
-          onClose={() => setDefinitionSheet(null)}
-        />
-      )}
+function Chip({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress} activeOpacity={0.8}>
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 
-      <Modal
-        visible={viewAllDefinitionsVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setViewAllDefinitionsVisible(false)}
-      >
-        <Pressable style={styles.viewAllOverlay} onPress={() => setViewAllDefinitionsVisible(false)}>
-          <Pressable onPress={() => {}} style={styles.viewAllSheet}>
-            <View style={styles.viewAllHandle} />
-            <Text style={styles.viewAllTitle}>All Definitions</Text>
-            <ScrollView style={styles.viewAllScroll} contentContainerStyle={styles.viewAllScrollContent} showsVerticalScrollIndicator={false}>
-              <Text style={styles.viewAllSectionTitle}>Goals</Text>
-              {(Object.keys(GOAL_DEFINITIONS) as Goal[]).map((g) => {
-                const def = GOAL_DEFINITIONS[g];
-                return (
-                  <TouchableOpacity
-                    key={g}
-                    style={styles.viewAllItem}
-                    onPress={() => {
-                      setDefinitionSheet({ type: 'goal', id: g });
-                      setViewAllDefinitionsVisible(false);
-                    }}
-                    accessibilityLabel={`Learn more about ${def.title}`}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.viewAllItemTitle}>{def.title}</Text>
-                    <Text style={styles.viewAllItemDesc} numberOfLines={2}>{def.shortDescription}</Text>
-                    <Text style={styles.viewAllLearnMore}>Learn more</Text>
-                  </TouchableOpacity>
-                );
-              })}
-              <Text style={[styles.viewAllSectionTitle, { marginTop: 20 }]}>Macro Strategies</Text>
-              {(Object.keys(MACRO_STRATEGY_DEFINITIONS) as MacroStrategy[]).map((s) => {
-                const def = MACRO_STRATEGY_DEFINITIONS[s];
-                return (
-                  <TouchableOpacity
-                    key={s}
-                    style={styles.viewAllItem}
-                    onPress={() => {
-                      setDefinitionSheet({ type: 'strategy', id: s });
-                      setViewAllDefinitionsVisible(false);
-                    }}
-                    accessibilityLabel={`Learn more about ${def.title}`}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.viewAllItemTitle}>{def.title}</Text>
-                    <Text style={styles.viewAllItemDesc} numberOfLines={2}>{def.shortDescription}</Text>
-                    <Text style={styles.viewAllLearnMore}>Learn more</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+function MetricCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <View style={styles.metricCard}>
+      <Text style={[styles.metricValue, { color }]}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }
@@ -870,7 +420,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 36,
   },
   macroSummary: {
     backgroundColor: Colors.card,
@@ -881,34 +431,32 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     ...(Shadows.card as Record<string, unknown>),
   },
-  macroSummaryTitle: {
+  sectionTitle: {
     color: Colors.text,
     fontSize: 16,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     marginBottom: 14,
   },
-  macroSummaryRow: {
+  macroRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 10,
   },
-  macroSummaryItem: {
+  metricCard: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.cardElevated,
   },
-  macroSummaryValue: {
+  metricValue: {
     fontSize: 18,
-    fontWeight: '800' as const,
+    fontWeight: '800',
   },
-  macroSummaryLabel: {
+  metricLabel: {
     color: Colors.textSecondary,
     fontSize: 11,
-    fontWeight: '600' as const,
-    marginTop: 2,
-  },
-  macroSummaryDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: Colors.cardBorder,
+    fontWeight: '600',
+    marginTop: 4,
   },
   sectionCard: {
     backgroundColor: Colors.card,
@@ -925,288 +473,127 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
-  settingsIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  iconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settingsInfo: {
+  rowCopy: {
     flex: 1,
   },
-  settingsLabel: {
+  rowTitle: {
     color: Colors.text,
     fontSize: 15,
-    fontWeight: '600' as const,
+    fontWeight: '700',
   },
-  settingsValue: {
+  rowSubtitle: {
     color: Colors.textSecondary,
     fontSize: 13,
-    fontWeight: '500' as const,
-    marginTop: 1,
+    fontWeight: '500',
+    marginTop: 2,
   },
-  learnMoreLinkText: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  settingsDivider: {
+  divider: {
     height: 1,
     backgroundColor: Colors.cardBorder,
-    marginLeft: 60,
+    marginLeft: 62,
   },
-  editPanel: {
+  editor: {
     padding: 16,
-    paddingTop: 4,
+    paddingTop: 0,
     gap: 12,
   },
-  editRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  editField: {
-    flex: 1,
-  },
-  editFieldLabel: {
+  fieldLabel: {
     color: Colors.textSecondary,
     fontSize: 12,
-    fontWeight: '600' as const,
-    marginBottom: 6,
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  editInput: {
-    backgroundColor: Colors.cardElevated,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '600' as const,
-  },
-  editSegments: {
+  inputRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 10,
   },
-  editSegment: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+  input: {
     backgroundColor: Colors.cardElevated,
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
+    borderColor: Colors.cardBorder,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  inputHalf: {
+    flex: 1,
+  },
+  notesInput: {
+    minHeight: 96,
+    textAlignVertical: 'top',
+  },
+  segmentRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  segment: {
+    flex: 1,
+    backgroundColor: Colors.cardElevated,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
   },
-  editSegmentActive: {
-    backgroundColor: Colors.primaryMuted,
+  segmentActive: {
     borderColor: Colors.primary,
+    backgroundColor: Colors.primaryMuted,
   },
-  editSegmentText: {
+  segmentText: {
     color: Colors.textSecondary,
     fontSize: 14,
-    fontWeight: '600' as const,
+    fontWeight: '700',
   },
-  editSegmentTextActive: {
+  segmentTextActive: {
     color: Colors.primary,
   },
-  editChips: {
+  chipWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  editChip: {
+  chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 999,
     backgroundColor: Colors.cardElevated,
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
+    borderColor: Colors.cardBorder,
   },
-  editChipActive: {
-    backgroundColor: Colors.primaryMuted,
+  chipActive: {
     borderColor: Colors.primary,
+    backgroundColor: Colors.primaryMuted,
   },
-  editChipText: {
+  chipText: {
     color: Colors.textSecondary,
     fontSize: 13,
-    fontWeight: '600' as const,
+    fontWeight: '700',
   },
-  editChipTextActive: {
+  chipTextActive: {
     color: Colors.primary,
   },
-  saveButton: {
+  primaryButton: {
+    height: 48,
+    borderRadius: 12,
     backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 4,
+    justifyContent: 'center',
   },
-  saveButtonText: {
+  primaryButtonText: {
     color: Colors.white,
     fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  dangerSection: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    overflow: 'hidden',
-    marginBottom: Spacing.xxl,
-    ...(Shadows.card as Record<string, unknown>),
-  },
-  dangerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 12,
-  },
-  dangerText: {
-    color: Colors.danger,
-    fontSize: 15,
-    fontWeight: '600' as const,
-  },
-  devSection: {
-    marginBottom: Spacing.xl,
-  },
-  devSectionTitle: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    paddingHorizontal: 4,
-    marginBottom: 8,
-  },
-  devRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  devRowText: {
-    color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  devResult: {
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: Colors.cardElevated,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  devResultText: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  footer: {
-    alignItems: 'center',
-    gap: 8,
-    paddingTop: 8,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  footerText: {
-    color: Colors.textTertiary,
-    fontSize: 12,
-  },
-  footerVersion: {
-    color: Colors.textTertiary,
-    fontSize: 11,
-  },
-  viewAllOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  viewAllSheet: {
-    backgroundColor: Colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: Colors.cardBorder,
-  },
-  viewAllHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.textTertiary,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 16,
-  },
-  viewAllTitle: {
-    color: Colors.text,
-    fontSize: 20,
-    fontWeight: '700' as const,
-    marginBottom: 16,
-  },
-  viewAllScroll: {
-    maxHeight: 400,
-  },
-  viewAllScrollContent: {
-    paddingBottom: 20,
-  },
-  viewAllSectionTitle: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  viewAllItem: {
-    backgroundColor: Colors.cardElevated,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  viewAllItemTitle: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  viewAllItemDesc: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  viewAllLearnMore: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontWeight: '600' as const,
-    marginTop: 8,
-  },
-  legalSectionTitle: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600' as const,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 4,
+    fontWeight: '800',
   },
   emptyState: {
     flex: 1,
@@ -1216,33 +603,6 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: Colors.textSecondary,
     fontSize: 16,
-    fontWeight: '600' as const,
-  },
-  cadenceChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-  },
-  cadenceChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: Colors.cardElevated,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-  },
-  cadenceChipActive: {
-    backgroundColor: Colors.primaryMuted,
-    borderColor: Colors.primary,
-  },
-  cadenceChipText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  cadenceChipTextActive: {
-    color: Colors.primary,
+    fontWeight: '700',
   },
 });

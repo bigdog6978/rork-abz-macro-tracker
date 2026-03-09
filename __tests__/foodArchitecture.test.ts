@@ -1,3 +1,19 @@
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    extra: {},
+  },
+}));
+
+jest.mock('../src/data/db', () => ({
+  openDb: jest.fn(),
+}));
+
+jest.mock('../src/data/foodsRepo', () => ({
+  upsertFood: jest.fn(),
+  getFoodById: jest.fn(),
+  searchFoods: jest.fn(),
+}));
+
 import { normalizeSearchResult, normalizeDetailResult } from '../features/food/providers/usda/usdaNormalizer';
 import { computeMacrosForServing, createFoodEntry, createManualNormalizedFood } from '../features/food/foodService';
 import { NormalizedFood } from '../features/food/types';

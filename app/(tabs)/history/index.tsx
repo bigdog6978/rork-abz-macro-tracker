@@ -454,7 +454,7 @@ export default function HistoryScreen() {
     [logs, ensureDayExists, handleDayPress]
   );
 
-  if (!profile.onboarding_complete) {
+  if (!profile.onboardingComplete) {
     return (
       <View style={styles.container}>
         <View style={styles.emptyState}>

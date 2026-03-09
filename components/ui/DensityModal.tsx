@@ -8,8 +8,10 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  Keyboard,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { X } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 
 interface DensityModalProps {
@@ -66,7 +68,19 @@ export default function DensityModal({
       <Pressable style={styles.overlay} onPress={handleCancel}>
         <Pressable onPress={() => {}} style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.title}>Add density</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Add density</Text>
+            <TouchableOpacity
+              onPress={() => Keyboard.dismiss()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Dismiss keyboard"
+              accessibilityRole="button"
+            >
+              <View style={styles.closeBtn}>
+                <X size={16} color={Colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.subheader}>
             Needed to convert volume → grams for accurate macros.
           </Text>
@@ -129,11 +143,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 16,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   title: {
     color: Colors.text,
     fontSize: 20,
     fontWeight: '700' as const,
-    marginBottom: 4,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: Colors.cardElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   subheader: {
     color: Colors.textSecondary,

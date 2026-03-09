@@ -23,10 +23,10 @@ import { Radius, Spacing, Shadows } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
-import { getMealPlanForStrategy } from '../../../mocks/mealTemplates';
+import { getMealPlanForEatingStyle } from '../../../mocks/mealTemplates';
 import { getAllergies } from '../../../storage/allergiesRepo';
 import {
-  MACRO_STRATEGY_LABELS,
+  EATING_STYLE_LABELS,
   DIETARY_MODIFIER_LABELS,
   MealSlot,
   MealSuggestion,
@@ -872,14 +872,14 @@ export default function PlanScreen() {
   const allergies = allergiesQuery.data ?? [];
 
   const basePlan = useMemo(() => {
-    return getMealPlanForStrategy(
-      profile.macro_strategy ?? 'balanced',
-      profile.dietary_modifiers ?? [],
+    return getMealPlanForEatingStyle(
+      profile.eatingStyle,
+      profile.dietModifiers ?? [],
       macros,
-      profile.measurement_system ?? 'us',
+      profile.measurementSystem ?? 'us',
       allergies
     );
-  }, [profile.macro_strategy, profile.dietary_modifiers, profile.goal, macros, profile.measurement_system, allergies]);
+  }, [profile.eatingStyle, profile.dietModifiers, profile.goal, macros, profile.measurementSystem, allergies]);
 
   const [substitutionMap, setSubstitutionMap] = useState<
     Record<string, MealSuggestion>
@@ -919,7 +919,7 @@ export default function PlanScreen() {
   const activePlanMeals = activePlanQuery.data?.meals;
   const isUsingActivePlan = !!activePlanQuery.data && activePlanLoaded;
 
-  const measurementSystem = profile.measurement_system ?? 'us';
+  const measurementSystem = profile.measurementSystem ?? 'us';
   const plan: DayPlan = useMemo(() => {
     const applySubstitutionsAndQuantity = (meals: MealSlot[]) =>
       meals.map((meal, mealIdx) => ({
@@ -956,8 +956,7 @@ export default function PlanScreen() {
 
     if (isUsingActivePlan && activePlanMeals) {
       return {
-        preference: basePlan.preference,
-        strategy: basePlan.strategy,
+        eatingStyle: basePlan.eatingStyle,
         tags: basePlan.tags,
         meals: applySubstitutionsAndQuantity(activePlanMeals),
         planUnavailable: false,
@@ -1029,9 +1028,9 @@ export default function PlanScreen() {
 
   const savePlanMutation = useMutation({
     mutationFn: async (name: string) => {
-      const strategy = profile.macro_strategy ?? 'balanced';
+      const eatingStyle = profile.eatingStyle;
       const now = new Date().toISOString();
-      const autoName = name.trim() || `${MACRO_STRATEGY_LABELS[strategy]} Plan – ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      const autoName = name.trim() || `${EATING_STYLE_LABELS[eatingStyle]} Plan – ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
       const mealsDeepCopy: MealSlot[] = plan.meals.map((meal) => ({
         ...meal,
@@ -1041,8 +1040,8 @@ export default function PlanScreen() {
       const savedPlan: SavedMealPlan = {
         id: generateId(),
         name: autoName,
-        macroStrategy: strategy,
-        dietaryModifiers: [...(profile.dietary_modifiers ?? [])],
+        eatingStyle,
+        dietaryModifiers: [...(profile.dietModifiers ?? [])],
         createdAt: now,
         updatedAt: now,
         meals: mealsDeepCopy,
@@ -1087,9 +1086,9 @@ export default function PlanScreen() {
 
     const mealType = mealNameToType(plan.meals[mealIndex].name);
     const results = getSubstitutes(food, {
-      strategy: profile.macro_strategy ?? 'balanced',
-      modifiers: profile.dietary_modifiers ?? [],
-      measurementSystem: profile.measurement_system ?? 'us',
+      eatingStyle: profile.eatingStyle,
+      modifiers: profile.dietModifiers ?? [],
+      measurementSystem: profile.measurementSystem ?? 'us',
       excludeFoodIds: plan.meals[mealIndex].suggestions
         .filter((_, i) => i !== foodIndex)
         .map((s) => s.foodId),
@@ -1215,7 +1214,6 @@ export default function PlanScreen() {
   );
 
   const openSaveModal = useCallback(() => {
-    const strategy = profile.macro_strategy ?? 'balanced';
     setPlanName('');
     setSaveModalVisible(true);
     saveSlideAnim.setValue(SHEET_HEIGHT);
@@ -1225,7 +1223,7 @@ export default function PlanScreen() {
       tension: 65,
       friction: 11,
     }).start();
-  }, [profile.macro_strategy, saveSlideAnim]);
+  }, [saveSlideAnim]);
 
   const closeSaveModal = useCallback(() => {
     Animated.timing(saveSlideAnim, {
@@ -1246,7 +1244,7 @@ export default function PlanScreen() {
   const savedPlans = savedPlansQuery.data ?? [];
   const activePlanName = activePlanQuery.data?.name;
 
-  if (!profile.onboarding_complete) {
+  if (!profile.onboardingComplete) {
     return (
       <View style={styles.container}>
         <View style={styles.emptyState}>
@@ -1266,7 +1264,7 @@ export default function PlanScreen() {
           <View style={styles.headerTopRow}>
             <View style={styles.headerTitleArea}>
               <Text style={styles.headerTitle}>
-                {MACRO_STRATEGY_LABELS[profile.macro_strategy ?? 'balanced']} Plan
+                {EATING_STYLE_LABELS[profile.eatingStyle]} Plan
               </Text>
               <Text style={styles.headerSubtitle}>
                 Plan totals: {formatNumber(planTotals.calories)} cal (target {formatNumber(macros.calories)})
@@ -1336,9 +1334,9 @@ export default function PlanScreen() {
             </View>
           )}
 
-          {(profile.dietary_modifiers ?? []).length > 0 && (
+          {(profile.dietModifiers ?? []).length > 0 && (
             <View style={styles.modifierRow}>
-              {(profile.dietary_modifiers ?? []).map((mod: DietaryModifier) => (
+              {(profile.dietModifiers ?? []).map((mod: DietaryModifier) => (
                 <View key={mod} style={styles.modifierPill}>
                   <Text style={styles.modifierPillText}>{DIETARY_MODIFIER_LABELS[mod]}</Text>
                 </View>
@@ -1367,7 +1365,7 @@ export default function PlanScreen() {
           <View style={styles.planUnavailableCard}>
             <Text style={styles.planUnavailableTitle}>Plan unavailable</Text>
             <Text style={styles.planUnavailableText}>
-              We couldn't generate a plan with your current allergies and preferences. Try removing an allergy or adjusting your strategy.
+              We couldn't generate a plan with your current allergies and dietary setup. Try removing an allergy or adjusting your eating style or restrictions.
             </Text>
             <TouchableOpacity
               style={styles.editAllergiesBtn}
@@ -1576,7 +1574,7 @@ export default function PlanScreen() {
                   testID="plan-name-input"
                 />
                 <Text style={styles.saveHint}>
-                  Leave blank for auto: "{MACRO_STRATEGY_LABELS[profile.macro_strategy ?? 'balanced']} Plan – {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}"
+                  Leave blank for auto: "{EATING_STYLE_LABELS[profile.eatingStyle]} Plan – {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}"
                 </Text>
               </View>
 

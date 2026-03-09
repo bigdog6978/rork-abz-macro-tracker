@@ -1,35 +1,27 @@
-import { MealSuggestion, MacroStrategy, DietaryModifier, FoodCategory, MeasurementSystem } from '../../types';
+import { MealSuggestion, EatingStyle, DietaryModifier, FoodCategory, MeasurementSystem } from '../../types';
 import { FOODS, formatPortionLabel } from '../../constants/foodDatabase';
 import { SUBSTITUTE_CATALOG } from './substituteCatalog';
 import { SubstituteCatalogItem, SubstituteResult } from './types';
 import { MealType, MEAL_TYPE_FOOD_IDS } from '../../constants/mealSwapCatalog';
 
 interface SubstituteOptions {
-  strategy: MacroStrategy;
+  eatingStyle: EatingStyle;
   modifiers: DietaryModifier[];
   measurementSystem?: MeasurementSystem;
   excludeFoodIds?: string[];
   mealType?: MealType;
 }
 
-const DIET_EXCLUSION_TAGS: Record<string, string[]> = {
-  vegan: ['meat', 'fish', 'dairy', 'egg', 'animal'],
-  vegetarian: ['meat', 'fish'],
-  dairy_free: ['dairy'],
-  carnivore_strategy: ['grain', 'legume', 'fruit', 'plant', 'vegetarian', 'vegan'],
-};
-
 const KETO_MAX_CARB_PER_SERVING = 12;
-const LOW_CARB_MAX_CARB_PER_SERVING = 25;
 
 function isItemAllowedByDiet(
   item: SubstituteCatalogItem,
-  strategy: MacroStrategy,
+  eatingStyle: EatingStyle,
   modifiers: DietaryModifier[]
 ): boolean {
-  if (modifiers.includes('vegan')) {
+  if (eatingStyle === 'vegan') {
     if (!item.tags.includes('vegan')) return false;
-  } else if (modifiers.includes('vegetarian')) {
+  } else if (eatingStyle === 'vegetarian') {
     if (!item.tags.includes('vegetarian') && !item.tags.includes('vegan')) return false;
   }
 
@@ -41,26 +33,27 @@ function isItemAllowedByDiet(
     if (!item.tags.includes('gluten_free')) return false;
   }
 
-  if (modifiers.includes('paleo')) {
+  if (eatingStyle === 'paleo') {
     if (!item.tags.includes('paleo') && !item.tags.includes('veggie') && !item.tags.includes('plant')) {
       const hasPaleoTag = item.tags.includes('paleo');
       if (!hasPaleoTag) return false;
     }
   }
 
-  if (strategy === 'carnivore') {
+  if (modifiers.includes('egg_free') && item.tags.includes('egg')) return false;
+  if (modifiers.includes('soy_free') && item.tags.includes('soy')) return false;
+  if (modifiers.includes('shellfish_free') && item.tags.includes('shellfish')) return false;
+  if (modifiers.includes('nut_free') && (item.tags.includes('nut') || item.tags.includes('peanut'))) return false;
+
+  if (eatingStyle === 'carnivore') {
     const isAnimal = item.tags.includes('animal') || item.tags.includes('meat') ||
                      item.tags.includes('fish') || item.tags.includes('egg') ||
                      item.tags.includes('dairy') || item.tags.includes('carnivore');
     if (!isAnimal) return false;
   }
 
-  if (strategy === 'keto') {
+  if (eatingStyle === 'keto') {
     if (item.macrosPerServing.carbs_g > KETO_MAX_CARB_PER_SERVING) return false;
-  }
-
-  if (strategy === 'low_carb') {
-    if (item.macrosPerServing.carbs_g > LOW_CARB_MAX_CARB_PER_SERVING) return false;
   }
 
   return true;
@@ -136,7 +129,7 @@ export function getSubstitutes(
   options: SubstituteOptions,
   count: number = 12
 ): SubstituteResult[] {
-  const { strategy, modifiers, measurementSystem = 'us', excludeFoodIds = [], mealType } = options;
+  const { eatingStyle, modifiers, measurementSystem = 'us', excludeFoodIds = [], mealType } = options;
   const category = foodItem.category;
 
   console.log('[SubstituteEngine] Finding substitutes for:', foodItem.name, 'category:', category, 'mealType:', mealType);
@@ -146,7 +139,7 @@ export function getSubstitutes(
 
   let candidates = SUBSTITUTE_CATALOG.filter((item) => {
     if (allExcluded.has(item.foodId)) return false;
-    if (!isItemAllowedByDiet(item, strategy, modifiers)) return false;
+    if (!isItemAllowedByDiet(item, eatingStyle, modifiers)) return false;
     return true;
   });
 

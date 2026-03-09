@@ -1,5 +1,5 @@
 import { FOODS, FoodItemData, computeMacros, formatPortionLabel } from '../constants/foodDatabase';
-import { MacroTargets, MacroStrategy, DietaryModifier, DayPlan, MealSlot, MealSuggestion, DietaryPreference, MeasurementSystem, FoodCategory, UserAllergy } from '../types';
+import { MacroTargets, DietaryModifier, DayPlan, MealSlot, MealSuggestion, MeasurementSystem, FoodCategory, UserAllergy, EatingStyle } from '../types';
 import { isFoodBlockedByAllergies } from './allergyFilter';
 
 interface MealFoodRef {
@@ -460,17 +460,6 @@ const VEGETARIAN_HIGH_PROTEIN_BLUEPRINTS: StrategyBlueprints = {
   ],
 };
 
-const STRATEGY_BLUEPRINTS: Record<MacroStrategy, StrategyBlueprints> = {
-  balanced: BALANCED_BLUEPRINTS,
-  high_protein: HIGH_PROTEIN_BLUEPRINTS,
-  low_carb: LOW_CARB_BLUEPRINTS,
-  keto: KETO_BLUEPRINTS,
-  carnivore: CARNIVORE_BLUEPRINTS,
-  low_fat: LOW_FAT_BLUEPRINTS,
-  performance: PERFORMANCE_BLUEPRINTS,
-  mediterranean: MEDITERRANEAN_BLUEPRINTS,
-};
-
 const MEAT_TAGS = ['meat', 'fish'];
 const ANIMAL_TAGS = ['meat', 'fish', 'dairy', 'egg', 'animal'];
 const DAIRY_TAGS = ['dairy'];
@@ -479,36 +468,6 @@ const LEGUME_GRAIN_TAGS = ['legume', 'grain', 'dairy'];
 
 function foodHasTag(food: FoodItemData, tags: string[]): boolean {
   return food.tags.some((t) => tags.includes(t));
-}
-
-function getVegetarianBlueprint(strategy: MacroStrategy): StrategyBlueprints | null {
-  switch (strategy) {
-    case 'balanced':
-    case 'low_carb':
-    case 'low_fat':
-    case 'performance':
-    case 'mediterranean':
-      return VEGETARIAN_BALANCED_BLUEPRINTS;
-    case 'high_protein':
-      return VEGETARIAN_HIGH_PROTEIN_BLUEPRINTS;
-    case 'keto':
-      return VEGETARIAN_KETO_BLUEPRINTS;
-    case 'carnivore':
-      return null;
-    default:
-      return VEGETARIAN_BALANCED_BLUEPRINTS;
-  }
-}
-
-function getVeganBlueprint(strategy: MacroStrategy): StrategyBlueprints | null {
-  switch (strategy) {
-    case 'carnivore':
-      return null;
-    case 'keto':
-      return null;
-    default:
-      return VEGAN_BALANCED_BLUEPRINTS;
-  }
 }
 
 const DAIRY_FREE_SWAPS: Record<string, string> = {
@@ -568,7 +527,7 @@ const PALEO_SWAPS: Record<string, string> = {
 
 function applyFoodSwaps(
   foodId: string,
-  modifiers: DietaryModifier[]
+  modifiers: string[]
 ): string {
   let current = foodId;
   const food = FOODS[current];
@@ -600,21 +559,24 @@ function applyFoodSwaps(
 }
 
 function selectBlueprint(
-  strategy: MacroStrategy,
-  modifiers: DietaryModifier[]
+  eatingStyle: EatingStyle
 ): StrategyBlueprints {
-  const isVegan = modifiers.includes('vegan');
-  const isVegetarian = modifiers.includes('vegetarian') || isVegan;
-
-  if (isVegan) {
-    return getVeganBlueprint(strategy) ?? VEGAN_BALANCED_BLUEPRINTS;
+  switch (eatingStyle) {
+    case 'mediterranean':
+      return MEDITERRANEAN_BLUEPRINTS;
+    case 'vegan':
+      return VEGAN_BALANCED_BLUEPRINTS;
+    case 'vegetarian':
+      return VEGETARIAN_BALANCED_BLUEPRINTS;
+    case 'keto':
+      return KETO_BLUEPRINTS;
+    case 'carnivore':
+      return CARNIVORE_BLUEPRINTS;
+    case 'paleo':
+    case 'standard':
+    default:
+      return BALANCED_BLUEPRINTS;
   }
-
-  if (isVegetarian) {
-    return getVegetarianBlueprint(strategy) ?? VEGETARIAN_BALANCED_BLUEPRINTS;
-  }
-
-  return STRATEGY_BLUEPRINTS[strategy] ?? BALANCED_BLUEPRINTS;
 }
 
 function applyIFTimings(meals: MealBlueprint[]): MealBlueprint[] {
@@ -678,7 +640,7 @@ function withinTolerance(actual: MacroTargets, target: MacroTargets): boolean {
 function scaleMealToTargets(
   blueprint: MealBlueprint,
   dailyMacros: MacroTargets,
-  modifiers: DietaryModifier[],
+  modifiers: string[],
   measurementSystem: MeasurementSystem = 'us',
   allergies: UserAllergy[] = []
 ): MealSlot {
@@ -917,24 +879,16 @@ function reconcileDailyTotals(
   return result;
 }
 
-function strategyToDietaryPreference(strategy: MacroStrategy): DietaryPreference {
-  switch (strategy) {
-    case 'keto': return 'keto';
-    case 'carnivore': return 'carnivore';
-    case 'mediterranean': return 'mediterranean';
-    default: return 'balanced';
-  }
-}
-
 export function generateMealPlan(
   macros: MacroTargets,
-  strategy: MacroStrategy,
+  eatingStyle: EatingStyle,
   modifiers: DietaryModifier[],
   measurementSystem: MeasurementSystem = 'us',
   allergies: UserAllergy[] = []
 ): DayPlan {
-  const blueprint = selectBlueprint(strategy, modifiers);
-  const isIF = modifiers.includes('intermittent_fasting');
+  const effectiveModifiers = eatingStyle === 'paleo' ? [...modifiers, 'paleo'] : modifiers;
+  const blueprint = selectBlueprint(eatingStyle);
+  const isIF = effectiveModifiers.includes('intermittent_fasting');
 
   let mealBlueprints = [...blueprint.meals];
 
@@ -943,7 +897,7 @@ export function generateMealPlan(
   }
 
   let meals = mealBlueprints.map((mb) =>
-    scaleMealToTargets(mb, macros, modifiers, measurementSystem, allergies)
+    scaleMealToTargets(mb, macros, effectiveModifiers, measurementSystem, allergies)
   );
   meals = reconcileDailyTotals(meals, macros, measurementSystem);
 
@@ -951,9 +905,8 @@ export function generateMealPlan(
   const planUnavailable = totalFoods === 0;
 
   return {
-    preference: strategyToDietaryPreference(strategy),
-    strategy,
-    tags: modifiers as string[],
+    eatingStyle,
+    tags: effectiveModifiers as string[],
     meals,
     planUnavailable,
   };

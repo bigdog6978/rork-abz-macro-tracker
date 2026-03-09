@@ -12,54 +12,59 @@ export type Sex = 'male' | 'female';
 
 export type ActivityLevel =
   | 'sedentary'
-  | 'lightly_active'
-  | 'moderately_active'
-  | 'very_active'
-  | 'extra_active';
+  | 'light_activity'
+  | 'moderate_training'
+  | 'strength_training'
+  | 'endurance_training';
 
-export type Goal = 'cut' | 'recompose' | 'gain' | 'maintain';
+export type Goal = 'cut' | 'gain' | 'maintain' | 'recompose';
 
-export type GoalRate = 'slow' | 'moderate' | 'aggressive';
-
-export type DietaryPreference =
-  | 'keto'
-  | 'carnivore'
-  | 'vegetarian'
+export type EatingStyle =
+  | 'standard'
   | 'mediterranean'
-  | 'balanced';
+  | 'vegan'
+  | 'vegetarian'
+  | 'paleo'
+  | 'keto'
+  | 'carnivore';
 
+export type DietaryRestriction =
+  | 'gluten_free'
+  | 'dairy_free'
+  | 'nut_free'
+  | 'egg_free'
+  | 'soy_free'
+  | 'shellfish_free'
+  | 'intermittent_fasting';
+
+// Compatibility alias while refactoring existing imports.
+export type DietaryModifier = DietaryRestriction;
+
+// Legacy strategy values are migrated into the new Eating Style model.
 export type MacroStrategy =
   | 'balanced'
   | 'high_protein'
   | 'low_carb'
-  | 'keto'
-  | 'carnivore'
   | 'low_fat'
   | 'performance'
-  | 'mediterranean';
-
-export type DietaryModifier =
-  | 'vegetarian'
-  | 'vegan'
-  | 'paleo'
-  | 'gluten_free'
-  | 'dairy_free'
-  | 'intermittent_fasting';
+  | 'mediterranean'
+  | 'keto'
+  | 'carnivore';
 
 export interface UserProfile {
-  first_name?: string;
+  firstName?: string;
   age: number;
   sex: Sex;
-  height_cm: number;
-  weight_lb: number;
-  activity_level: ActivityLevel;
+  heightCm: number;
+  weightLb: number;
+  bodyFatPercent?: number;
   goal: Goal;
-  goal_rate: GoalRate;
-  preference: DietaryPreference;
-  macro_strategy: MacroStrategy;
-  dietary_modifiers: DietaryModifier[];
-  measurement_system: MeasurementSystem;
-  onboarding_complete: boolean;
+  activityLevel: ActivityLevel;
+  eatingStyle: EatingStyle;
+  dietModifiers: DietaryModifier[];
+  dietNotes?: string;
+  measurementSystem: MeasurementSystem;
+  onboardingComplete: boolean;
 }
 
 export function lbToKg(lb: number): number {
@@ -155,8 +160,7 @@ export interface MealSuggestion {
 }
 
 export interface DayPlan {
-  preference: DietaryPreference;
-  strategy?: MacroStrategy;
+  eatingStyle: EatingStyle;
   tags?: string[];
   meals: MealSlot[];
   /** True when allergies/constraints blocked all foods and no plan could be generated */
@@ -165,100 +169,82 @@ export interface DayPlan {
 
 export const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
   sedentary: 'Sedentary',
-  lightly_active: 'Lightly Active',
-  moderately_active: 'Moderately Active',
-  very_active: 'Very Active',
-  extra_active: 'Extra Active',
+  light_activity: 'Light Activity',
+  moderate_training: 'Moderate Training',
+  strength_training: 'Strength Training',
+  endurance_training: 'Endurance Training',
 };
 
 export const ACTIVITY_DESCRIPTIONS: Record<ActivityLevel, string> = {
-  sedentary: 'Little or no exercise',
-  lightly_active: 'Light exercise 1-3 days/week',
-  moderately_active: 'Moderate exercise 3-5 days/week',
-  very_active: 'Hard exercise 6-7 days/week',
-  extra_active: 'Very hard exercise, physical job',
+  sedentary: 'Little structured exercise',
+  light_activity: 'Walking, yoga, or light movement',
+  moderate_training: '3-4 workouts per week',
+  strength_training: '4-6 lifting sessions per week',
+  endurance_training: 'Frequent running, cycling, or similar endurance work',
 };
 
 export const GOAL_LABELS: Record<Goal, string> = {
-  cut: 'Cut',
-  recompose: 'Recompose',
-  gain: 'Gain',
+  cut: 'Cut Fat',
+  recompose: 'Body Recomposition',
+  gain: 'Build Muscle',
   maintain: 'Maintain',
 };
 
 export const GOAL_DESCRIPTIONS: Record<Goal, string> = {
-  cut: 'Lose body fat while preserving muscle',
-  recompose: 'Build muscle while reducing fat',
-  gain: 'Build muscle with controlled weight gain',
+  cut: 'Reduce body fat while preserving muscle',
+  recompose: 'Build muscle while slowly reducing body fat',
+  gain: 'Support muscle growth with a small calorie surplus',
   maintain: 'Sustain your physique and performance',
 };
 
-export const GOAL_RATE_LABELS: Record<GoalRate, string> = {
-  slow: 'Slow & Steady',
-  moderate: 'Moderate',
-  aggressive: 'Aggressive',
-};
-
-export const PREFERENCE_LABELS: Record<DietaryPreference, string> = {
-  keto: 'Keto',
-  carnivore: 'Carnivore',
-  vegetarian: 'Vegetarian',
+export const EATING_STYLE_LABELS: Record<EatingStyle, string> = {
+  standard: 'Standard',
   mediterranean: 'Mediterranean',
-  balanced: 'Balanced',
-};
-
-export const PREFERENCE_DESCRIPTIONS: Record<DietaryPreference, string> = {
-  keto: 'High fat, very low carb',
-  carnivore: 'Animal-based, near zero carb',
-  vegetarian: 'Plant-forward with dairy & eggs',
-  mediterranean: 'Whole grains, healthy fats, lean protein',
-  balanced: 'Flexible macros, no restrictions',
-};
-
-export const MACRO_STRATEGY_LABELS: Record<MacroStrategy, string> = {
-  balanced: 'Balanced',
-  high_protein: 'High Protein',
-  low_carb: 'Low Carb',
-  keto: 'Keto',
-  carnivore: 'Carnivore',
-  low_fat: 'Low Fat',
-  performance: 'Performance',
-  mediterranean: 'Mediterranean',
-};
-
-export const MACRO_STRATEGY_DESCRIPTIONS: Record<MacroStrategy, string> = {
-  balanced: 'Flexible macros, no restrictions',
-  high_protein: 'Protein-forward for lifting & recomposition',
-  low_carb: 'Reduced carbs without strict keto',
-  keto: 'High fat, very low carb',
-  carnivore: 'Animal-based, near zero carb',
-  low_fat: 'Lower fat, higher carb balance',
-  performance: 'Higher carbs for training output',
-  mediterranean: 'Whole foods, healthy fats, lean protein',
-};
-
-export const DIETARY_MODIFIER_LABELS: Record<DietaryModifier, string> = {
-  vegetarian: 'Vegetarian',
   vegan: 'Vegan',
+  vegetarian: 'Vegetarian',
   paleo: 'Paleo',
+  keto: 'Keto',
+  carnivore: 'Carnivore',
+};
+
+export const EATING_STYLE_DESCRIPTIONS: Record<EatingStyle, string> = {
+  standard: 'Balanced food choices with no specific restrictions',
+  mediterranean: 'Whole foods, lean proteins, plants, and healthy fats',
+  vegan: 'Plant-based foods only',
+  vegetarian: 'No meat or fish',
+  paleo: 'Whole foods with grains and legumes removed',
+  keto: 'Very low-carb eating style with fat as the primary fuel source',
+  carnivore: 'Animal-based foods with trace carbs only',
+};
+
+export const DIETARY_RESTRICTION_LABELS: Record<DietaryRestriction, string> = {
   gluten_free: 'Gluten-Free',
   dairy_free: 'Dairy-Free',
+  nut_free: 'Nut-Free',
+  egg_free: 'Egg-Free',
+  soy_free: 'Soy-Free',
+  shellfish_free: 'Shellfish-Free',
   intermittent_fasting: 'Intermittent Fasting',
 };
 
-export const DIETARY_MODIFIER_DESCRIPTIONS: Record<DietaryModifier, string> = {
-  vegetarian: 'No meat or fish',
-  vegan: 'No animal products',
-  paleo: 'No grains/legumes; whole foods',
+export const DIETARY_RESTRICTION_DESCRIPTIONS: Record<DietaryRestriction, string> = {
   gluten_free: 'No gluten-containing foods',
   dairy_free: 'No dairy products',
-  intermittent_fasting: 'Timing preference',
+  nut_free: 'Avoid tree nuts and peanuts',
+  egg_free: 'Avoid eggs and egg-based ingredients',
+  soy_free: 'Avoid soy foods and soy-derived ingredients',
+  shellfish_free: 'Avoid shellfish',
+  intermittent_fasting: 'Meal timing preference',
 };
+
+// Compatibility aliases for existing imports during the refactor.
+export const DIETARY_MODIFIER_LABELS = DIETARY_RESTRICTION_LABELS;
+export const DIETARY_MODIFIER_DESCRIPTIONS = DIETARY_RESTRICTION_DESCRIPTIONS;
 
 export interface SavedMealPlan {
   id: string;
   name: string;
-  macroStrategy: MacroStrategy;
+  eatingStyle: EatingStyle;
   dietaryModifiers: DietaryModifier[];
   createdAt: string;
   updatedAt: string;
@@ -268,19 +254,41 @@ export interface SavedMealPlan {
   isActive: boolean;
 }
 
-export function strategyToPreference(strategy: MacroStrategy): DietaryPreference {
+export function legacyMacroStrategyToEatingStyle(strategy?: string | null): EatingStyle {
   switch (strategy) {
     case 'keto':
-      return 'keto';
     case 'carnivore':
-      return 'carnivore';
     case 'mediterranean':
-      return 'mediterranean';
+      return strategy;
+    case 'low_carb':
+      return 'keto';
     case 'balanced':
     case 'high_protein':
-    case 'low_carb':
     case 'low_fat':
     case 'performance':
-      return 'balanced';
+    default:
+      return 'standard';
+  }
+}
+
+export function normalizeLegacyActivityLevel(level?: string | null): ActivityLevel {
+  switch (level) {
+    case 'sedentary':
+      return 'sedentary';
+    case 'lightly_active':
+      return 'light_activity';
+    case 'moderately_active':
+      return 'moderate_training';
+    case 'very_active':
+      return 'strength_training';
+    case 'extra_active':
+      return 'endurance_training';
+    case 'light_activity':
+    case 'moderate_training':
+    case 'strength_training':
+    case 'endurance_training':
+      return level;
+    default:
+      return 'moderate_training';
   }
 }

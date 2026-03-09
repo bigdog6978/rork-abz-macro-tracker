@@ -29,7 +29,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Colors from '../../../constants/colors';
 import { formatNumber } from '../../../utils/formatNumber';
 import {
-  MACRO_STRATEGY_LABELS,
+  EATING_STYLE_LABELS,
   DIETARY_MODIFIER_LABELS,
   SavedMealPlan,
   MealSlot,
@@ -135,7 +135,7 @@ function SavedPlanCard({
           <View style={styles.planMetaRow}>
             <View style={styles.metaChip}>
               <Text style={styles.metaChipText}>
-                {MACRO_STRATEGY_LABELS[plan.macroStrategy]}
+                {EATING_STYLE_LABELS[plan.eatingStyle]}
               </Text>
             </View>
             <Text style={styles.metaDot}>·</Text>

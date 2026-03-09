@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SavedMealPlan } from '../types';
+import { legacyMacroStrategyToEatingStyle, SavedMealPlan } from '../types';
 
 const KEYS = {
   savedPlans: 'abz_saved_meal_plans',
@@ -7,15 +7,32 @@ const KEYS = {
   schemaVersion: 'abz_meal_plan_schema_version',
 };
 
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 let schemaChecked = false;
+
+type LegacySavedMealPlan = SavedMealPlan & {
+  macroStrategy?: string;
+};
+
+function normalizeSavedPlan(plan: LegacySavedMealPlan): SavedMealPlan {
+  return {
+    ...plan,
+    eatingStyle: plan.eatingStyle ?? legacyMacroStrategyToEatingStyle(plan.macroStrategy),
+  };
+}
 
 async function ensureSchema(): Promise<void> {
   try {
     const version = await AsyncStorage.getItem(KEYS.schemaVersion);
     const current = version ? parseInt(version, 10) : 0;
     if (current < CURRENT_SCHEMA_VERSION) {
+      const existing = await AsyncStorage.getItem(KEYS.savedPlans);
+      if (existing) {
+        const rawPlans = JSON.parse(existing) as LegacySavedMealPlan[];
+        const normalizedPlans = rawPlans.map(normalizeSavedPlan);
+        await AsyncStorage.setItem(KEYS.savedPlans, JSON.stringify(normalizedPlans));
+      }
       await AsyncStorage.setItem(
         KEYS.schemaVersion,
         String(CURRENT_SCHEMA_VERSION)
@@ -38,7 +55,7 @@ export async function getAllSavedMealPlans(): Promise<SavedMealPlan[]> {
   await checkSchema();
   try {
     const data = await AsyncStorage.getItem(KEYS.savedPlans);
-    return data ? JSON.parse(data) : [];
+    return data ? (JSON.parse(data) as LegacySavedMealPlan[]).map(normalizeSavedPlan) : [];
   } catch (err) {
     console.log('[mealPlanRepo] Error reading saved plans:', err);
     return [];

@@ -22,11 +22,11 @@ const SUBTITLE_SIZE = 15;
 const VERSION_SIZE = 12;
 const GRADIENT_COLORS = ['#FFC44D', '#FF6A1A', '#D84315'] as const;
 
-function navigateFromProfile(router: ReturnType<typeof useRouter>, profile: { onboarding_complete?: boolean; first_name?: string } | null) {
+function navigateFromProfile(router: ReturnType<typeof useRouter>, profile: { onboardingComplete?: boolean; firstName?: string } | null) {
   try {
-    if (profile?.onboarding_complete) {
+    if (profile?.onboardingComplete) {
       router.replace('/(tabs)' as never);
-    } else if (profile?.first_name) {
+    } else if (profile?.firstName) {
       router.replace('/onboarding' as never);
     } else {
       router.replace('/welcome' as never);

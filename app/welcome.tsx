@@ -48,7 +48,7 @@ export default function WelcomeScreen() {
     }
     setError('');
     Keyboard.dismiss();
-    updateProfile({ first_name: trimmed });
+    updateProfile({ firstName: trimmed });
     router.replace('/onboarding' as never);
   }, [firstName, updateProfile]);
 

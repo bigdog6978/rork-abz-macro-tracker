@@ -1,9 +1,9 @@
 /**
- * Goal and Macro Strategy definitions for onboarding and Settings.
+ * Goal and Eating Style definitions for onboarding and Settings.
  * Used for progressive disclosure ("Learn more") in UI.
  */
 
-import type { Goal, MacroStrategy } from '../../types';
+import type { Goal, EatingStyle } from '../../types';
 
 export interface LearnMoreSection {
   heading: string;
@@ -17,8 +17,8 @@ export interface GoalDefinition {
   learnMore: LearnMoreSection[];
 }
 
-export interface MacroStrategyDefinition {
-  id: MacroStrategy;
+export interface EatingStyleDefinition {
+  id: EatingStyle;
   title: string;
   shortDescription: string;
   preview: string;
@@ -42,7 +42,7 @@ export const GOAL_DEFINITIONS: Record<Goal, GoalDefinition> = {
       },
       {
         heading: 'Macro targets',
-        body: 'Protein is prioritized. Carbs and fat are set by your Macro Strategy.',
+        body: 'Protein is prioritized. Calories and macros are calculated from your body stats, goal, activity level, and optional body fat.',
       },
       {
         heading: 'Best for',
@@ -70,7 +70,7 @@ export const GOAL_DEFINITIONS: Record<Goal, GoalDefinition> = {
       },
       {
         heading: 'Macro targets',
-        body: 'Protein stays high. Carbs and fat are set by your Macro Strategy.',
+        body: 'Protein, carbs, and fat are calculated from your stats and activity. Eating Style changes food choices, not your base targets.',
       },
       {
         heading: 'Best for',
@@ -98,7 +98,7 @@ export const GOAL_DEFINITIONS: Record<Goal, GoalDefinition> = {
       },
       {
         heading: 'Macro targets',
-        body: 'Protein stays high. Carbs and fat are set by your Macro Strategy.',
+        body: 'Protein stays high. Calories and macros are derived centrally and adjusted only when your Eating Style requires it.',
       },
       {
         heading: 'Best for',
@@ -126,7 +126,7 @@ export const GOAL_DEFINITIONS: Record<Goal, GoalDefinition> = {
       },
       {
         heading: 'Macro targets',
-        body: 'Protein stays strong. Carbs and fat are set by your Macro Strategy.',
+        body: 'Protein stays strong. Calories and macros are derived centrally from your profile.',
       },
       {
         heading: 'Best for',
@@ -140,24 +140,24 @@ export const GOAL_DEFINITIONS: Record<Goal, GoalDefinition> = {
   },
 };
 
-export const MACRO_STRATEGY_DEFINITIONS: Record<MacroStrategy, MacroStrategyDefinition> = {
-  balanced: {
-    id: 'balanced',
-    title: 'Balanced',
+export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition> = {
+  standard: {
+    id: 'standard',
+    title: 'Standard',
     shortDescription: 'Flexible macros with no restrictions—simple and adaptable.',
     preview: 'Protein: 0.9 g/lb • Carbs: flexible • Fat: flexible',
     learnMore: [
       {
         heading: 'What it means',
-        body: 'A flexible approach that lets you adjust carbs and fat based on preference and training.',
+        body: 'A flexible baseline eating style with no ingredient rules. Meal plans use a broad variety of foods.',
       },
       {
-        heading: 'How calories work',
-        body: 'Calories follow your Goal (deficit, maintenance, or surplus).',
+        heading: 'How food selection works',
+        body: 'Meals can include lean proteins, starches, fruits, vegetables, and fats without a special restriction pattern.',
       },
       {
         heading: 'Macro targets',
-        body: 'Protein: 0.8–1.0 g per lb body weight per day\nCarbs: 30–50% of calories\nFat: 20–35% of calories',
+        body: 'Eating Style does not change your base macro targets. Your targets come from the macro engine.',
       },
       {
         heading: 'Best for',
@@ -169,60 +169,116 @@ export const MACRO_STRATEGY_DEFINITIONS: Record<MacroStrategy, MacroStrategyDefi
       },
     ],
   },
-  high_protein: {
-    id: 'high_protein',
-    title: 'High-Protein Balanced',
+  mediterranean: {
+    id: 'mediterranean',
+    title: 'Mediterranean',
     shortDescription:
-      'High protein with flexible carbs and fats—simple, effective, and easy to stick to.',
-    preview: 'Protein: 1.0 g/lb • Carbs: moderate • Fat: moderate',
+      'Whole-food meals built around lean protein, plants, olive oil, legumes, and grains.',
+    preview: 'Whole foods • Lean protein • Healthy fats',
     learnMore: [
       {
         heading: 'What it means',
-        body: 'A balanced approach with protein as the anchor. Carbs support training, fats support hormones and satiety.',
+        body: 'Mediterranean emphasizes food quality: fish, lean proteins, legumes, whole grains, olive oil, fruits, and vegetables.',
       },
       {
-        heading: 'How calories work',
-        body: 'Calories follow your Goal (deficit, maintenance, or surplus).',
+        heading: 'How food selection works',
+        body: 'Meal plans bias toward olive oil, fish, yogurt, legumes, grains, and minimally processed foods.',
       },
       {
         heading: 'Macro targets',
-        body: 'Protein: 1.0 g per lb body weight per day\nCarbs: 25–40% of calories (higher on training days)\nFat: 25–35% of calories',
+        body: 'Eating Style does not change your base macro targets.',
       },
       {
         heading: 'Best for',
-        body: 'Most lifters, athletes, and anyone who wants the easiest long-term plan.',
+        body: 'Users who want a balanced, whole-food approach that is easy to sustain.',
       },
       {
         heading: 'Notes',
-        body: 'If hunger is high, increase fiber and push more calories toward protein/fat.',
+        body: 'Great for general wellness and meal variety.',
       },
     ],
   },
-  low_carb: {
-    id: 'low_carb',
-    title: 'Low Carb',
-    shortDescription: 'Reduced carbs without strict keto—good appetite control.',
-    preview: 'Protein: 1.0 g/lb • Carbs: lower • Fat: higher',
+  vegan: {
+    id: 'vegan',
+    title: 'Vegan',
+    shortDescription: 'Plant-based meals only with no animal products.',
+    preview: 'Plant protein • No dairy/eggs/meat • Plant-only foods',
     learnMore: [
       {
         heading: 'What it means',
-        body: 'Carbs are reduced to support appetite control while keeping flexibility.',
+        body: 'Vegan meal plans exclude meat, fish, dairy, eggs, and other animal-based ingredients.',
       },
       {
-        heading: 'How calories work',
-        body: 'Calories follow your Goal. Carbs are capped to support fat loss or maintenance.',
+        heading: 'How food selection works',
+        body: 'Meal plans use tofu, tempeh, beans, lentils, grains, fruits, vegetables, and plant-based fats.',
       },
       {
         heading: 'Macro targets',
-        body: 'Protein: 1.0 g per lb body weight per day\nCarbs: 50–100 g per day\nFat: remainder of calories',
+        body: 'Eating Style does not change your base macro targets unless you choose Keto or Carnivore.',
       },
       {
         heading: 'Best for',
-        body: 'People who feel better on lower carbs but don’t want strict keto.',
+        body: 'Users who want fully plant-based meal recommendations.',
       },
       {
         heading: 'Notes',
-        body: 'These are starting targets; adjust based on results and adherence.',
+        body: 'Protein quality is handled through food selection, not a special macro formula.',
+      },
+    ],
+  },
+  vegetarian: {
+    id: 'vegetarian',
+    title: 'Vegetarian',
+    shortDescription: 'Plant-forward meals with dairy and eggs allowed.',
+    preview: 'No meat or fish • Eggs/dairy allowed',
+    learnMore: [
+      {
+        heading: 'What it means',
+        body: 'Vegetarian meal plans exclude meat and fish, but can include dairy and eggs.',
+      },
+      {
+        heading: 'How food selection works',
+        body: 'Meal plans use eggs, yogurt, cheese, tofu, tempeh, grains, legumes, fruits, and vegetables.',
+      },
+      {
+        heading: 'Macro targets',
+        body: 'Eating Style does not change your base macro targets.',
+      },
+      {
+        heading: 'Best for',
+        body: 'Users who want plant-forward meals without fully removing dairy and eggs.',
+      },
+      {
+        heading: 'Notes',
+        body: 'Protein remains centrally calculated and the planner fills in suitable foods.',
+      },
+    ],
+  },
+  paleo: {
+    id: 'paleo',
+    title: 'Paleo',
+    shortDescription: 'Whole-food meals with grains, legumes, and most dairy removed.',
+    preview: 'Whole foods • No grains/legumes • Protein-forward',
+    learnMore: [
+      {
+        heading: 'What it means',
+        body: 'Paleo favors meat, fish, eggs, fruit, vegetables, nuts, and minimally processed foods.',
+      },
+      {
+        heading: 'How food selection works',
+        body: 'Meal plans avoid grains, legumes, and common dairy-heavy foods while keeping variety high.',
+      },
+      {
+        heading: 'Macro targets',
+        body: 'Eating Style does not change your base macro targets.',
+      },
+      {
+        heading: 'Best for',
+        body: 'Users who want whole-food meals with fewer processed ingredients.',
+      },
+      {
+        heading: 'Notes',
+        body: 'Paleo changes ingredients, not your macro calculation.',
       },
     ],
   },
@@ -239,11 +295,11 @@ export const MACRO_STRATEGY_DEFINITIONS: Record<MacroStrategy, MacroStrategyDefi
       },
       {
         heading: 'How calories work',
-        body: 'Calories follow your Goal. Keto is not a free pass—deficit still matters for fat loss.',
+        body: 'Calories still follow your Goal. Keto only changes macro distribution by capping carbs and shifting remaining calories to fat.',
       },
       {
         heading: 'Macro targets',
-        body: 'Protein: 0.8–1.0 g per lb body weight per day\nCarbs: 20–30 g net carbs per day\nFat: remainder of calories (typically 60–75%)',
+        body: 'Carbs are capped around 20–30 g per day. Protein stays anchored by the macro engine and remaining calories go to fat.',
       },
       {
         heading: 'Best for',
@@ -257,7 +313,7 @@ export const MACRO_STRATEGY_DEFINITIONS: Record<MacroStrategy, MacroStrategyDefi
   },
   carnivore: {
     id: 'carnivore',
-    title: 'Carnivore Protocol',
+    title: 'Carnivore',
     shortDescription:
       'Animal-based, ultra-low carb, high satiety—built around protein-first meals.',
     preview: 'Protein: 1.0–1.2 g/lb • Carbs: ~0 • Fat: remainder',
@@ -268,11 +324,11 @@ export const MACRO_STRATEGY_DEFINITIONS: Record<MacroStrategy, MacroStrategyDefi
       },
       {
         heading: 'How calories work',
-        body: 'Calories follow your Goal. Use fat as the main lever: higher fat for maintenance/build, slightly lower fat for cutting.',
+        body: 'Calories still follow your Goal. Carnivore sets carbs near zero and fills the remaining calories with fat after protein is set.',
       },
       {
         heading: 'Macro targets',
-        body: 'Protein: 1.0–1.2 g per lb body weight per day\nCarbs: 0–10 g per day (from trace sources)\nFat: remainder of calories',
+        body: 'Carbs stay around 5 g per day from trace sources. Protein is unchanged and remaining calories become fat.',
       },
       {
         heading: 'Best for',
@@ -284,98 +340,12 @@ export const MACRO_STRATEGY_DEFINITIONS: Record<MacroStrategy, MacroStrategyDefi
       },
     ],
   },
-  low_fat: {
-    id: 'low_fat',
-    title: 'Low-Fat',
-    shortDescription: 'Lower fat with higher carbs to fuel training.',
-    preview: 'Protein: 1.0 g/lb • Carbs: higher • Fat: lower',
-    learnMore: [
-      {
-        heading: 'What it means',
-        body: 'This approach keeps fat lower and uses carbs to support training and recovery.',
-      },
-      {
-        heading: 'How calories work',
-        body: 'Calories follow your Goal. Carbs are the main fuel lever here.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Protein: 1.0 g per lb body weight per day\nCarbs: 40–55% of calories\nFat: 15–25% of calories',
-      },
-      {
-        heading: 'Best for',
-        body: 'High-volume training and people who feel flat on low carb.',
-      },
-      {
-        heading: 'Notes',
-        body: 'Keep fats above the minimum range for adherence and recovery.',
-      },
-    ],
-  },
-  performance: {
-    id: 'performance',
-    title: 'Low-Fat Performance',
-    shortDescription:
-      'Lower fat with higher carbs to fuel training volume and gym performance.',
-    preview: 'Protein: 1.0 g/lb • Carbs: higher • Fat: lower',
-    learnMore: [
-      {
-        heading: 'What it means',
-        body: 'This approach emphasizes carbs to support hard training and recovery while keeping fat lower.',
-      },
-      {
-        heading: 'How calories work',
-        body: 'Calories follow your Goal. Carbs are the main fuel lever here.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Protein: 1.0 g per lb body weight per day\nCarbs: 40–55% of calories\nFat: 15–25% of calories',
-      },
-      {
-        heading: 'Best for',
-        body: 'High-volume training, athletes, and people who feel flat on low carb.',
-      },
-      {
-        heading: 'Notes',
-        body: 'Keep fats above the minimum range for adherence and recovery.',
-      },
-    ],
-  },
-  mediterranean: {
-    id: 'mediterranean',
-    title: 'Mediterranean',
-    shortDescription:
-      'Balanced macros built on whole foods: lean proteins, plants, and healthy fats.',
-    preview: 'Protein: 0.9 g/lb • Carbs: moderate • Fat: olive oil/nuts',
-    learnMore: [
-      {
-        heading: 'What it means',
-        body: 'A whole-foods approach emphasizing quality: lean proteins, fruits/veg, legumes, and unsaturated fats.',
-      },
-      {
-        heading: 'How calories work',
-        body: 'Calories follow your Goal. Food quality helps adherence and recovery.',
-      },
-      {
-        heading: 'Macro targets',
-        body: 'Protein: 0.8–1.0 g per lb body weight per day\nCarbs: 30–45% of calories (mostly minimally processed)\nFat: 25–40% of calories (emphasize unsaturated fats)',
-      },
-      {
-        heading: 'Best for',
-        body: 'Heart-healthy eating, general wellness, and an easy lifestyle fit.',
-      },
-      {
-        heading: 'Notes',
-        body: 'Prioritize protein at each meal; use olive oil and nuts to fine-tune calories.',
-      },
-    ],
-  },
 };
 
 export function getGoalDefinition(goal: Goal): GoalDefinition {
   return GOAL_DEFINITIONS[goal];
 }
 
-export function getMacroStrategyDefinition(strategy: MacroStrategy): MacroStrategyDefinition {
-  return MACRO_STRATEGY_DEFINITIONS[strategy];
+export function getEatingStyleDefinition(eatingStyle: EatingStyle): EatingStyleDefinition {
+  return EATING_STYLE_DEFINITIONS[eatingStyle];
 }
