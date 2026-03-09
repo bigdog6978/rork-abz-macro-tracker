@@ -1,7 +1,7 @@
 {
   "name": "expo-app",
   "main": "expo-router/entry",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "scripts": {
     "start": "bunx rork start -p yljzv2wfzuw0fqdmbz7zl --tunnel",
     "start-web": "bunx rork start -p yljzv2wfzuw0fqdmbz7zl --web --tunnel",
@@ -9,6 +9,7 @@
     "lint": "expo lint",
     "test": "jest",
     "build:ios": "bunx eas build --platform ios --profile production",
+    "build:ios:clean": "bunx eas build --platform ios --profile production --clear-cache",
     "build:ios:dev": "bunx eas build --platform ios --profile development",
     "submit:ios": "bunx eas submit --platform ios --latest --profile production",
     "android": "expo run:android",

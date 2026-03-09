@@ -111,5 +111,5 @@ Continued use of the App after changes constitutes acceptance of the updated Ter
 12. CONTACT INFORMATION
 
 Physiq Macro Tracker
-Email: physiqmacrotracker@yahoo.com
+Email: support@physiqmacros.com
 `;

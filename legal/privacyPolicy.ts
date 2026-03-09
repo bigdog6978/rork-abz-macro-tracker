@@ -183,7 +183,7 @@ Contact Us
 
 If you have any questions about this Privacy Policy, You can contact us:
 
-By email: physiqmacrotracker@yahoo.com
+By email: support@physiqmacros.com
 
 Generated using Free Privacy Policy Generator
 `;

@@ -15,7 +15,7 @@ const DOCUMENTS: Record<string, { title: string; content: string }> = {
 Need help or have questions? We're here for you.
 
 Email Support
-support@abzapp.com
+support@physiqmacros.com
 
 Response Time
 We aim to respond to all inquiries within 48 hours during business days.
