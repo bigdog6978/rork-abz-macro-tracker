@@ -13,10 +13,13 @@ import {
   Animated,
   Easing,
   Keyboard,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Check, Search, Clock, Pencil, X, ChevronRight, Scan, Bookmark } from 'lucide-react-native';
+import Constants from 'expo-constants';
+import { Check, Search, Clock, Pencil, X, ChevronRight, Scan, Bookmark, Mic, LoaderCircle } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
@@ -31,13 +34,48 @@ import BarcodeScannerPanel from '../components/ui/BarcodeScannerPanel';
 import type { UnitKind, UnitId } from '../src/lib/units';
 import { getPreferredServingUnit } from '../storage/userSettingsRepo';
 import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
+import {
   detectUnitFromName,
   pluralizeUnit,
 } from '../features/food/servingDefaults';
+import { parseMealVoiceTranscript, type ParsedMealVoiceItem } from '../features/food/mealVoiceParser';
 import { Radius } from '../theme/tokens';
 
 const DEBOUNCE_MS = 300;
 const HEADER_BUTTON_SIZE = 44;
+
+type VoiceMealResolvedItem = {
+  id: string;
+  label: string;
+  displayName: string;
+  quantity: number;
+  displayUnit: string;
+  unitKind: UnitKind;
+  unitId: UnitId;
+  grams: number;
+  food: NormalizedFood;
+  macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number };
+  entryOpts:
+    | { measureMode: 'qty'; quantity: number; servingWeightG: number }
+    | { measureMode: 'ounces'; quantity: number }
+    | { measureMode: 'grams'; quantity: number };
+};
+
+type VoiceMealUnresolvedItem = {
+  id: string;
+  label: string;
+  reason: string;
+};
+
+type VoiceMealDraft = {
+  transcript: string;
+  items: VoiceMealResolvedItem[];
+  unresolved: VoiceMealUnresolvedItem[];
+  totals: { calories: number; protein_g: number; carbs_g: number; fat_g: number };
+};
 
 function getSearchErrorMessage(
   searchStatus: string,
@@ -79,8 +117,64 @@ function getSearchErrorMessage(
   return 'No results found';
 }
 
+function generateVoiceId(): string {
+  return `voice_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function singularizeQuery(query: string): string {
+  if (query.endsWith('ies')) return `${query.slice(0, -3)}y`;
+  if (query.endsWith('s') && !query.endsWith('ss')) return query.slice(0, -1);
+  return query;
+}
+
+function isLikelyLiquid(food: NormalizedFood, parsedItem: ParsedMealVoiceItem): boolean {
+  if (typeof food.density_g_per_ml === 'number' && food.density_g_per_ml > 0) {
+    return true;
+  }
+
+  const combined = `${food.name} ${parsedItem.query}`.toLowerCase();
+  return /(juice|milk|water|wine|beer|broth|stock|coffee|tea|soda|smoothie|shake|drink)/.test(combined);
+}
+
+function formatVoiceReason(reason: 'NEEDS_DENSITY' | 'UNSUPPORTED_SERVING' | 'NEEDS_SERVING_INFO'): string {
+  switch (reason) {
+    case 'NEEDS_DENSITY':
+      return 'Needs liquid density to calculate macros.';
+    case 'UNSUPPORTED_SERVING':
+      return 'Serving size could not be determined.';
+    case 'NEEDS_SERVING_INFO':
+      return 'Serving details are missing.';
+    default:
+      return 'Could not calculate macros for this item.';
+  }
+}
+
+function formatVoiceUnit(quantity: number, unitId: UnitId, unitLabel?: string): string {
+  if (unitId === 'piece') {
+    return unitLabel ? pluralizeUnit(quantity, unitLabel) : quantity === 1 ? 'item' : 'items';
+  }
+  if (unitId === 'fl_oz') {
+    return quantity === 1 ? 'fl oz' : 'fl oz';
+  }
+  return unitId;
+}
+
+function canUseVoiceMealCapture(): boolean {
+  if (Constants.appOwnership === 'expo') {
+    return false;
+  }
+
+  try {
+    return typeof ExpoSpeechRecognitionModule.isRecognitionAvailable === 'function'
+      ? ExpoSpeechRecognitionModule.isRecognitionAvailable()
+      : false;
+  } catch {
+    return false;
+  }
+}
+
 export default function AddFoodScreen() {
-  const { addEntry } = useDailyLog();
+  const { addEntry, addEntries } = useDailyLog();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const params = useLocalSearchParams<{ fromBarcode?: string; dateKey?: string }>();
@@ -111,6 +205,11 @@ export default function AddFoodScreen() {
   const [saveToLibrary, setSaveToLibrary] = useState(true);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerViewportWidth, setScannerViewportWidth] = useState(0);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
+  const [voiceMealDraft, setVoiceMealDraft] = useState<VoiceMealDraft | null>(null);
+  const [voiceModalVisible, setVoiceModalVisible] = useState(false);
 
   const [recentFoods, setRecentFoods] = useState<
     { food: NormalizedFood; lastServingGrams: number }[]
@@ -119,6 +218,7 @@ export default function AddFoodScreen() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scannerAnim = useRef(new Animated.Value(0)).current;
+  const voiceRequestIdRef = useRef(0);
   const computedMacrosRef = useRef<{
     calories: number;
     protein_g: number;
@@ -127,6 +227,166 @@ export default function AddFoodScreen() {
   } | null>(null);
 
   const apiAvailable = useMemo(() => foodService.isApiAvailable(), []);
+  const voiceMealAvailable = useMemo(() => canUseVoiceMealCapture(), []);
+
+  const resolveVoiceMealItem = useCallback(
+    async (parsedItem: ParsedMealVoiceItem): Promise<VoiceMealResolvedItem | VoiceMealUnresolvedItem> => {
+      const queries = Array.from(
+        new Set([parsedItem.query, singularizeQuery(parsedItem.query)].filter(Boolean))
+      );
+
+      let resolvedFood: NormalizedFood | null = null;
+      for (const candidate of queries) {
+        const result = await foodService.searchSuggestions(candidate);
+        if (result.status === 'ok' && result.results.length > 0) {
+          const top = result.results[0];
+          resolvedFood =
+            top.providerId === 'usda' && top.externalId
+              ? (await foodService.getFood(top.externalId)) ?? top
+              : top;
+          break;
+        }
+      }
+
+      if (!resolvedFood) {
+        return {
+          id: generateVoiceId(),
+          label: parsedItem.label,
+          reason: 'No matching food was found.',
+        };
+      }
+
+      let workingFood = resolvedFood;
+      let unitKind = parsedItem.unitKind;
+      let unitId = parsedItem.unitId;
+
+      if (parsedItem.ambiguousOunces && isLikelyLiquid(resolvedFood, parsedItem)) {
+        unitKind = 'volume';
+        unitId = 'fl_oz';
+      }
+
+      let scaling: foodService.ScalingResult;
+      let entryOpts: VoiceMealResolvedItem['entryOpts'];
+      let displayUnit: string;
+
+      if (unitKind === 'serving') {
+        const detected = detectUnitFromName(resolvedFood.name) ?? detectUnitFromName(parsedItem.query);
+        if (detected) {
+          workingFood = {
+            ...resolvedFood,
+            servingWeightGrams: resolvedFood.servingWeightGrams ?? detected.servingWeightG,
+          };
+        }
+
+        scaling = foodService.scaleMacrosFromQuantity(workingFood, parsedItem.quantity, 'piece', 'serving');
+        if (!scaling.ok) {
+          return {
+            id: generateVoiceId(),
+            label: parsedItem.label,
+            reason: formatVoiceReason(scaling.reason),
+          };
+        }
+
+        const servingWeightG = workingFood.servingWeightGrams ?? detectUnitFromName(workingFood.name)?.servingWeightG;
+        if (!servingWeightG) {
+          return {
+            id: generateVoiceId(),
+            label: parsedItem.label,
+            reason: 'Serving size could not be determined.',
+          };
+        }
+
+        const unitLabel =
+          detectUnitFromName(workingFood.name)?.unitLabel ??
+          detectUnitFromName(parsedItem.query)?.unitLabel ??
+          'serving';
+        entryOpts = { measureMode: 'qty', quantity: parsedItem.quantity, servingWeightG };
+        displayUnit = formatVoiceUnit(parsedItem.quantity, 'piece', unitLabel);
+      } else {
+        scaling = foodService.scaleMacrosFromQuantity(workingFood, parsedItem.quantity, unitId, unitKind);
+        if (!scaling.ok) {
+          return {
+            id: generateVoiceId(),
+            label: parsedItem.label,
+            reason: formatVoiceReason(scaling.reason),
+          };
+        }
+
+        entryOpts =
+          unitId === 'oz'
+            ? { measureMode: 'ounces', quantity: parsedItem.quantity }
+            : { measureMode: 'grams', quantity: scaling.gramsUsedForScaling };
+        displayUnit = formatVoiceUnit(parsedItem.quantity, unitId);
+      }
+
+      return {
+        id: generateVoiceId(),
+        label: parsedItem.label,
+        displayName: workingFood.name,
+        quantity: parsedItem.quantity,
+        displayUnit,
+        unitKind,
+        unitId,
+        grams: scaling.gramsUsedForScaling,
+        food: workingFood,
+        macros: scaling.macros,
+        entryOpts,
+      };
+    },
+    []
+  );
+
+  const buildVoiceMealDraft = useCallback(
+    async (transcript: string) => {
+      const parsedItems = parseMealVoiceTranscript(transcript);
+      if (parsedItems.length === 0) {
+        Alert.alert('No meal detected', 'Try speaking a full meal like "2 eggs, 1 avocado, 6 oz orange juice."');
+        return;
+      }
+
+      const requestId = Date.now();
+      voiceRequestIdRef.current = requestId;
+      setIsVoiceProcessing(true);
+
+      try {
+        const results = await Promise.all(parsedItems.map((item) => resolveVoiceMealItem(item)));
+        if (voiceRequestIdRef.current !== requestId) return;
+
+        const items = results.filter(
+          (result): result is VoiceMealResolvedItem => 'food' in result
+        );
+        const unresolved = results.filter(
+          (result): result is VoiceMealUnresolvedItem => !('food' in result)
+        );
+
+        const totals = items.reduce(
+          (acc, item) => ({
+            calories: acc.calories + item.macros.calories,
+            protein_g: Math.round((acc.protein_g + item.macros.protein_g) * 10) / 10,
+            carbs_g: Math.round((acc.carbs_g + item.macros.carbs_g) * 10) / 10,
+            fat_g: Math.round((acc.fat_g + item.macros.fat_g) * 10) / 10,
+          }),
+          { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+        );
+
+        setVoiceMealDraft({ transcript, items, unresolved, totals });
+        setVoiceModalVisible(true);
+
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(
+            unresolved.length === 0
+              ? Haptics.NotificationFeedbackType.Success
+              : Haptics.NotificationFeedbackType.Warning
+          );
+        }
+      } finally {
+        if (voiceRequestIdRef.current === requestId) {
+          setIsVoiceProcessing(false);
+        }
+      }
+    },
+    [resolveVoiceMealItem]
+  );
 
   useEffect(() => {
     foodService
@@ -248,6 +508,40 @@ export default function AddFoodScreen() {
     loadFoodIntoForm(id);
   }, [loadFoodIntoForm, params.fromBarcode]);
 
+  useSpeechRecognitionEvent('start', () => {
+    setIsListening(true);
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    setIsListening(false);
+  });
+
+  useSpeechRecognitionEvent('result', (event) => {
+    const transcript = event.results[0]?.transcript?.trim() ?? '';
+    if (!transcript) return;
+    setVoiceTranscript(transcript);
+
+    if (event.isFinal) {
+      void buildVoiceMealDraft(transcript);
+    }
+  });
+
+  useSpeechRecognitionEvent('error', (event) => {
+    setIsListening(false);
+    setIsVoiceProcessing(false);
+    Alert.alert('Voice entry unavailable', event.message || 'Speech recognition failed. Please try again.');
+  });
+
+  useEffect(() => {
+    return () => {
+      try {
+        ExpoSpeechRecognitionModule.abort();
+      } catch {
+        // Ignore missing native module during teardown.
+      }
+    };
+  }, []);
+
   const handleScanBarcode = useCallback(() => {
     Keyboard.dismiss();
     setShowSuggestions(false);
@@ -261,6 +555,100 @@ export default function AddFoodScreen() {
     setScannerOpen(true);
     animateScanner(1);
   }, [animateScanner, scannerOpen]);
+
+  const handleStartVoiceMeal = useCallback(async () => {
+    if (!voiceMealAvailable) {
+      Alert.alert(
+        'Voice meal not available',
+        'Speech meal entry requires a fresh development build or production build with the speech-recognition native module included.'
+      );
+      return;
+    }
+
+    if (isListening) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+
+    try {
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Microphone access required',
+          'Enable microphone and speech recognition permissions to speak meals into your food log.'
+        );
+        return;
+      }
+
+      Keyboard.dismiss();
+      setShowSuggestions(false);
+      setVoiceMealDraft(null);
+      setVoiceModalVisible(false);
+      setVoiceTranscript('');
+      setIsVoiceProcessing(false);
+
+      if (scannerOpen) {
+        animateScanner(0, () => setScannerOpen(false));
+      }
+
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
+      ExpoSpeechRecognitionModule.start({
+        lang: 'en-US',
+        interimResults: true,
+        continuous: false,
+        maxAlternatives: 1,
+        contextualStrings: [
+          'eggs',
+          'avocado',
+          'orange juice',
+          'chicken breast',
+          'greek yogurt',
+          'protein shake',
+        ],
+      });
+    } catch (err) {
+      console.log('[AddFood] Voice start error:', err);
+      Alert.alert('Voice entry unavailable', 'Unable to start speech recognition on this device.');
+    }
+  }, [animateScanner, isListening, scannerOpen, voiceMealAvailable]);
+
+  const handleConfirmVoiceMeal = useCallback(async () => {
+    if (!voiceMealDraft || voiceMealDraft.items.length === 0 || voiceMealDraft.unresolved.length > 0) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const entries = voiceMealDraft.items.map((item) =>
+        foodService.createFoodEntry(
+          item.food,
+          item.displayName,
+          item.grams,
+          item.macros,
+          false,
+          item.entryOpts
+        )
+      );
+
+      addEntries(entries, dateKeyParam);
+      await Promise.all(voiceMealDraft.items.map((item) => foodService.addToRecent(item.food, item.grams)));
+
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+
+      setVoiceModalVisible(false);
+      router.back();
+    } catch (err) {
+      console.log('[AddFood] Voice confirm error:', err);
+      Alert.alert('Error', 'Failed to add the spoken meal. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [addEntries, dateKeyParam, voiceMealDraft]);
 
   const computedCalories =
     (parseFloat(protein) || 0) * 4 +
@@ -901,6 +1289,39 @@ export default function AddFoodScreen() {
                 <Text style={styles.scanBarcodeText}>{scannerOpen ? 'Close Scanner' : 'Scan Barcode'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                style={[styles.scanBarcodeBtn, !voiceMealAvailable && styles.scanBarcodeBtnDisabled]}
+                onPress={handleStartVoiceMeal}
+                activeOpacity={0.7}
+                testID="voice-meal-button"
+              >
+                {isListening || isVoiceProcessing ? (
+                  <LoaderCircle size={18} color={colors.primary} />
+                ) : (
+                  <Mic size={18} color={colors.primary} />
+                )}
+                <Text style={styles.scanBarcodeText}>
+                  {isListening ? 'Listening...' : isVoiceProcessing ? 'Building Meal...' : 'Speak Meal'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {!voiceMealAvailable && (
+              <Text style={styles.voiceSupportHint}>
+                Voice meal entry needs a new dev build or production build before it can be tested.
+              </Text>
+            )}
+
+            {(isListening || isVoiceProcessing || voiceTranscript.length > 0) && (
+              <View style={styles.voiceStatusCard}>
+                <Text style={styles.voiceStatusLabel}>
+                  {isListening ? 'Listening for your meal...' : isVoiceProcessing ? 'Calculating meal macros...' : 'Last transcript'}
+                </Text>
+                <Text style={styles.voiceTranscriptText}>{voiceTranscript || 'Try "2 eggs, 1 avocado, 6 oz orange juice"'}</Text>
+              </View>
+            )}
+
+            <View style={styles.savedFoodsRow}>
+              <TouchableOpacity
                 style={styles.savedFoodsLink}
                 onPress={() => router.push('/saved-foods')}
                 activeOpacity={0.7}
@@ -1312,6 +1733,94 @@ export default function AddFoodScreen() {
             )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={voiceModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setVoiceModalVisible(false)}
+      >
+        <Pressable style={styles.voiceModalOverlay} onPress={() => setVoiceModalVisible(false)}>
+          <Pressable style={styles.voiceModalSheet} onPress={() => {}}>
+            <Text style={styles.voiceModalTitle}>Confirm Spoken Meal</Text>
+            <Text style={styles.voiceModalSubtitle}>
+              Review the foods and macros before adding them to your log.
+            </Text>
+
+            {voiceMealDraft && (
+              <>
+                <View style={styles.voiceTranscriptCard}>
+                  <Text style={styles.voiceTranscriptLabel}>Transcript</Text>
+                  <Text style={styles.voiceTranscriptModalText}>{voiceMealDraft.transcript}</Text>
+                </View>
+
+                <ScrollView
+                  style={styles.voiceItemsScroll}
+                  contentContainerStyle={styles.voiceItemsContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {voiceMealDraft.items.map((item) => (
+                    <View key={item.id} style={styles.voiceItemCard}>
+                      <View style={styles.voiceItemHeader}>
+                        <Text style={styles.voiceItemName} numberOfLines={2}>
+                          {item.quantity} {item.displayUnit} {item.displayName}
+                        </Text>
+                        <Text style={styles.voiceItemCalories}>{formatNumber(item.macros.calories)} cal</Text>
+                      </View>
+                      <Text style={styles.voiceItemMacros}>
+                        {formatNumber(item.macros.protein_g)}p · {formatNumber(item.macros.carbs_g)}c · {formatNumber(item.macros.fat_g)}f
+                      </Text>
+                    </View>
+                  ))}
+
+                  {voiceMealDraft.unresolved.length > 0 && (
+                    <View style={styles.voiceUnresolvedCard}>
+                      <Text style={styles.voiceUnresolvedTitle}>Needs attention</Text>
+                      {voiceMealDraft.unresolved.map((item) => (
+                        <Text key={item.id} style={styles.voiceUnresolvedItem}>
+                          {item.label}: {item.reason}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                </ScrollView>
+
+                <View style={styles.voiceTotalsCard}>
+                  <Text style={styles.voiceTotalsTitle}>Meal totals</Text>
+                  <Text style={styles.voiceTotalsValue}>
+                    {formatNumber(voiceMealDraft.totals.calories)} cal · {formatNumber(voiceMealDraft.totals.protein_g)}p · {formatNumber(voiceMealDraft.totals.carbs_g)}c · {formatNumber(voiceMealDraft.totals.fat_g)}f
+                  </Text>
+                </View>
+
+                <View style={styles.voiceModalActions}>
+                  <TouchableOpacity
+                    style={styles.voiceSecondaryButton}
+                    onPress={() => setVoiceModalVisible(false)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.voiceSecondaryButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.voicePrimaryButton,
+                      (voiceMealDraft.unresolved.length > 0 || isSaving) && styles.voicePrimaryButtonDisabled,
+                    ]}
+                    onPress={handleConfirmVoiceMeal}
+                    activeOpacity={0.8}
+                    disabled={voiceMealDraft.unresolved.length > 0 || isSaving}
+                  >
+                    {isSaving ? (
+                      <ActivityIndicator size="small" color={colors.onPrimary} />
+                    ) : (
+                      <Text style={styles.voicePrimaryButtonText}>Confirm and Add</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1394,6 +1903,32 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 12,
     marginTop: 6,
   },
+  voiceStatusCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 12,
+    marginTop: 10,
+  },
+  voiceStatusLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  voiceTranscriptText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    lineHeight: 20,
+  },
+  savedFoodsRow: {
+    alignItems: 'flex-end',
+    marginTop: 4,
+  },
   scanBarcodeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1405,10 +1940,20 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
   },
+  scanBarcodeBtnDisabled: {
+    opacity: 0.45,
+  },
   scanBarcodeText: {
     color: colors.primary,
     fontSize: 15,
     fontWeight: '600' as const,
+  },
+  voiceSupportHint: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    marginTop: 8,
+    paddingHorizontal: 4,
   },
   savedFoodsLink: {
     flexDirection: 'row',
@@ -1421,6 +1966,160 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.primary,
     fontSize: 15,
     fontWeight: '600' as const,
+  },
+  voiceModalOverlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  voiceModalSheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 32,
+    maxHeight: '82%',
+  },
+  voiceModalTitle: {
+    color: Colors.text,
+    fontSize: 20,
+    fontWeight: '800' as const,
+  },
+  voiceModalSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  voiceTranscriptCard: {
+    backgroundColor: Colors.cardElevated,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 14,
+    marginTop: 16,
+  },
+  voiceTranscriptLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  voiceTranscriptModalText: {
+    color: Colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  voiceItemsScroll: {
+    marginTop: 14,
+    maxHeight: 280,
+  },
+  voiceItemsContent: {
+    gap: 10,
+  },
+  voiceItemCard: {
+    backgroundColor: Colors.cardElevated,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    padding: 14,
+  },
+  voiceItemHeader: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  voiceItemName: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  voiceItemCalories: {
+    color: Colors.calories,
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  voiceItemMacros: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '500' as const,
+    marginTop: 6,
+  },
+  voiceUnresolvedCard: {
+    backgroundColor: Colors.dangerMuted,
+    borderRadius: 12,
+    padding: 14,
+  },
+  voiceUnresolvedTitle: {
+    color: Colors.danger,
+    fontSize: 13,
+    fontWeight: '700' as const,
+    marginBottom: 6,
+  },
+  voiceUnresolvedItem: {
+    color: Colors.text,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  voiceTotalsCard: {
+    backgroundColor: Colors.caloriesMuted,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 16,
+  },
+  voiceTotalsTitle: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  voiceTotalsValue: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginTop: 6,
+  },
+  voiceModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 18,
+  },
+  voiceSecondaryButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    paddingVertical: 15,
+    backgroundColor: Colors.cardElevated,
+  },
+  voiceSecondaryButtonText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  voicePrimaryButton: {
+    flex: 1.3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    paddingVertical: 15,
+    backgroundColor: colors.primary,
+  },
+  voicePrimaryButtonDisabled: {
+    opacity: 0.45,
+  },
+  voicePrimaryButtonText: {
+    color: colors.onPrimary,
+    fontSize: 15,
+    fontWeight: '800' as const,
   },
   suggestionsSection: {
     marginBottom: 8,
@@ -1647,7 +2346,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.caloriesMuted,
+    backgroundColor: colors.primaryMuted,
     borderRadius: 12,
     padding: 14,
     marginTop: 16,
@@ -1658,7 +2357,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '600' as const,
   },
   caloriePreviewValue: {
-    color: Colors.calories,
+    color: colors.primary,
     fontSize: 22,
     fontWeight: '800' as const,
   },

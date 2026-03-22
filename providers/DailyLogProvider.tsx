@@ -85,18 +85,28 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
     },
   });
 
+  const addEntries = useCallback(
+    (entries: FoodEntry[], dateKey?: string) => {
+      if (entries.length === 0) return;
+      const targetDate = dateKey ?? today;
+      setLogs((current) => {
+        const updated = { ...current };
+        if (!updated[targetDate]) {
+          updated[targetDate] = [];
+        }
+        updated[targetDate] = [...updated[targetDate], ...entries];
+        saveMutation.mutate(updated);
+        return updated;
+      });
+    },
+    [today, saveMutation]
+  );
+
   const addEntry = useCallback(
     (entry: FoodEntry, dateKey?: string) => {
-      const targetDate = dateKey ?? today;
-      const updated = { ...logs };
-      if (!updated[targetDate]) {
-        updated[targetDate] = [];
-      }
-      updated[targetDate] = [...updated[targetDate], entry];
-      setLogs(updated);
-      saveMutation.mutate(updated);
+      addEntries([entry], dateKey);
     },
-    [logs, today, saveMutation]
+    [addEntries]
   );
 
   const removeEntry = useCallback(
@@ -239,6 +249,7 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
     todayEntries,
     todayTotals,
     addEntry,
+    addEntries,
     removeEntry,
     updateEntry,
     clearToday,

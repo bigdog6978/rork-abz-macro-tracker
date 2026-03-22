@@ -10,6 +10,8 @@ export const UNIT_DEFAULTS: Record<string, number> = {
   bananas: 118,
   apple: 182,
   apples: 182,
+  avocado: 150,
+  avocados: 150,
   date: 24,
   dates: 24,
 };
@@ -22,6 +24,8 @@ const UNIT_KEYWORDS = [
   'banana',
   'apples',
   'apple',
+  'avocados',
+  'avocado',
   'dates',
   'date',
 ];

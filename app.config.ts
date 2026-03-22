@@ -5,7 +5,7 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.2.4',
+  version: '1.2.5',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
@@ -47,6 +47,15 @@ export default (): ExpoConfig => ({
       {
         cameraPermission:
           'Physiq uses the camera to scan barcodes to quickly add foods. No photos or videos are stored.',
+      },
+    ],
+    [
+      'expo-speech-recognition',
+      {
+        microphonePermission:
+          'Physiq uses the microphone so you can speak a meal and quickly add foods to your log.',
+        speechRecognitionPermission:
+          'Physiq uses speech recognition to turn spoken meals into food entries with macros.',
       },
     ],
     'expo-sqlite',
