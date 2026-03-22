@@ -41,10 +41,13 @@ import {
   LearnMoreSection,
 } from '../src/content/planDefinitions';
 import { calculateMacros } from '../utils/macroEngine';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 const TOTAL_STEPS = 5;
 
 export default function OnboardingScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { completeOnboarding } = useUser();
   const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
@@ -220,7 +223,7 @@ export default function OnboardingScreen() {
             onPress={onLearnMore}
             activeOpacity={0.8}
           >
-            <Info size={14} color={Colors.primary} />
+            <Info size={14} color={colors.primary} />
             <Text style={styles.learnMoreText}>Learn More</Text>
           </TouchableOpacity>
         ) : null}
@@ -464,14 +467,14 @@ export default function OnboardingScreen() {
 
       <View style={styles.previewCard}>
         <View style={styles.previewHeader}>
-          <Zap size={16} color={Colors.primary} />
+          <Zap size={16} color={colors.primary} />
           <Text style={styles.previewTitle}>Estimated Daily Targets</Text>
         </View>
         <View style={styles.previewRow}>
-          <PreviewMetric label="Calories" value={String(previewMacros.calories)} color={Colors.calories} />
-          <PreviewMetric label="Protein" value={`${previewMacros.protein_g}g`} color={Colors.protein} />
-          <PreviewMetric label="Carbs" value={`${previewMacros.carbs_g}g`} color={Colors.carbs} />
-          <PreviewMetric label="Fat" value={`${previewMacros.fat_g}g`} color={Colors.fat} />
+          <PreviewMetric label="Calories" value={String(previewMacros.calories)} color={Colors.calories} styles={styles} />
+          <PreviewMetric label="Protein" value={`${previewMacros.protein_g}g`} color={Colors.protein} styles={styles} />
+          <PreviewMetric label="Carbs" value={`${previewMacros.carbs_g}g`} color={Colors.carbs} styles={styles} />
+          <PreviewMetric label="Fat" value={`${previewMacros.fat_g}g`} color={Colors.fat} styles={styles} />
         </View>
       </View>
     </View>
@@ -527,7 +530,7 @@ export default function OnboardingScreen() {
           activeOpacity={0.85}
         >
           <Text style={styles.primaryButtonText}>{isLastStep ? 'Finish' : 'Continue'}</Text>
-          <ChevronRight size={18} color={Colors.white} />
+          <ChevronRight size={18} color={colors.onPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -541,7 +544,17 @@ export default function OnboardingScreen() {
   );
 }
 
-function PreviewMetric({ label, value, color }: { label: string; value: string; color: string }) {
+function PreviewMetric({
+  label,
+  value,
+  color,
+  styles,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
     <View style={styles.previewMetric}>
       <Text style={[styles.previewValue, { color }]}>{value}</Text>
@@ -550,7 +563,7 @@ function PreviewMetric({ label, value, color }: { label: string; value: string; 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -571,7 +584,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 999,
   },
   stepIndicator: {
@@ -613,7 +626,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   learnMoreText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -668,8 +681,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   segmentActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
   },
   segmentText: {
     color: Colors.textSecondary,
@@ -677,7 +690,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   segmentTextActive: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   choiceList: {
     gap: 12,
@@ -693,8 +706,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   choiceCardSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
   },
   choiceCopy: {
     flex: 1,
@@ -705,7 +718,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   choiceTitleSelected: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   choiceDescription: {
     color: Colors.textSecondary,
@@ -714,13 +727,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   choiceDescriptionSelected: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   choiceDot: {
     width: 12,
     height: 12,
     borderRadius: 999,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   chipWrap: {
     flexDirection: 'row',
@@ -736,8 +749,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
   },
   chipActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
   },
   chipText: {
     color: Colors.textSecondary,
@@ -745,7 +758,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   chipTextActive: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   previewCard: {
     marginTop: 8,
@@ -811,10 +824,10 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
   primaryButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   primaryButtonText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '800',
   },

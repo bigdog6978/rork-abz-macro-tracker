@@ -5,6 +5,7 @@
 import { openDb } from './db';
 import type { LocalFood, LocalFoodSource } from '../types/Food';
 import type { NormalizedFood } from '../../features/food/types';
+import { applyKnownLiquidDensity } from '../../features/food/liquidDensity';
 
 const PREFIX_OFF = 'off:';
 const PREFIX_MANUAL = 'manual:';
@@ -33,6 +34,7 @@ interface FoodRow {
 function parseUnitMeta(servingSize: string | null): {
   unitLabel?: string;
   servingWeightG?: number;
+  servingVolumeMl?: number;
   density_g_per_ml?: number | null;
 } {
   if (!servingSize?.trim().startsWith('{')) return {};
@@ -40,11 +42,13 @@ function parseUnitMeta(servingSize: string | null): {
     const parsed = JSON.parse(servingSize) as {
       unitLabel?: string;
       servingWeightG?: number;
+      servingVolumeMl?: number;
       density_g_per_ml?: number | null;
     };
     return {
       unitLabel: typeof parsed.unitLabel === 'string' ? parsed.unitLabel : undefined,
       servingWeightG: typeof parsed.servingWeightG === 'number' ? parsed.servingWeightG : undefined,
+      servingVolumeMl: typeof parsed.servingVolumeMl === 'number' ? parsed.servingVolumeMl : undefined,
       density_g_per_ml: typeof parsed.density_g_per_ml === 'number' ? parsed.density_g_per_ml : undefined,
     };
   } catch {
@@ -57,14 +61,24 @@ function encodeServingSize(opts: {
   servingSize?: string | null;
   unitLabel?: string | null;
   servingWeightG?: number | null;
+  servingVolumeMl?: number | null;
   density_g_per_ml?: number | null;
 }): string | null {
-  const hasMeta = (opts.unitLabel && typeof opts.servingWeightG === 'number') || typeof opts.density_g_per_ml === 'number';
+  const hasMeta =
+    (opts.unitLabel && typeof opts.servingWeightG === 'number') ||
+    typeof opts.servingVolumeMl === 'number' ||
+    typeof opts.density_g_per_ml === 'number';
   if (hasMeta) {
     const obj: Record<string, unknown> = {};
     if (opts.unitLabel && typeof opts.servingWeightG === 'number') {
       obj.unitLabel = opts.unitLabel;
       obj.servingWeightG = opts.servingWeightG;
+    }
+    if (typeof opts.servingVolumeMl === 'number') {
+      obj.servingVolumeMl = opts.servingVolumeMl;
+      if (opts.unitLabel) {
+        obj.unitLabel = opts.unitLabel;
+      }
     }
     if (typeof opts.density_g_per_ml === 'number') {
       obj.density_g_per_ml = opts.density_g_per_ml;
@@ -89,6 +103,7 @@ function mapRow(r: FoodRow): LocalFood {
     servingSize: r.serving_size,
     unitLabel: meta.unitLabel ?? null,
     servingWeightG: meta.servingWeightG ?? null,
+    servingVolumeMl: meta.servingVolumeMl ?? null,
     density_g_per_ml: meta.density_g_per_ml ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -105,11 +120,23 @@ export async function upsertFoodFromBarcode(
     carbs: number;
     fat: number;
     servingSize?: string | null;
+    unitLabel?: string | null;
+    servingWeightG?: number | null;
+    servingVolumeMl?: number | null;
+    density_g_per_ml?: number | null;
   }
 ): Promise<LocalFood> {
   const db = await openDb();
   const id = toId(barcode, 'openfoodfacts');
   const now = Math.floor(Date.now() / 1000);
+
+  const servingSizeEnc = encodeServingSize({
+    servingSize: data.servingSize,
+    unitLabel: data.unitLabel,
+    servingWeightG: data.servingWeightG,
+    servingVolumeMl: data.servingVolumeMl,
+    density_g_per_ml: data.density_g_per_ml,
+  });
 
   const existing = await db.getFirstAsync<{ id: string }>(
     'SELECT id FROM foods WHERE barcode = ?',
@@ -129,7 +156,7 @@ export async function upsertFoodFromBarcode(
         data.protein,
         data.carbs,
         data.fat,
-        data.servingSize ?? null,
+        servingSizeEnc,
         now,
         barcode,
       ]
@@ -147,7 +174,7 @@ export async function upsertFoodFromBarcode(
         data.protein,
         data.carbs,
         data.fat,
-        data.servingSize ?? null,
+        servingSizeEnc,
         now,
         now,
       ]
@@ -378,8 +405,9 @@ export function localFoodToNormalizedFood(f: LocalFood): NormalizedFood {
     updatedAt: new Date(f.updatedAt * 1000).toISOString(),
   };
   if (typeof f.servingWeightG === 'number') norm.servingWeightGrams = f.servingWeightG;
+  if (typeof f.servingVolumeMl === 'number') norm.servingVolumeMl = f.servingVolumeMl;
   if (typeof f.density_g_per_ml === 'number') norm.density_g_per_ml = f.density_g_per_ml;
-  return norm;
+  return applyKnownLiquidDensity(norm);
 }
 
 /**
@@ -398,6 +426,7 @@ export async function updateFoodDensity(
     servingSize: row.serving_size,
     unitLabel: meta.unitLabel ?? undefined,
     servingWeightG: meta.servingWeightG ?? undefined,
+    servingVolumeMl: meta.servingVolumeMl ?? undefined,
     density_g_per_ml,
   });
 

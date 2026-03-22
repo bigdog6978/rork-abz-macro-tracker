@@ -5,7 +5,7 @@
  *
  * All pills share identical height; no text wrapping.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { MoreVertical } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import type { UnitId, UnitKind } from '../../src/lib/units';
 import { MASS_UNITS, VOLUME_UNITS, SERVING_UNITS } from '../../src/lib/units';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 const PRIMARY_MASS = MASS_UNITS;
 const PRIMARY_VOLUME = ['ml', 'fl_oz', 'cup'] as UnitId[];
@@ -84,6 +85,8 @@ export default function QuantityPillsCompact({
   showPerItemRow = false,
   unitLabel = 'item',
 }: QuantityPillsCompactProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [moreVisible, setMoreVisible] = useState(false);
   const { width: screenWidth } = useWindowDimensions();
 
@@ -199,7 +202,7 @@ export default function QuantityPillsCompact({
                 accessibilityLabel="More volume units"
                 accessibilityRole="button"
               >
-                <MoreVertical size={20} color={Colors.primary} />
+                <MoreVertical size={20} color={colors.primary} />
               </TouchableOpacity>
             )}
           </View>
@@ -254,7 +257,7 @@ export default function QuantityPillsCompact({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   wrap: {
     gap: 8,
   },
@@ -318,8 +321,8 @@ const styles = StyleSheet.create({
     minHeight: PILL_H,
   },
   pillSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   pillText: {
     fontWeight: '600' as const,
@@ -328,7 +331,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   pillTextSelected: {
-    color: Colors.white,
+    color: colors.onPrimary,
   },
   moreBtn: {
     paddingVertical: 0,
@@ -403,8 +406,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
   },
   moreItemSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
   },
   moreItemText: {
     color: Colors.text,
@@ -412,6 +415,6 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   moreItemTextSelected: {
-    color: Colors.primary,
+    color: colors.primary,
   },
 });

@@ -1,9 +1,10 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
 import { StyleSheet, Animated, TouchableWithoutFeedback, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Plus } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { Shadows } from '../../theme/tokens';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 interface FabProps {
   onPress: () => void;
@@ -12,6 +13,8 @@ interface FabProps {
 }
 
 export default function Fab({ onPress, icon, testID }: FabProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(() => {
@@ -47,13 +50,13 @@ export default function Fab({ onPress, icon, testID }: FabProps) {
       testID={testID}
     >
       <Animated.View style={[styles.fab, { transform: [{ scale }] }]}>
-        {icon ?? <Plus size={26} color={Colors.white} />}
+        {icon ?? <Plus size={26} color={colors.onPrimary} />}
       </Animated.View>
     </TouchableWithoutFeedback>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   fab: {
     position: 'absolute',
     bottom: 24,
@@ -61,7 +64,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...(Shadows.fab as Record<string, unknown>),

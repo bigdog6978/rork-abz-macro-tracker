@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Minus, Plus } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { formatNumber } from '../../utils/formatNumber';
 import { scaleMacros, QuantityInfo } from '../../utils/quantityUtils';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 interface EditQuantitySheetProps {
   visible: boolean;
@@ -39,6 +40,8 @@ export default function EditQuantitySheet({
   onSave,
   onCancel,
 }: EditQuantitySheetProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [qty, setQty] = useState(baseQty);
   const { unit, step, isCountBased } = quantityInfo;
 
@@ -132,7 +135,7 @@ export default function EditQuantitySheet({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: Colors.overlay,
@@ -216,11 +219,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
   saveText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '600' as const,
   },

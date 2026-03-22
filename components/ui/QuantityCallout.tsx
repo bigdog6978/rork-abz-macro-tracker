@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Colors from '../../constants/colors';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 export type CalloutReason = 'NEEDS_DENSITY' | 'UNSUPPORTED_SERVING' | 'NEEDS_SERVING_INFO';
 
@@ -34,6 +35,8 @@ const CONTENT: Record<
 };
 
 export default function QuantityCallout({ reason, onPrimary, onSecondary }: QuantityCalloutProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const c = CONTENT[reason];
   return (
     <View style={styles.container}>
@@ -56,7 +59,7 @@ export default function QuantityCallout({ reason, onPrimary, onSecondary }: Quan
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: Colors.card,
@@ -68,7 +71,7 @@ const styles = StyleSheet.create({
   },
   accent: {
     width: 4,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   content: {
     flex: 1,
@@ -93,13 +96,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 8,
   },
   primaryText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '600' as const,
   },
@@ -108,7 +111,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   secondaryText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '600' as const,
   },

@@ -30,10 +30,18 @@ export const usdaProvider: FoodProvider = {
     for (const n of detail.foodNutrients ?? []) {
       const num = n.nutrient?.number;
       const amount = n.amount ?? 0;
-      if (num === '208' || num === '957') nutrients.calories = amount;
-      if (num === '203') nutrients.protein_g = amount;
-      if (num === '205') nutrients.carbs_g = amount;
-      if (num === '204') nutrients.fat_g = amount;
+      if (num === '208' || num === '957' || num === '1008') nutrients.calories = amount;
+      if (num === '203' || num === '1003') nutrients.protein_g = amount;
+      if (num === '205' || num === '1005') nutrients.carbs_g = amount;
+      if (num === '204' || num === '1004' || num === '298') nutrients.fat_g = amount;
+    }
+
+    const protein = nutrients.protein_g ?? 0;
+    const carbs = nutrients.carbs_g ?? 0;
+    const fat = nutrients.fat_g ?? 0;
+
+    if ((nutrients.calories ?? 0) <= 0) {
+      nutrients.calories = protein * 4 + carbs * 4 + fat * 9;
     }
 
     return {

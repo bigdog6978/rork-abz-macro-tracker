@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { useUser } from '../providers/UserProvider';
 import { useMeasurements } from '../providers/MeasurementsProvider';
 import { MeasurementRecord } from '../features/progress/types';
 import { toDateKey, fromDateKey, getTodayDateKey } from '../utils/dateKey';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 function formatDateLabel(dateKey: string): string {
   return fromDateKey(dateKey).toLocaleDateString('en-US', {
@@ -30,6 +31,8 @@ function formatDateLabel(dateKey: string): string {
 }
 
 export default function AddMeasurementScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useUser();
   const { latest, addMeasurement, deleteMeasurementAsync, isAdding, userId, getMeasurementByDateKey } = useMeasurements();
   const params = useLocalSearchParams<{ dateKey?: string }>();
@@ -360,7 +363,7 @@ export default function AddMeasurementScreen() {
             activeOpacity={0.8}
             testID="save-measurement-button"
           >
-            <Check size={18} color={Colors.white} />
+            <Check size={18} color={colors.onPrimary} />
             <Text style={styles.saveButtonText}>
               {isAdding ? 'Saving...' : isEditing ? 'Save Changes' : 'Save Measurement'}
             </Text>
@@ -403,7 +406,7 @@ export default function AddMeasurementScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -532,7 +535,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
     marginTop: 24,
@@ -541,7 +544,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   saveButtonText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '700' as const,
   },
@@ -583,7 +586,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.cardBorder,
   },
   datePickerOptionActive: {
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: colors.primaryMuted,
   },
   datePickerOptionText: {
     color: Colors.text,
@@ -591,7 +594,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   datePickerOptionActiveText: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   datePickerCancel: {
     alignItems: 'center',

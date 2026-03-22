@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import Colors from '../constants/colors';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 export interface SegmentOption<T extends string = string> {
   label: string;
@@ -22,6 +23,8 @@ function SegmentedToggle<T extends string = string>({
   accessibilityLabel,
   style,
 }: SegmentedToggleProps<T>) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.track, style]} accessibilityLabel={accessibilityLabel}>
       {options.map((option) => {
@@ -46,7 +49,7 @@ function SegmentedToggle<T extends string = string>({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   track: {
     flexDirection: 'row',
     backgroundColor: Colors.cardElevated,
@@ -64,7 +67,7 @@ const styles = StyleSheet.create({
     minWidth: 40,
   },
   segmentSelected: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   label: {
     fontSize: 13,
@@ -72,7 +75,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   labelSelected: {
-    color: Colors.white,
+    color: colors.onPrimary,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import Colors from '../constants/colors';
 import { useMeasurements } from '../providers/MeasurementsProvider';
 import { MeasurementRecord } from '../features/progress/types';
 import { fromDateKey, toDateKey } from '../utils/dateKey';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 function formatDateLabel(dateKey: string): string {
   return fromDateKey(dateKey).toLocaleDateString('en-US', {
@@ -36,6 +37,8 @@ function formatEntrySummary(r: MeasurementRecord): string {
 }
 
 export default function MeasurementHistoryScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { records, deleteMeasurement } = useMeasurements();
   const sorted = [...records].reverse();
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
@@ -148,7 +151,7 @@ export default function MeasurementHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -183,7 +186,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   baselineTag: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 11,
     fontWeight: '700' as const,
     marginTop: 4,

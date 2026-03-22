@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import Colors from '../../constants/colors';
 import type { UnitId, UnitKind } from '../../src/lib/units';
 import { MASS_UNITS, VOLUME_UNITS, SERVING_UNITS } from '../../src/lib/units';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 const KIND_LABELS: Record<UnitKind, string> = {
   mass: 'Wt',
@@ -66,6 +67,8 @@ export default function QuantityPills({
   showPerItemRow = false,
   unitLabel = 'item',
 }: QuantityPillsProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [moreVolumeVisible, setMoreVolumeVisible] = useState(false);
 
   const primaryUnits = kind === 'mass' ? PRIMARY_MASS : kind === 'volume' ? PRIMARY_VOLUME : PRIMARY_SERVING;
@@ -196,7 +199,7 @@ export default function QuantityPills({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   wrap: {
     gap: 8,
   },
@@ -248,8 +251,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   pillSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   pillText: {
     fontSize: 12,
@@ -257,7 +260,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   pillTextSelected: {
-    color: Colors.white,
+    color: colors.onPrimary,
   },
   moreBtn: {
     paddingVertical: 6,
@@ -266,7 +269,7 @@ const styles = StyleSheet.create({
   moreText: {
     fontSize: 12,
     fontWeight: '600' as const,
-    color: Colors.primary,
+    color: colors.primary,
   },
   perItemRow: {
     flexDirection: 'row',
@@ -335,8 +338,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
   },
   moreItemSelected: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
   },
   moreItemText: {
     color: Colors.text,
@@ -344,6 +347,6 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   moreItemTextSelected: {
-    color: Colors.primary,
+    color: colors.primary,
   },
 });

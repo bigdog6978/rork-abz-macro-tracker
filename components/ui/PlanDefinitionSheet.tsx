@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { X } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import type { LearnMoreSection } from '../../src/content/planDefinitions';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 interface PlanDefinitionSheetProps {
   visible: boolean;
@@ -31,6 +32,9 @@ export default function PlanDefinitionSheet({
   sections,
   onClose,
 }: PlanDefinitionSheetProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handleClose = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -93,7 +97,7 @@ export default function PlanDefinitionSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: Colors.overlay,
@@ -146,7 +150,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionHeading: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '700' as const,
     textTransform: 'uppercase',

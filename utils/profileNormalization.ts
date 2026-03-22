@@ -100,6 +100,7 @@ function normalizeDietModifiers(raw: string[] | undefined): DietaryModifier[] {
     'egg_free',
     'soy_free',
     'shellfish_free',
+    'low_glycemic',
     'intermittent_fasting',
   ]);
   return (raw ?? []).filter((value): value is DietaryModifier => valid.has(value as DietaryModifier));

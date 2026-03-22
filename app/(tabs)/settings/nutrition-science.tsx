@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import Colors from '../../../constants/colors';
@@ -8,8 +8,12 @@ import {
   NUTRITION_SCIENCE_NOTE,
   NUTRITION_SCIENCE_SECTIONS,
 } from '../../../src/content/nutritionScience';
+import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
 export default function NutritionScienceScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Macro Calculation Methodology' }} />
@@ -49,7 +53,7 @@ export default function NutritionScienceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -105,7 +109,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.cardBorder,
   },
   referenceLabel: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -118,14 +122,14 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   noteCard: {
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: colors.primaryMuted,
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 95, 31, 0.2)',
+    borderColor: colors.primaryMuted,
   },
   noteLabel: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',

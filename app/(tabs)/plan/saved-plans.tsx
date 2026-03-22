@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -41,20 +41,23 @@ import {
   setActiveMealPlan,
   deleteMealPlan,
 } from '../../../storage/mealPlanRepo';
+import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
-const MEAL_ICONS: Record<string, React.ReactNode> = {
-  sunrise: <Sunrise size={14} color={Colors.primary} />,
-  sun: <Sun size={14} color={Colors.warning} />,
-  moon: <Moon size={14} color={Colors.carbs} />,
-  cookie: <Cookie size={14} color={Colors.fat} />,
-};
+function getMealIcon(name: string, colors: AppColors): React.ReactNode {
+  if (name === 'sunrise') return <Sunrise size={14} color={colors.primary} />;
+  if (name === 'sun') return <Sun size={14} color={Colors.warning} />;
+  if (name === 'moon') return <Moon size={14} color={Colors.carbs} />;
+  return <Cookie size={14} color={Colors.fat} />;
+}
 
 function MealPreview({ meal }: { meal: MealSlot }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.mealPreview}>
       <View style={styles.mealPreviewHeader}>
         <View style={styles.mealPreviewIcon}>
-          {MEAL_ICONS[meal.icon] ?? <Sun size={14} color={Colors.primary} />}
+          {getMealIcon(meal.icon, colors) ?? <Sun size={14} color={colors.primary} />}
         </View>
         <Text style={styles.mealPreviewName}>{meal.name}</Text>
         <Text style={styles.mealPreviewPercent}>{Math.round(meal.percentage * 100)}%</Text>
@@ -87,6 +90,8 @@ function SavedPlanCard({
   onLoad: () => void;
   onDelete: () => void;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [expanded, setExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
 
@@ -214,7 +219,7 @@ function SavedPlanCard({
                 activeOpacity={0.7}
                 testID={`load-plan-${plan.id}`}
               >
-                <Play size={14} color={Colors.white} />
+                <Play size={14} color={colors.onPrimary} />
                 <Text style={styles.loadButtonText}>Load Plan</Text>
               </TouchableOpacity>
             )}
@@ -235,6 +240,8 @@ function SavedPlanCard({
 }
 
 export default function SavedPlansScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -362,7 +369,7 @@ export default function SavedPlansScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -435,13 +442,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   metaChip: {
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: colors.primaryMuted,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 5,
   },
   metaChipText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 11,
     fontWeight: '700' as const,
   },
@@ -614,10 +621,10 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   loadButtonText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '700' as const,
   },
@@ -672,10 +679,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   emptyButtonText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '700' as const,
   },

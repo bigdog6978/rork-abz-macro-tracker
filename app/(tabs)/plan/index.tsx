@@ -111,16 +111,17 @@ import { GroceryList, GroceryChecklist, GroceryCategoryGroup } from '../../../ut
 import { loadData, saveData, STORAGE_KEYS } from '../../../services/storage';
 import { getQuantityInfo, scaleMacros, formatQuantityDisplay } from '../../../utils/quantityUtils';
 import EditQuantitySheet from '../../../components/ui/EditQuantitySheet';
+import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = 420;
 
-const MEAL_ICONS: Record<string, React.ReactNode> = {
-  sunrise: <Sunrise size={18} color={Colors.primary} />,
-  sun: <Sun size={18} color={Colors.warning} />,
-  moon: <Moon size={18} color={Colors.carbs} />,
-  cookie: <Cookie size={18} color={Colors.fat} />,
-};
+function getMealIcon(icon: string, colors: AppColors): React.ReactNode {
+  if (icon === 'sunrise') return <Sunrise size={18} color={colors.primary} />;
+  if (icon === 'sun') return <Sun size={18} color={Colors.warning} />;
+  if (icon === 'moon') return <Moon size={18} color={Colors.carbs} />;
+  return <Cookie size={18} color={Colors.fat} />;
+}
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -141,6 +142,7 @@ function FoodItemRow({
   onSwapPress: () => void;
   onEditQuantityPress?: () => void;
 }) {
+  const colors = useThemeColors();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(() => {
@@ -202,8 +204,14 @@ function FoodItemRow({
         accessibilityHint="Adds this food to your daily total"
         testID={`log-btn-${food.id}`}
       >
-        <Animated.View style={[styles.logToggleOuter, isLogged && styles.logToggleOuterActive, { transform: [{ scale: scaleAnim }] }]}>
-          <View style={[styles.logToggleInner, isLogged && styles.logToggleInnerActive]} />
+        <Animated.View
+          style={[
+            styles.logToggleOuter,
+            isLogged && [styles.logToggleOuterActive, { borderColor: colors.primary }],
+            { transform: [{ scale: scaleAnim }] },
+          ]}
+        >
+          <View style={[styles.logToggleInner, isLogged && [styles.logToggleInnerActive, { backgroundColor: colors.primary }]]} />
         </Animated.View>
       </Pressable>
       {food.isSubstitutable && (
@@ -237,6 +245,7 @@ function MealCard({
   onEditQuantityPress?: (mealIndex: number, foodIndex: number, food: MealSuggestion) => void;
   isLogged: (planItemId: string) => boolean;
 }) {
+  const colors = useThemeColors();
   const slotCalories = Math.round(macros.calories * meal.percentage);
   const slotProtein = Math.round(macros.protein_g * meal.percentage);
   const slotCarbs = Math.round(macros.carbs_g * meal.percentage);
@@ -246,14 +255,14 @@ function MealCard({
     <View style={styles.mealCard}>
       <View style={styles.mealHeader}>
         <View style={styles.mealIconContainer}>
-          {MEAL_ICONS[meal.icon] ?? <Sun size={18} color={Colors.primary} />}
+          {getMealIcon(meal.icon, colors) ?? <Sun size={18} color={colors.primary} />}
         </View>
         <View style={styles.mealHeaderInfo}>
           <Text style={styles.mealName}>{meal.name}</Text>
           <Text style={styles.mealPercent}>{Math.round(meal.percentage * 100)}% of daily</Text>
         </View>
-        <View style={styles.mealTargetBadge}>
-          <Text style={styles.mealTargetText}>{formatNumber(slotCalories)} cal</Text>
+        <View style={[styles.mealTargetBadge, { backgroundColor: colors.primaryMuted }]}>
+          <Text style={[styles.mealTargetText, { color: colors.primary }]}>{formatNumber(slotCalories)} cal</Text>
         </View>
       </View>
 
@@ -301,6 +310,7 @@ function SubstituteOption({
   result: SubstituteResult;
   onSelect: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <TouchableOpacity
       style={styles.substituteCard}
@@ -327,8 +337,8 @@ function SubstituteOption({
           </Text>
         </View>
       </View>
-      <View style={styles.selectButton}>
-        <Check size={16} color={Colors.primary} />
+      <View style={[styles.selectButton, { backgroundColor: colors.primaryMuted }]}>
+        <Check size={16} color={colors.primary} />
       </View>
     </TouchableOpacity>
   );
@@ -345,6 +355,7 @@ function GrocerySection({
   planId: string;
   showToast: (msg: string) => void;
 }) {
+  const colors = useThemeColors();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [checklist, setChecklist] = useState<GroceryChecklist>({});
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -465,22 +476,22 @@ function GrocerySection({
 
         <View style={groceryStyles.sectionActions}>
           <TouchableOpacity
-            style={groceryStyles.viewListBtn}
+            style={[groceryStyles.viewListBtn, { backgroundColor: colors.primary }]}
             onPress={openSheet}
             activeOpacity={0.7}
             testID="grocery-view-btn"
           >
-            <ShoppingCart size={14} color={Colors.white} />
-            <Text style={groceryStyles.viewListBtnText}>View List</Text>
+            <ShoppingCart size={14} color={colors.onPrimary} />
+            <Text style={[groceryStyles.viewListBtnText, { color: colors.onPrimary }]}>View List</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={groceryStyles.copyBtn}
+            style={[groceryStyles.copyBtn, { backgroundColor: colors.primaryMuted }]}
             onPress={handleCopy}
             activeOpacity={0.7}
             testID="grocery-copy-btn"
           >
-            <Copy size={14} color={Colors.primary} />
-            <Text style={groceryStyles.copyBtnText}>Copy</Text>
+            <Copy size={14} color={colors.primary} />
+            <Text style={[groceryStyles.copyBtnText, { color: colors.primary }]}>Copy</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -555,7 +566,7 @@ function GrocerySection({
                               groceryStyles.checkbox,
                               isChecked && groceryStyles.checkboxChecked,
                             ]}>
-                              {isChecked && <Check size={12} color={Colors.white} />}
+                              {isChecked && <Check size={12} color={colors.onPrimary} />}
                             </View>
                             <View style={groceryStyles.itemInfo}>
                               <Text style={[
@@ -592,12 +603,12 @@ function GrocerySection({
                   <Text style={groceryStyles.resetBtnText}>Reset</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={groceryStyles.footerCopyBtn}
+                  style={[groceryStyles.footerCopyBtn, { backgroundColor: colors.primaryMuted }]}
                   onPress={handleCopy}
                   activeOpacity={0.7}
                 >
-                  <Copy size={14} color={Colors.primary} />
-                  <Text style={groceryStyles.footerCopyBtnText}>Copy List</Text>
+                  <Copy size={14} color={colors.primary} />
+                  <Text style={[groceryStyles.footerCopyBtnText, { color: colors.primary }]}>Copy List</Text>
                 </TouchableOpacity>
               </View>
             </Animated.View>
@@ -893,6 +904,7 @@ function createFoodEntryFromPlanItem(food: MealSuggestion): FoodEntry {
 }
 
 export default function PlanScreen() {
+  const colors = useThemeColors();
   const { profile, macros } = useUser();
   const { todayEntries, addEntry, removeEntry, updateEntry } = useDailyLog();
   const queryClient = useQueryClient();
@@ -1352,7 +1364,7 @@ export default function PlanScreen() {
             </View>
             <View style={styles.headerActions}>
               <TouchableOpacity
-                style={styles.headerActionBtn}
+                style={[styles.headerActionBtn, { backgroundColor: colors.primaryMuted }]}
                 onPress={() => {
                   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   const keyToClear = planKey;
@@ -1379,25 +1391,25 @@ export default function PlanScreen() {
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 testID="regenerate-plan-btn"
               >
-                <RotateCcw size={16} color={Colors.primary} />
+                <RotateCcw size={16} color={colors.primary} />
               </TouchableOpacity>
               {savedPlans.length > 0 && (
                 <TouchableOpacity
-                  style={styles.headerActionBtn}
+                  style={[styles.headerActionBtn, { backgroundColor: colors.primaryMuted }]}
                   onPress={() => router.push('/plan/saved-plans' as any)}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   testID="saved-plans-btn"
                 >
-                  <Bookmark size={16} color={Colors.primary} />
+                  <Bookmark size={16} color={colors.primary} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                style={styles.saveHeaderBtn}
+                style={[styles.saveHeaderBtn, { backgroundColor: colors.primaryMuted }]}
                 onPress={openSaveModal}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 testID="save-plan-btn"
               >
-                <Save size={16} color={Colors.primary} />
+                <Save size={16} color={colors.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1449,10 +1461,10 @@ export default function PlanScreen() {
               We couldn't generate a plan with your current allergies and dietary setup. Try removing an allergy or adjusting your eating style or restrictions.
             </Text>
             <TouchableOpacity
-              style={styles.editAllergiesBtn}
+              style={[styles.editAllergiesBtn, { backgroundColor: colors.primary }]}
               onPress={() => router.push('/settings/allergies' as never)}
             >
-              <Text style={styles.editAllergiesBtnText}>Edit Allergies</Text>
+              <Text style={[styles.editAllergiesBtnText, { color: colors.onPrimary }]}>Edit Allergies</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -1567,6 +1579,7 @@ export default function PlanScreen() {
                   <TouchableOpacity
                     style={[
                       styles.pagingButton,
+                      { backgroundColor: colors.primaryMuted },
                       swapPageIndex === 0 && styles.pagingButtonDisabled,
                     ]}
                     onPress={() => setSwapPageIndex((p) => Math.max(0, p - 1))}
@@ -1576,6 +1589,7 @@ export default function PlanScreen() {
                     <Text
                       style={[
                         styles.pagingButtonText,
+                        { color: colors.primary },
                         swapPageIndex === 0 && styles.pagingButtonTextDisabled,
                       ]}
                     >
@@ -1590,6 +1604,7 @@ export default function PlanScreen() {
                   <TouchableOpacity
                     style={[
                       styles.pagingButton,
+                      { backgroundColor: colors.primaryMuted },
                       swapPageIndex >= totalSwapPages - 1 && styles.pagingButtonDisabled,
                     ]}
                     onPress={() => setSwapPageIndex((p) => Math.min(totalSwapPages - 1, p + 1))}
@@ -1599,6 +1614,7 @@ export default function PlanScreen() {
                     <Text
                       style={[
                         styles.pagingButtonText,
+                        { color: colors.primary },
                         swapPageIndex >= totalSwapPages - 1 && styles.pagingButtonTextDisabled,
                       ]}
                     >
@@ -1668,13 +1684,13 @@ export default function PlanScreen() {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.savePlanButton}
+                  style={[styles.savePlanButton, { backgroundColor: colors.primary }]}
                   onPress={handleSavePlan}
                   activeOpacity={0.7}
                   testID="confirm-save-btn"
                 >
-                  <Save size={16} color={Colors.white} />
-                  <Text style={styles.savePlanButtonText}>Save</Text>
+                  <Save size={16} color={colors.onPrimary} />
+                  <Text style={[styles.savePlanButtonText, { color: colors.onPrimary }]}>Save</Text>
                 </TouchableOpacity>
               </View>
             </Animated.View>

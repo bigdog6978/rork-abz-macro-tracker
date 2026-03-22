@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import Colors from '../../constants/colors';
 import { getGreeting, getMotivationHook, ProgressLevel } from '../../utils/greeting';
 import { useFadeIn } from '../../utils/motion';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 interface GreetingHeaderProps {
   firstName?: string | null;
@@ -19,6 +20,8 @@ export default function GreetingHeader({
   statusText,
   variant = 'default',
 }: GreetingHeaderProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const fadeAnim = useFadeIn();
   const greeting = getGreeting(firstName);
   const hook = getMotivationHook(progress);
@@ -37,7 +40,7 @@ export default function GreetingHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     paddingBottom: 2,
   },
@@ -61,7 +64,7 @@ const styles = StyleSheet.create({
   status: {
     fontSize: 13,
     fontWeight: '600' as const,
-    color: Colors.primary,
+    color: colors.primary,
     marginTop: 2,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { useUser } from '../providers/UserProvider';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 export default function WelcomeScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { updateProfile } = useUser();
   const [firstName, setFirstName] = useState('');
@@ -98,7 +101,7 @@ export default function WelcomeScreen() {
             testID="welcome-continue-btn"
           >
             <Text style={styles.continueText}>Continue</Text>
-            <ChevronRight size={18} color={Colors.white} />
+            <ChevronRight size={18} color={colors.onPrimary} />
           </TouchableOpacity>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -106,7 +109,7 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -169,12 +172,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 14,
   },
   continueText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 17,
     fontWeight: '700',
   },

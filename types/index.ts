@@ -35,6 +35,7 @@ export type DietaryRestriction =
   | 'egg_free'
   | 'soy_free'
   | 'shellfish_free'
+  | 'low_glycemic'
   | 'intermittent_fasting';
 
 // Compatibility alias while refactoring existing imports.
@@ -241,6 +242,7 @@ export const DIETARY_RESTRICTION_LABELS: Record<DietaryRestriction, string> = {
   egg_free: 'Egg-Free',
   soy_free: 'Soy-Free',
   shellfish_free: 'Shellfish-Free',
+  low_glycemic: 'Low Glycemic',
   intermittent_fasting: 'Intermittent Fasting',
 };
 
@@ -251,6 +253,7 @@ export const DIETARY_RESTRICTION_DESCRIPTIONS: Record<DietaryRestriction, string
   egg_free: 'Avoid eggs and egg-based ingredients',
   soy_free: 'Avoid soy foods and soy-derived ingredients',
   shellfish_free: 'Avoid shellfish',
+  low_glycemic: 'Prefer slower-digesting carb and fruit choices in meal plans',
   intermittent_fasting: 'Meal timing preference',
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { getAllergies, addAllergy, removeAllergy, normalizeAllergy } from '../../../storage/allergiesRepo';
 import { UserAllergy } from '../../../types';
+import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
 const QUICK_PICKS = [
   'Peanuts',
@@ -29,6 +30,8 @@ const QUICK_PICKS = [
 ];
 
 export default function AllergiesScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();
   const { data: allergies = [] } = useQuery({
     queryKey: ['user_allergies'],
@@ -128,7 +131,7 @@ export default function AllergiesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -170,7 +173,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   addBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     borderRadius: 10,
     justifyContent: 'center',
@@ -179,7 +182,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   addBtnText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '700' as const,
   },
@@ -198,8 +201,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.inputBorder,
   },
   quickChipAdded: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
     opacity: 0.7,
   },
   quickChipText: {
@@ -208,7 +211,7 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   quickChipTextAdded: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   pillsWrap: {
     flexDirection: 'row',

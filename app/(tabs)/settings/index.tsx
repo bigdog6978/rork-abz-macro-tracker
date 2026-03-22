@@ -15,6 +15,8 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, ChevronRight, FileText, Mail, RefreshCw, Shield, Trash2, User } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Shadows, Spacing } from '../../../theme/tokens';
+import { useTheme, useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
+import { ACCENT_THEMES, type AccentThemeId } from '../../../theme/accentThemes';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { getAllergies } from '../../../storage/allergiesRepo';
@@ -40,6 +42,9 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { profile, macros, updateProfile, resetProfile } = useUser();
   const { clearAll } = useDailyLog();
+  const colors = useThemeColors();
+  const { accentTheme, setAccentTheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [editMode, setEditMode] = useState<EditMode>('none');
   const [measurementSystem, setMeasurementSystem] = useState<MeasurementSystem>(profile.measurementSystem);
@@ -154,6 +159,13 @@ export default function SettingsScreen() {
     ]);
   }, [clearAll, resetProfile]);
 
+  const handleAccentThemePress = useCallback(async (themeId: AccentThemeId) => {
+    await setAccentTheme(themeId);
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
+    }
+  }, [setAccentTheme]);
+
   if (!profile.onboardingComplete) {
     return (
       <View style={styles.container}>
@@ -182,17 +194,17 @@ export default function SettingsScreen() {
         <View style={styles.macroSummary}>
           <Text style={styles.sectionTitle}>Current Targets</Text>
           <View style={styles.macroRow}>
-            <MetricCard label="Calories" value={String(macros.calories)} color={Colors.calories} />
-            <MetricCard label="Protein" value={`${macros.protein_g}g`} color={Colors.protein} />
-            <MetricCard label="Carbs" value={`${macros.carbs_g}g`} color={Colors.carbs} />
-            <MetricCard label="Fat" value={`${macros.fat_g}g`} color={Colors.fat} />
+            <MetricCard label="Calories" value={String(macros.calories)} color={Colors.calories} styles={styles} />
+            <MetricCard label="Protein" value={`${macros.protein_g}g`} color={Colors.protein} styles={styles} />
+            <MetricCard label="Carbs" value={`${macros.carbs_g}g`} color={Colors.carbs} styles={styles} />
+            <MetricCard label="Fat" value={`${macros.fat_g}g`} color={Colors.fat} styles={styles} />
           </View>
         </View>
 
         <View style={styles.sectionCard}>
           <TouchableOpacity style={styles.settingsRow} onPress={() => setEditMode(editMode === 'profile' ? 'none' : 'profile')}>
-            <View style={[styles.iconBadge, { backgroundColor: Colors.primaryMuted }]}>
-              <User size={16} color={Colors.primary} />
+            <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
+              <User size={16} color={colors.primary} />
             </View>
             <View style={styles.rowCopy}>
               <Text style={styles.rowTitle}>Body Stats</Text>
@@ -206,16 +218,28 @@ export default function SettingsScreen() {
               <Text style={styles.fieldLabel}>Units</Text>
               <View style={styles.segmentRow}>
                 <TouchableOpacity
-                  style={[styles.segment, measurementSystem === 'us' && styles.segmentActive]}
+                  style={[
+                    styles.segment,
+                    measurementSystem === 'us' && {
+                      borderColor: colors.primary,
+                      backgroundColor: colors.primaryMuted,
+                    },
+                  ]}
                   onPress={() => setMeasurementSystem('us')}
                 >
-                  <Text style={[styles.segmentText, measurementSystem === 'us' && styles.segmentTextActive]}>US</Text>
+                  <Text style={[styles.segmentText, measurementSystem === 'us' && { color: colors.primary }]}>US</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.segment, measurementSystem === 'metric' && styles.segmentActive]}
+                  style={[
+                    styles.segment,
+                    measurementSystem === 'metric' && {
+                      borderColor: colors.primary,
+                      backgroundColor: colors.primaryMuted,
+                    },
+                  ]}
                   onPress={() => setMeasurementSystem('metric')}
                 >
-                  <Text style={[styles.segmentText, measurementSystem === 'metric' && styles.segmentTextActive]}>Metric</Text>
+                  <Text style={[styles.segmentText, measurementSystem === 'metric' && { color: colors.primary }]}>Metric</Text>
                 </TouchableOpacity>
               </View>
 
@@ -293,7 +317,7 @@ export default function SettingsScreen() {
               <Text style={styles.nutritionSectionLabel}>Goal</Text>
               <View style={styles.chipWrap}>
                 {(Object.keys(GOAL_LABELS) as Goal[]).map((value) => (
-                  <Chip key={value} active={goal === value} label={GOAL_LABELS[value]} onPress={() => setGoal(value)} />
+                  <Chip key={value} active={goal === value} label={GOAL_LABELS[value]} onPress={() => setGoal(value)} colors={colors} styles={styles} />
                 ))}
               </View>
 
@@ -305,6 +329,8 @@ export default function SettingsScreen() {
                     active={activityLevel === value}
                     label={ACTIVITY_LABELS[value]}
                     onPress={() => setActivityLevel(value)}
+                    colors={colors}
+                    styles={styles}
                   />
                 ))}
               </View>
@@ -317,6 +343,8 @@ export default function SettingsScreen() {
                     active={eatingStyle === value}
                     label={EATING_STYLE_LABELS[value]}
                     onPress={() => setEatingStyle(value)}
+                    colors={colors}
+                    styles={styles}
                   />
                 ))}
               </View>
@@ -329,6 +357,8 @@ export default function SettingsScreen() {
                     active={dietModifiers.includes(modifier)}
                     label={DIETARY_MODIFIER_LABELS[modifier]}
                     onPress={() => toggleModifier(modifier)}
+                    colors={colors}
+                    styles={styles}
                   />
                 ))}
               </View>
@@ -363,6 +393,47 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.sectionCard}>
+          <View style={styles.settingsRow}>
+            <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
+              <RefreshCw size={16} color={colors.primary} />
+            </View>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Accent Theme</Text>
+              <Text style={styles.rowSubtitle}>Choose the highlight color used across the app.</Text>
+            </View>
+          </View>
+          <View style={styles.themePickerWrap}>
+            {Object.entries(ACCENT_THEMES).map(([themeId, theme]) => {
+              const active = accentTheme === themeId;
+              return (
+                <TouchableOpacity
+                  key={themeId}
+                  style={[
+                    styles.themeChip,
+                    active && {
+                      borderColor: colors.primary,
+                      backgroundColor: colors.primaryMuted,
+                    },
+                  ]}
+                  onPress={() => void handleAccentThemePress(themeId as AccentThemeId)}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.themeDot, { backgroundColor: theme.primary }]} />
+                  <Text
+                    style={[
+                      styles.themeChipText,
+                      active && { color: colors.primary },
+                    ]}
+                  >
+                    {theme.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.sectionCard}>
           <TouchableOpacity style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
             <View style={[styles.iconBadge, { backgroundColor: Colors.carbsMuted }]}>
               <Shield size={16} color={Colors.carbs} />
@@ -394,8 +465,8 @@ export default function SettingsScreen() {
           </TouchableOpacity>
           <View style={styles.divider} />
           <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/settings/nutrition-science' as never)}>
-            <View style={[styles.iconBadge, { backgroundColor: Colors.primaryMuted }]}>
-              <FileText size={16} color={Colors.primary} />
+            <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
+              <FileText size={16} color={colors.primary} />
             </View>
             <View style={styles.rowCopy}>
               <Text style={styles.rowTitle}>Nutrition Science & References</Text>
@@ -428,15 +499,44 @@ export default function SettingsScreen() {
   );
 }
 
-function Chip({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+function Chip({
+  active,
+  label,
+  onPress,
+  colors,
+  styles,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+  colors: AppColors;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
-    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress} activeOpacity={0.8}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    <TouchableOpacity
+      style={[
+        styles.chip,
+        active && { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Text style={[styles.chipText, active && { color: colors.primary }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-function MetricCard({ label, value, color }: { label: string; value: string; color: string }) {
+function MetricCard({
+  label,
+  value,
+  color,
+  styles,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
     <View style={styles.metricCard}>
       <Text style={[styles.metricValue, { color }]}>{value}</Text>
@@ -445,7 +545,7 @@ function MetricCard({ label, value, color }: { label: string; value: string; col
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -585,17 +685,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
-  segmentActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
-  },
   segmentText: {
     color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '700',
-  },
-  segmentTextActive: {
-    color: Colors.primary,
   },
   chipWrap: {
     flexDirection: 'row',
@@ -610,27 +703,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
-  chipActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primaryMuted,
-  },
   chipText: {
     color: Colors.textSecondary,
     fontSize: 13,
     fontWeight: '700',
   },
-  chipTextActive: {
-    color: Colors.primary,
-  },
   primaryButton: {
     height: 48,
     borderRadius: 12,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButtonText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -642,6 +728,34 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: Colors.textSecondary,
     fontSize: 16,
+    fontWeight: '700',
+  },
+  themePickerWrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  themeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.cardElevated,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  themeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+  },
+  themeChipText: {
+    color: Colors.text,
+    fontSize: 13,
     fontWeight: '700',
   },
 });

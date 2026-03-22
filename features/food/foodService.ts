@@ -18,6 +18,7 @@ import {
   FoodItem,
   FoodStats,
 } from '../../src/search/foodSearch';
+import { applyKnownLiquidDensity } from './liquidDensity';
 
 const SEARCH_PAGE_SIZE = 50;
 
@@ -48,6 +49,19 @@ export function computeMacrosForServing(
     carbs_g: Math.round(food.per100g.carbs_g * factor * 10) / 10,
     fat_g: Math.round(food.per100g.fat_g * factor * 10) / 10,
   };
+}
+
+function withKnownDensity(food: NormalizedFood): NormalizedFood {
+  return applyKnownLiquidDensity(food);
+}
+
+function hasZeroMacros(food: NormalizedFood): boolean {
+  return (
+    food.per100g.calories === 0 &&
+    food.per100g.protein_g === 0 &&
+    food.per100g.carbs_g === 0 &&
+    food.per100g.fat_g === 0
+  );
 }
 
 /** Scale macros from quantity with unit. Returns ok + macros or error state. */
@@ -197,7 +211,7 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
   let localResults: NormalizedFood[] = [];
   try {
     const localFoods = await foodsRepo.searchLocalFoods(q);
-    localResults = localFoods.map(foodsRepo.localFoodToNormalizedFood);
+    localResults = localFoods.map(foodsRepo.localFoodToNormalizedFood).map(withKnownDensity);
   } catch {
     // SQLite may not be ready
   }
@@ -220,10 +234,11 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
       const results = cached.results ?? [];
       const merged = mergeAndDedupe(localResults, results);
       if (merged.length > 0) {
-        const items = merged.map(toFoodItem);
+        const densityApplied = merged.map(withKnownDensity);
+        const items = densityApplied.map(toFoodItem);
         const statsMap = await getFoodStatsMap();
         const ranked = rankFoods(items, q, statsMap);
-        const byId = new Map(merged.map((f) => [f.id, f]));
+        const byId = new Map(densityApplied.map((f) => [f.id, f]));
         const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
         return { status: 'ok', results: reordered };
       }
@@ -231,7 +246,7 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
     }
 
     const response = await usdaClient.searchFoods(query, SEARCH_PAGE_SIZE);
-    const normalized = (response.foods ?? []).map(normalizeSearchResult);
+    const normalized = (response.foods ?? []).map(normalizeSearchResult).map(withKnownDensity);
     await foodRepo.setCachedSearch(query, normalized);
 
     if (cached?.expired) {
@@ -240,10 +255,11 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
 
     const merged = mergeAndDedupe(localResults, normalized);
     if (merged.length > 0) {
-      const items = merged.map(toFoodItem);
+      const densityApplied = merged.map(withKnownDensity);
+      const items = densityApplied.map(toFoodItem);
       const statsMap = await getFoodStatsMap();
       const ranked = rankFoods(items, q, statsMap);
-      const byId = new Map(merged.map((f) => [f.id, f]));
+      const byId = new Map(densityApplied.map((f) => [f.id, f]));
       const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
       return { status: 'ok', results: reordered };
     }
@@ -300,7 +316,7 @@ function refreshSearchInBackground(query: string): void {
   usdaClient
     .searchFoods(query, SEARCH_PAGE_SIZE)
     .then((response) => {
-      const normalized = (response.foods ?? []).map(normalizeSearchResult);
+      const normalized = (response.foods ?? []).map(normalizeSearchResult).map(withKnownDensity);
       foodRepo.setCachedSearch(query, normalized);
     })
     .catch(() => {});
@@ -317,7 +333,9 @@ export async function getFood(
       if (cached.expired) {
         refreshDetailInBackground(externalId);
       }
-      return cached.food;
+      if (!hasZeroMacros(cached.food)) {
+        return withKnownDensity(cached.food);
+      }
     }
   } catch {
     // ignore cache read errors
@@ -325,7 +343,7 @@ export async function getFood(
 
   try {
     const detail = await usdaClient.getFoodDetail(externalId);
-    const normalized = normalizeDetailResult(detail);
+    const normalized = withKnownDensity(normalizeDetailResult(detail));
     await foodRepo.setCachedDetail(normalized);
     return normalized;
   } catch {
@@ -337,7 +355,7 @@ function refreshDetailInBackground(externalId: string): void {
   usdaClient
     .getFoodDetail(externalId)
     .then((detail) => {
-      const normalized = normalizeDetailResult(detail);
+      const normalized = withKnownDensity(normalizeDetailResult(detail));
       foodRepo.setCachedDetail(normalized);
     })
     .catch(() => {});
@@ -423,7 +441,7 @@ export function createManualNormalizedFood(
   servingGrams: number
 ): NormalizedFood {
   const factor = servingGrams > 0 ? 100 / servingGrams : 1;
-  return {
+  return withKnownDensity({
     id: `manual:${generateId()}`,
     providerId: 'manual',
     name,
@@ -435,7 +453,7 @@ export function createManualNormalizedFood(
       fat_g: Math.round(macros.fat_g * factor * 10) / 10,
     },
     updatedAt: new Date().toISOString(),
-  };
+  });
 }
 
 export { usdaHealthCheck } from './providers/usda/usdaClient';

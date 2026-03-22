@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,11 @@ import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import * as foodsRepo from '../src/data/foodsRepo';
 import type { LocalFood } from '../src/types/Food';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 export default function SavedFoodsScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [foods, setFoods] = useState<LocalFood[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -126,7 +129,7 @@ export default function SavedFoodsScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : filteredFoods.length === 0 ? (
         <View style={styles.emptyState}>
@@ -145,7 +148,7 @@ export default function SavedFoodsScreen() {
                 <Text style={styles.emptyBtnText}>Enter manually</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.emptyBtnSecondary} onPress={handleScanBarcode}>
-                <Scan size={18} color={Colors.primary} />
+                <Scan size={18} color={colors.primary} />
                 <Text style={styles.emptyBtnTextSecondary}>Scan barcode</Text>
               </TouchableOpacity>
             </View>
@@ -190,7 +193,7 @@ export default function SavedFoodsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -245,13 +248,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
   emptyBtnText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -263,7 +266,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyBtnTextSecondary: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },

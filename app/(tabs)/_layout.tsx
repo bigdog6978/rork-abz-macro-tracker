@@ -1,24 +1,37 @@
 import { Tabs } from "expo-router";
 import { Home, UtensilsCrossed, TrendingUp, Settings } from "lucide-react-native";
-import React from "react";
+import React, { useMemo } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import Colors from "../../constants/colors";
+import { useThemeColors, type AppColors } from "../../providers/ThemeProvider";
 
-function TabIcon({ icon: Icon, color, size, focused }: {
+function TabIcon({ icon: Icon, color, size, focused, activeBarColor }: {
   icon: typeof Home;
   color: string;
   size: number;
   focused: boolean;
+  activeBarColor: string;
 }) {
   return (
     <View style={styles.iconWrap}>
       <Icon size={size} color={color} strokeWidth={focused ? 2.5 : 1.8} />
-      {focused && <View style={styles.activeBar} />}
+      {focused && <View style={[styles.activeBar, { backgroundColor: activeBarColor }]} />}
     </View>
   );
 }
 
 export default function TabLayout() {
+  const colors = useThemeColors();
+  const tabBarStyle = useMemo(
+    () => ({
+      backgroundColor: Colors.tabBar,
+      borderTopColor: Colors.border,
+      borderTopWidth: 0.5,
+      paddingTop: Platform.OS === 'ios' ? 8 : 4,
+    }),
+    []
+  );
+
   return (
     <Tabs
       screenOptions={{
@@ -26,14 +39,9 @@ export default function TabLayout() {
         sceneStyle: {
           backgroundColor: 'transparent',
         },
-        tabBarActiveTintColor: Colors.primary,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: Colors.textTertiary,
-        tabBarStyle: {
-          backgroundColor: Colors.tabBar,
-          borderTopColor: Colors.border,
-          borderTopWidth: 0.5,
-          paddingTop: Platform.OS === 'ios' ? 8 : 4,
-        },
+        tabBarStyle,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600' as const,
@@ -45,7 +53,7 @@ export default function TabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon icon={Home} color={color} size={size} focused={focused} />
+            <TabIcon icon={Home} color={color} size={size} focused={focused} activeBarColor={colors.primary} />
           ),
         }}
       />
@@ -54,7 +62,7 @@ export default function TabLayout() {
         options={{
           title: "Meal Plan",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon icon={UtensilsCrossed} color={color} size={size} focused={focused} />
+            <TabIcon icon={UtensilsCrossed} color={color} size={size} focused={focused} activeBarColor={colors.primary} />
           ),
         }}
       />
@@ -63,7 +71,7 @@ export default function TabLayout() {
         options={{
           title: "Progress",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon icon={TrendingUp} color={color} size={size} focused={focused} />
+            <TabIcon icon={TrendingUp} color={color} size={size} focused={focused} activeBarColor={colors.primary} />
           ),
         }}
       />
@@ -72,7 +80,7 @@ export default function TabLayout() {
         options={{
           title: "Settings",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon icon={Settings} color={color} size={size} focused={focused} />
+            <TabIcon icon={Settings} color={color} size={size} focused={focused} activeBarColor={colors.primary} />
           ),
         }}
       />

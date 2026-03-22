@@ -13,6 +13,8 @@ export interface NormalizedFood {
   };
   /** Grams per 1 serving when basis supports it */
   servingWeightGrams?: number;
+  /** Milliliters per 1 serving for volume-based package servings */
+  servingVolumeMl?: number;
   /** Density (g/ml) for volume→grams conversion */
   density_g_per_ml?: number | null;
   updatedAt: string;

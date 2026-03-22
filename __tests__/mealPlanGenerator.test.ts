@@ -151,6 +151,43 @@ describe('MealPlanGenerator', () => {
     });
   });
 
+  describe('modifier-driven swaps', () => {
+    it('low glycemic swaps fast carb choices for lower-glycemic options without losing macro alignment', () => {
+      const targets: MacroTargets = { calories: 1941, protein_g: 122, carbs_g: 271, fat_g: 41 };
+      const plan = generateMealPlan(targets, 'mediterranean', ['low_glycemic'], 'us', [], 1);
+      const totals = sumPlanTotals(plan);
+      const foodIds = plan.meals.flatMap((meal) => meal.suggestions.map((suggestion) => suggestion.foodId));
+
+      expect(foodIds).not.toContain('pita');
+      expect(foodIds).not.toContain('couscous');
+      expect(foodIds).not.toContain('tabbouleh');
+      expect(foodIds).not.toContain('dates');
+      expect(foodIds).toContain('sweet_potato');
+      expect(foodIds).toContain('quinoa');
+      expect(foodIds).toContain('berries');
+      expect(withinTolerance(totals, targets, { protein: 12, carbs: 18, fat: 10, calories: 110 })).toBe(true);
+    });
+
+    it('supports very high calorie low-glycemic targets by adding enough carb and calorie capacity', () => {
+      const targets: MacroTargets = { calories: 4003, protein_g: 250, carbs_g: 582, fat_g: 75 };
+      const plan = generateMealPlan(targets, 'standard', ['low_glycemic'], 'us');
+      const totals = sumPlanTotals(plan);
+      const foodIds = plan.meals.flatMap((meal) => meal.suggestions.map((suggestion) => suggestion.foodId));
+
+      expect(foodIds).not.toContain('white_rice');
+      expect(foodIds).not.toContain('banana');
+      expect(foodIds).not.toContain('rice_cake');
+      expect(foodIds).toContain('quinoa');
+      expect(foodIds).toContain('sweet_potato');
+      expect(totals.calories).toBeGreaterThanOrEqual(targets.calories - 60);
+      expect(totals.calories).toBeLessThanOrEqual(targets.calories + 45);
+      expect(totals.protein_g).toBeGreaterThanOrEqual(targets.protein_g - 18);
+      expect(totals.carbs_g).toBeGreaterThanOrEqual(targets.carbs_g - 20);
+      expect(totals.fat_g).toBeGreaterThanOrEqual(targets.fat_g - 10);
+      expect(withinTolerance(totals, targets, { protein: 18, carbs: 20, fat: 10, calories: 60 })).toBe(true);
+    });
+  });
+
   describe('regeneration when targets change', () => {
     it('different targets produce different plans', () => {
       const t1: MacroTargets = { calories: 2000, protein_g: 150, carbs_g: 200, fat_g: 67 };

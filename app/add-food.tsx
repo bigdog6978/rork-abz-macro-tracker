@@ -20,6 +20,7 @@ import { Check, Search, Clock, Pencil, X, ChevronRight, Scan, Bookmark } from 'l
 import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import { NormalizedFood } from '../features/food/types';
 import * as foodService from '../features/food/foodService';
 import * as foodsRepo from '../src/data/foodsRepo';
@@ -80,6 +81,8 @@ function getSearchErrorMessage(
 
 export default function AddFoodScreen() {
   const { addEntry } = useDailyLog();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const params = useLocalSearchParams<{ fromBarcode?: string; dateKey?: string }>();
   const dateKeyParam = typeof params.dateKey === 'string' ? params.dateKey : undefined;
 
@@ -184,11 +187,19 @@ export default function AddFoodScreen() {
       const savedUnit = local.unitLabel && local.servingWeightG
         ? { unitLabel: local.unitLabel, servingWeightG: local.servingWeightG }
         : null;
+      const savedVolumeMl =
+        typeof local.servingVolumeMl === 'number' && local.servingVolumeMl > 0
+          ? local.servingVolumeMl
+          : null;
       const useUnits = !!(savedUnit || detected);
       const unitConfig = savedUnit ?? detected;
       const foodWithServing = useUnits && unitConfig
         ? { ...norm, servingWeightGrams: unitConfig.servingWeightG }
         : norm;
+
+      let value = 100;
+      let unit: UnitId = 'g';
+      let kind: UnitKind = 'mass';
 
       if (useUnits && unitConfig) {
         setUnitKind('serving');
@@ -196,22 +207,36 @@ export default function AddFoodScreen() {
         setUnitLabel(unitConfig.unitLabel);
         setServingWeightG(unitConfig.servingWeightG);
         setQuantityInput('1');
+        value = 1;
+        unit = 'piece';
+        kind = 'serving';
+      } else if (savedVolumeMl) {
+        setUnitKind('volume');
+        setUnitId('ml');
+        setQuantityInput(String(savedVolumeMl));
+        value = savedVolumeMl;
+        unit = 'ml';
+        kind = 'volume';
       } else {
         setUnitKind('mass');
         setUnitId('g');
         setQuantityInput('100');
       }
 
-      const value = useUnits ? 1 : 100;
-      const unit = useUnits ? 'piece' : 'g';
-      const kind = useUnits ? 'serving' : 'mass';
       const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unit, kind);
-      const macros = result.ok ? result.macros : foodService.computeMacrosForServing(norm, 100);
-      computedMacrosRef.current = macros;
-      setProtein(String(macros.protein_g));
-      setCarbs(String(macros.carbs_g));
-      setFat(String(macros.fat_g));
-      setScalingReason(result.ok ? null : result.reason);
+      if (result.ok) {
+        computedMacrosRef.current = result.macros;
+        setProtein(String(result.macros.protein_g));
+        setCarbs(String(result.macros.carbs_g));
+        setFat(String(result.macros.fat_g));
+        setScalingReason(null);
+      } else {
+        computedMacrosRef.current = null;
+        setProtein('');
+        setCarbs('');
+        setFat('');
+        setScalingReason(result.reason);
+      }
     } catch (err) {
       console.log('[AddFood] Error loading barcode food:', err);
     }
@@ -297,17 +322,22 @@ export default function AddFoodScreen() {
 
   const handleSelectSuggestion = useCallback(
     async (food: NormalizedFood) => {
-      console.log('[AddFood] Selected suggestion:', food.name);
-      setSelectedFood(food);
-      setName(food.name);
+      const resolvedFood =
+        food.providerId === 'usda' && food.externalId
+          ? (await foodService.getFood(food.externalId)) ?? food
+          : food;
+
+      console.log('[AddFood] Selected suggestion:', resolvedFood.name);
+      setSelectedFood(resolvedFood);
+      setName(resolvedFood.name);
       setShowSuggestions(false);
-      setQuery(food.name);
+      setQuery(resolvedFood.name);
       setIsCustomized(false);
 
-      const detected = detectUnitFromName(food.name);
+      const detected = detectUnitFromName(resolvedFood.name);
       const foodWithServing = detected
-        ? { ...food, servingWeightGrams: detected.servingWeightG }
-        : food;
+        ? { ...resolvedFood, servingWeightGrams: detected.servingWeightG }
+        : resolvedFood;
       if (detected) {
         setUnitKind('serving');
         setUnitId('piece');
@@ -328,7 +358,7 @@ export default function AddFoodScreen() {
         setUnitKind('mass');
         setUnitId('g');
         setQuantityInput('100');
-        const result = foodService.scaleMacrosFromQuantity(food, 100, 'g', 'mass');
+        const result = foodService.scaleMacrosFromQuantity(resolvedFood, 100, 'g', 'mass');
         if (result.ok) {
           computedMacrosRef.current = result.macros;
           setProtein(String(result.macros.protein_g));
@@ -634,6 +664,15 @@ export default function AddFoodScreen() {
         value = parseFloat(qtyStr) || qty;
         unit = 'piece';
         kind = 'serving';
+      } else if (typeof food.density_g_per_ml === 'number' && food.density_g_per_ml > 0) {
+        const ml = grams / food.density_g_per_ml;
+        const mlRounded = Math.max(1, Math.round(ml));
+        setUnitKind('volume');
+        setUnitId('ml');
+        setQuantityInput(String(mlRounded));
+        value = mlRounded;
+        unit = 'ml';
+        kind = 'volume';
       } else {
         setUnitKind('mass');
         setUnitId('g');
@@ -765,9 +804,9 @@ export default function AddFoodScreen() {
               >
                 <View style={styles.headerIconWrap}>
                   {isSaving ? (
-                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
-                    <Check size={22} color={Colors.primary} />
+                    <Check size={22} color={colors.primary} />
                   )}
                 </View>
               </TouchableOpacity>
@@ -822,7 +861,7 @@ export default function AddFoodScreen() {
                 {isSearching && !scannerOpen && (
                   <ActivityIndicator
                     size="small"
-                    color={Colors.primary}
+                    color={colors.primary}
                     style={styles.searchSpinner}
                   />
                 )}
@@ -858,7 +897,7 @@ export default function AddFoodScreen() {
                 activeOpacity={0.7}
                 testID="scan-barcode-button"
               >
-                {scannerOpen ? <X size={18} color={Colors.primary} /> : <Scan size={18} color={Colors.primary} />}
+                {scannerOpen ? <X size={18} color={colors.primary} /> : <Scan size={18} color={colors.primary} />}
                 <Text style={styles.scanBarcodeText}>{scannerOpen ? 'Close Scanner' : 'Scan Barcode'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -867,7 +906,7 @@ export default function AddFoodScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={styles.savedFoodsLinkText}>Saved Foods</Text>
-                <ChevronRight size={16} color={Colors.primary} />
+                <ChevronRight size={16} color={colors.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -905,7 +944,7 @@ export default function AddFoodScreen() {
                 onPress={handleManualMode}
                 activeOpacity={0.7}
               >
-                <Pencil size={14} color={Colors.primary} />
+                <Pencil size={14} color={colors.primary} />
                 <Text style={styles.manualFallbackText}>
                   Can't find it? Enter manually
                 </Text>
@@ -926,7 +965,7 @@ export default function AddFoodScreen() {
                   onPress={handleManualMode}
                   activeOpacity={0.7}
                 >
-                  <Pencil size={14} color={Colors.primary} />
+                  <Pencil size={14} color={colors.primary} />
                   <Text style={styles.manualFallbackText}>Enter manually</Text>
                 </TouchableOpacity>
               </View>
@@ -1125,7 +1164,7 @@ export default function AddFoodScreen() {
                 >
                   <Bookmark
                     size={18}
-                    color={saveToLibrary ? Colors.primary : Colors.textTertiary}
+                    color={saveToLibrary ? colors.primary : Colors.textTertiary}
                   />
                   <Text
                     style={[
@@ -1181,7 +1220,7 @@ export default function AddFoodScreen() {
                   }}
                   activeOpacity={0.7}
                 >
-                  <Bookmark size={16} color={Colors.primary} />
+                  <Bookmark size={16} color={colors.primary} />
                   <Text style={styles.usdaSaveBtnText}>Save to Saved Foods</Text>
                 </TouchableOpacity>
               )}
@@ -1194,7 +1233,7 @@ export default function AddFoodScreen() {
                 testID="add-to-log-button"
               >
                 {isSaving ? (
-                  <ActivityIndicator size="small" color={Colors.white} />
+                  <ActivityIndicator size="small" color={colors.onPrimary} />
                 ) : (
                   <Text style={styles.saveButtonText}>Add to Today's Log</Text>
                 )}
@@ -1277,7 +1316,7 @@ export default function AddFoodScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -1364,10 +1403,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.primary,
+    borderColor: colors.primary,
   },
   scanBarcodeText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '600' as const,
   },
@@ -1379,7 +1418,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   savedFoodsLinkText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '600' as const,
   },
@@ -1424,7 +1463,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   manualFallbackText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600' as const,
   },
@@ -1459,13 +1498,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   providerBadge: {
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: colors.primaryMuted,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   providerBadgeText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 9,
     fontWeight: '800' as const,
     letterSpacing: 0.5,
@@ -1647,7 +1686,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   toggleTrackActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
   },
   toggleThumb: {
     width: 22,
@@ -1669,23 +1708,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.primary,
+    borderColor: colors.primary,
     alignSelf: 'flex-start',
   },
   usdaSaveBtnText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600' as const,
   },
   saveButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 20,
   },
   saveButtonText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '700' as const,
   },

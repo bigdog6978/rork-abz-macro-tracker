@@ -6,6 +6,7 @@ import { Radius } from '../../theme/tokens';
 import { MacroTargets } from '../../types';
 import { formatNumber } from '../../utils/formatNumber';
 import { MACRO_SOURCE_BLURB } from '../../src/content/nutritionScience';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 interface WhyTheseMacrosCardProps {
   macros: MacroTargets;
@@ -16,6 +17,8 @@ export default function WhyTheseMacrosCard({
   macros,
   onViewMethodology,
 }: WhyTheseMacrosCardProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [expanded, setExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
   const details = macros.calculationDetails;
@@ -86,22 +89,22 @@ export default function WhyTheseMacrosCard({
         <View style={styles.expandInner}>
           <Text style={styles.sectionHeading}>How your macro targets were calculated</Text>
 
-          <DetailRow label="BMR Formula" value={details.bmrFormula} />
-          <DetailRow label="Estimated BMR" value={`${formatNumber(details.estimatedBmr)} calories/day`} />
-          <DetailRow label="Activity Level" value={details.activityLevelLabel} />
-          <DetailRow label="Activity Multiplier" value={details.activityMultiplier.toFixed(2)} />
-          <DetailRow label="Estimated Maintenance Calories" value={`${formatNumber(details.estimatedTdee)}`} />
-          <DetailRow label="Goal Adjustment" value={details.calorieAdjustmentLabel} />
-          <DetailRow label="Eating Style" value={details.eatingStyleLabel} />
-          <DetailRow label="Protein Rule" value={details.proteinRuleLabel} />
+          <DetailRow label="BMR Formula" value={details.bmrFormula} styles={styles} />
+          <DetailRow label="Estimated BMR" value={`${formatNumber(details.estimatedBmr)} calories/day`} styles={styles} />
+          <DetailRow label="Activity Level" value={details.activityLevelLabel} styles={styles} />
+          <DetailRow label="Activity Multiplier" value={details.activityMultiplier.toFixed(2)} styles={styles} />
+          <DetailRow label="Estimated Maintenance Calories" value={`${formatNumber(details.estimatedTdee)}`} styles={styles} />
+          <DetailRow label="Goal Adjustment" value={details.calorieAdjustmentLabel} styles={styles} />
+          <DetailRow label="Eating Style" value={details.eatingStyleLabel} styles={styles} />
+          <DetailRow label="Protein Rule" value={details.proteinRuleLabel} styles={styles} />
 
           <View style={styles.finalBlock}>
             <Text style={styles.finalTitle}>Final Daily Targets</Text>
             <View style={styles.finalGrid}>
-              <TargetPill label="Calories" value={formatNumber(macros.calories)} />
-              <TargetPill label="Protein" value={`${formatNumber(macros.protein_g)}g`} />
-              <TargetPill label="Carbohydrates" value={`${formatNumber(macros.carbs_g)}g`} />
-              <TargetPill label="Fat" value={`${formatNumber(macros.fat_g)}g`} />
+              <TargetPill label="Calories" value={formatNumber(macros.calories)} styles={styles} />
+              <TargetPill label="Protein" value={`${formatNumber(macros.protein_g)}g`} styles={styles} />
+              <TargetPill label="Carbohydrates" value={`${formatNumber(macros.carbs_g)}g`} styles={styles} />
+              <TargetPill label="Fat" value={`${formatNumber(macros.fat_g)}g`} styles={styles} />
             </View>
           </View>
 
@@ -118,7 +121,15 @@ export default function WhyTheseMacrosCard({
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({
+  label,
+  value,
+  styles,
+}: {
+  label: string;
+  value: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -127,7 +138,15 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TargetPill({ label, value }: { label: string; value: string }) {
+function TargetPill({
+  label,
+  value,
+  styles,
+}: {
+  label: string;
+  value: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
     <View style={styles.targetPill}>
       <Text style={styles.targetLabel}>{label}</Text>
@@ -136,7 +155,7 @@ function TargetPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     marginTop: 14,
   },
@@ -232,13 +251,13 @@ const styles = StyleSheet.create({
   methodologyButton: {
     marginTop: 4,
     alignSelf: 'flex-start',
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: colors.primaryMuted,
     borderRadius: Radius.md,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   methodologyButtonText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '700',
   },

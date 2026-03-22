@@ -2,7 +2,7 @@
  * Day Detail screen - view and add foods for a specific date.
  * Used for retroactive logging from Daily Breakdown.
  */
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,11 @@ import { getAdherencePercent } from '../utils/macroEngine';
 import { fromDateKey } from '../utils/dateKey';
 import { Radius, Spacing } from '../theme/tokens';
 import PremiumCard from '../components/ui/PremiumCard';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 export default function DayLogScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const params = useLocalSearchParams<{ dateKey?: string }>();
   const dateKey = typeof params.dateKey === 'string' ? params.dateKey : undefined;
 
@@ -162,7 +165,7 @@ export default function DayLogScreen() {
           onPress={handleAddFood}
           activeOpacity={0.85}
         >
-          <Plus size={20} color={Colors.white} />
+          <Plus size={20} color={colors.onPrimary} />
           <Text style={styles.addFoodCtaText}>
             {entries.length > 0 ? 'Add Food' : 'Add Food to this Day'}
           </Text>
@@ -172,7 +175,7 @@ export default function DayLogScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -209,7 +212,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   totalsValue: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 28,
     fontWeight: '800' as const,
   },
@@ -282,12 +285,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: Radius.lg,
   },
   addFoodCtaText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '700' as const,
   },
@@ -313,13 +316,13 @@ const styles = StyleSheet.create({
     textAlign: 'center' as const,
   },
   backBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
   },
   backBtnText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '700' as const,
   },

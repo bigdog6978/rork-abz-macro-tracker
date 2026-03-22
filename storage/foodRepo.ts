@@ -14,7 +14,7 @@ const KEYS = {
   schemaVersion: 'abz_food_cache_version',
 };
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 const SEARCH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const DETAIL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_RECENT = 50;

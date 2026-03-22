@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import {
 } from '../storage/userSettingsRepo';
 import { pluralizeUnit, detectUnitFromName } from '../features/food/servingDefaults';
 import * as foodService from '../features/food/foodService';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 const OZ_TO_GRAMS = 28.349523125;
 
@@ -59,6 +60,8 @@ function displayToTotalGrams(
 }
 
 export default function EditLogEntryScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { todayEntries, getEntriesForDate, updateEntry } = useDailyLog();
   const params = useLocalSearchParams<{ entryId: string; dateKey?: string }>();
   const entryId = params.entryId;
@@ -304,9 +307,9 @@ export default function EditLogEntryScreen() {
             >
               <View style={styles.headerIconWrap}>
                 {isSaving ? (
-                  <ActivityIndicator size="small" color={Colors.primary} />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Check size={22} color={Colors.primary} />
+                  <Check size={22} color={colors.primary} />
                 )}
               </View>
             </TouchableOpacity>
@@ -398,9 +401,9 @@ export default function EditLogEntryScreen() {
                 {showMacroOverride ? 'Hide macro override' : 'Edit macros'}
               </Text>
               {showMacroOverride ? (
-                <ChevronUp size={18} color={Colors.primary} />
+                <ChevronUp size={18} color={colors.primary} />
               ) : (
-                <ChevronDown size={18} color={Colors.primary} />
+                <ChevronDown size={18} color={colors.primary} />
               )}
             </TouchableOpacity>
 
@@ -458,7 +461,7 @@ export default function EditLogEntryScreen() {
                     onPress={handleResetToCalculated}
                     activeOpacity={0.7}
                   >
-                    <RotateCcw size={14} color={Colors.primary} />
+                    <RotateCcw size={14} color={colors.primary} />
                     <Text style={styles.resetBtnText}>Reset to calculated macros</Text>
                   </TouchableOpacity>
                 )}
@@ -471,7 +474,7 @@ export default function EditLogEntryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -497,11 +500,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 10,
   },
   backBtnText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '600' as const,
   },
@@ -617,7 +620,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   editMacrosToggleText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600' as const,
   },
@@ -671,7 +674,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   resetBtnText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600' as const,
   },

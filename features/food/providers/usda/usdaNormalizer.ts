@@ -1,10 +1,14 @@
 import { NormalizedFood } from '../../types';
 import { USDASearchFood, USDAFoodDetail, USDADetailNutrient, USDASearchNutrient } from './usdaClient';
 
-const ENERGY_NUMBERS = ['208', '957'];
-const PROTEIN_NUMBER = '203';
-const CARB_NUMBER = '205';
-const FAT_NUMBER = '204';
+const ENERGY_NUMBERS = ['208', '957', '1008'];
+const PROTEIN_NUMBERS = ['203', '1003'];
+const CARB_NUMBERS = ['205', '1005'];
+const FAT_NUMBERS = ['204', '1004', '298'];
+
+function deriveCaloriesFromMacros(protein: number, carbs: number, fat: number): number {
+  return protein * 4 + carbs * 4 + fat * 9;
+}
 
 function extractFromSearchNutrients(
   nutrients: USDASearchNutrient[],
@@ -31,9 +35,10 @@ function extractFromDetailNutrients(
 export function normalizeSearchResult(food: USDASearchFood): NormalizedFood {
   const nutrients = food.foodNutrients ?? [];
   const calories = extractFromSearchNutrients(nutrients, ENERGY_NUMBERS);
-  const protein = extractFromSearchNutrients(nutrients, [PROTEIN_NUMBER]);
-  const carbs = extractFromSearchNutrients(nutrients, [CARB_NUMBER]);
-  const fat = extractFromSearchNutrients(nutrients, [FAT_NUMBER]);
+  const protein = extractFromSearchNutrients(nutrients, PROTEIN_NUMBERS);
+  const carbs = extractFromSearchNutrients(nutrients, CARB_NUMBERS);
+  const fat = extractFromSearchNutrients(nutrients, FAT_NUMBERS);
+  const resolvedCalories = calories > 0 ? calories : deriveCaloriesFromMacros(protein, carbs, fat);
 
   return {
     id: `usda:${food.fdcId}`,
@@ -43,7 +48,7 @@ export function normalizeSearchResult(food: USDASearchFood): NormalizedFood {
     brand: food.brandOwner,
     basis: 'per100g',
     per100g: {
-      calories: Math.round(calories),
+      calories: Math.round(resolvedCalories),
       protein_g: Math.round(protein * 10) / 10,
       carbs_g: Math.round(carbs * 10) / 10,
       fat_g: Math.round(fat * 10) / 10,
@@ -55,9 +60,10 @@ export function normalizeSearchResult(food: USDASearchFood): NormalizedFood {
 export function normalizeDetailResult(food: USDAFoodDetail): NormalizedFood {
   const nutrients = food.foodNutrients ?? [];
   const calories = extractFromDetailNutrients(nutrients, ENERGY_NUMBERS);
-  const protein = extractFromDetailNutrients(nutrients, [PROTEIN_NUMBER]);
-  const carbs = extractFromDetailNutrients(nutrients, [CARB_NUMBER]);
-  const fat = extractFromDetailNutrients(nutrients, [FAT_NUMBER]);
+  const protein = extractFromDetailNutrients(nutrients, PROTEIN_NUMBERS);
+  const carbs = extractFromDetailNutrients(nutrients, CARB_NUMBERS);
+  const fat = extractFromDetailNutrients(nutrients, FAT_NUMBERS);
+  const resolvedCalories = calories > 0 ? calories : deriveCaloriesFromMacros(protein, carbs, fat);
 
   return {
     id: `usda:${food.fdcId}`,
@@ -67,7 +73,7 @@ export function normalizeDetailResult(food: USDAFoodDetail): NormalizedFood {
     brand: food.brandOwner,
     basis: 'per100g',
     per100g: {
-      calories: Math.round(calories),
+      calories: Math.round(resolvedCalories),
       protein_g: Math.round(protein * 10) / 10,
       carbs_g: Math.round(carbs * 10) / 10,
       fat_g: Math.round(fat * 10) / 10,

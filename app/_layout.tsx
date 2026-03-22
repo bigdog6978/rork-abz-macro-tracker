@@ -8,8 +8,8 @@ import { UserProvider, useUser } from "../providers/UserProvider";
 import { DailyLogProvider, useDailyLog } from "../providers/DailyLogProvider";
 import { MeasurementsProvider } from "../providers/MeasurementsProvider";
 import { GoalSettingsProvider } from "../providers/GoalSettingsProvider";
+import { ThemeProvider, useThemeColors } from "../providers/ThemeProvider";
 import AppBackground from "../components/ui/AppBackground";
-import Colors from "../constants/colors";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,12 +39,14 @@ function AppContent() {
 }
 
 function RootLayoutNav() {
+  const colors = useThemeColors();
+
   return (
     <Stack
       screenOptions={{
         headerBackTitle: "Back",
         headerStyle: { backgroundColor: 'transparent' },
-        headerTintColor: Colors.text,
+        headerTintColor: colors.text,
         contentStyle: { backgroundColor: 'transparent' },
       }}
       initialRouteName="index"
@@ -72,9 +74,9 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "Add Measurement",
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -82,9 +84,9 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "Measurement History",
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -92,9 +94,9 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "Set Target",
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -102,9 +104,9 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "Add Food",
-          headerStyle: { backgroundColor: Colors.card },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.card },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -112,9 +114,9 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "Scan Barcode",
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -122,9 +124,9 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "Saved Foods",
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -132,9 +134,9 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "Edit Entry",
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -142,9 +144,9 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           title: "Day",
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
-          contentStyle: { backgroundColor: Colors.background },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -152,7 +154,7 @@ function RootLayoutNav() {
         options={{
           title: "",
           headerStyle: { backgroundColor: 'transparent' },
-          headerTintColor: Colors.text,
+          headerTintColor: colors.text,
         }}
       />
     </Stack>
@@ -164,15 +166,17 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <UserProvider>
-          <DailyLogProvider>
-            <MeasurementsProvider>
-              <GoalSettingsProvider>
-                <AppBackground>
-                  <AppContent />
-                </AppBackground>
-              </GoalSettingsProvider>
-            </MeasurementsProvider>
-          </DailyLogProvider>
+          <ThemeProvider>
+            <DailyLogProvider>
+              <MeasurementsProvider>
+                <GoalSettingsProvider>
+                  <AppBackground>
+                    <AppContent />
+                  </AppBackground>
+                </GoalSettingsProvider>
+              </MeasurementsProvider>
+            </DailyLogProvider>
+          </ThemeProvider>
         </UserProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

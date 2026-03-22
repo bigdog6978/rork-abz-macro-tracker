@@ -246,6 +246,42 @@ const KETO_BLUEPRINTS_ALT: StrategyBlueprints = {
   ],
 };
 
+const KETO_HIGH_PROTEIN_BLUEPRINTS: StrategyBlueprints = {
+  meals: [
+    {
+      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+      foods: [
+        { foodId: 'eggs', role: 'protein' },
+        { foodId: 'turkey_breast', role: 'protein' },
+        { foodId: 'avocado', role: 'fat' },
+      ],
+    },
+    {
+      name: 'Lunch', icon: 'sun', percentage: 0.35,
+      foods: [
+        { foodId: 'chicken_breast', role: 'protein' },
+        { foodId: 'olive_oil', role: 'fat' },
+        { foodId: 'mixed_greens', role: 'veggie' },
+      ],
+    },
+    {
+      name: 'Dinner', icon: 'moon', percentage: 0.30,
+      foods: [
+        { foodId: 'salmon', role: 'protein' },
+        { foodId: 'cauliflower', role: 'veggie' },
+        { foodId: 'butter', role: 'fat' },
+      ],
+    },
+    {
+      name: 'Snacks', icon: 'cookie', percentage: 0.10,
+      foods: [
+        { foodId: 'whey_protein', role: 'protein' },
+        { foodId: 'macadamia', role: 'fat' },
+      ],
+    },
+  ],
+};
+
 const CARNIVORE_BLUEPRINTS: StrategyBlueprints = {
   meals: [
     {
@@ -708,6 +744,19 @@ const PALEO_SWAPS: Record<string, string> = {
   rice_cake: 'apple',
 };
 
+const LOW_GLYCEMIC_SWAPS: Record<string, string> = {
+  white_rice: 'quinoa',
+  pita: 'sweet_potato',
+  tortilla: 'sweet_potato',
+  corn_tortilla: 'sweet_potato',
+  couscous: 'quinoa',
+  tabbouleh: 'quinoa',
+  rice_cake: 'apple',
+  banana: 'apple',
+  dates: 'berries',
+  potato: 'sweet_potato',
+};
+
 function applyFoodSwaps(
   foodId: string,
   modifiers: string[]
@@ -738,6 +787,12 @@ function applyFoodSwaps(
     }
   }
 
+  if (modifiers.includes('low_glycemic')) {
+    if (LOW_GLYCEMIC_SWAPS[current]) {
+      current = LOW_GLYCEMIC_SWAPS[current];
+    }
+  }
+
   return current;
 }
 
@@ -747,6 +802,32 @@ function pickVariant(variants: StrategyBlueprintVariant, generationSeed = 0): St
   }
   const index = Math.abs(generationSeed) % variants.length;
   return variants[index];
+}
+
+function isHighCalorieHighCarbTarget(macros: MacroTargets): boolean {
+  return macros.calories >= 3200 || macros.carbs_g >= 400;
+}
+
+function withTopUpSnack(
+  blueprint: StrategyBlueprints,
+  extraFoods: MealFoodRef[],
+  percentage = 0.12
+): StrategyBlueprints {
+  const scale = 1 - percentage;
+  return {
+    meals: [
+      ...blueprint.meals.map((meal) => ({
+        ...meal,
+        percentage: Math.round(meal.percentage * scale * 1000) / 1000,
+      })),
+      {
+        name: 'Top-Up Snack',
+        icon: 'cookie',
+        percentage,
+        foods: extraFoods,
+      },
+    ],
+  };
 }
 
 function selectBlueprint(
@@ -767,6 +848,9 @@ function selectBlueprint(
     case 'vegetarian':
       return VEGETARIAN_BALANCED_BLUEPRINTS;
     case 'keto':
+      if (proteinRatio >= 0.28 && fatRatio <= 0.7) {
+        return KETO_HIGH_PROTEIN_BLUEPRINTS;
+      }
       return pickVariant([KETO_BLUEPRINTS, KETO_BLUEPRINTS_ALT], generationSeed);
     case 'carnivore':
       return pickVariant([CARNIVORE_BLUEPRINTS, CARNIVORE_BLUEPRINTS_ALT], generationSeed);
@@ -777,6 +861,59 @@ function selectBlueprint(
       }
     default:
       return pickVariant([BALANCED_BLUEPRINTS, BALANCED_BLUEPRINTS_ALT], generationSeed);
+  }
+}
+
+function getHighTargetBlueprint(
+  blueprint: StrategyBlueprints,
+  eatingStyle: EatingStyle,
+  modifiers: string[],
+  macros: MacroTargets
+): StrategyBlueprints {
+  const lowGlycemic = modifiers.includes('low_glycemic');
+  const needsExtraProtein = macros.calories > 0 ? (macros.protein_g * 4) / macros.calories >= 0.28 : false;
+
+  switch (eatingStyle) {
+    case 'mediterranean':
+      return withTopUpSnack(blueprint, [
+        ...(needsExtraProtein ? [{ foodId: 'greek_yogurt', role: 'protein' as const }] : []),
+        { foodId: lowGlycemic ? 'quinoa' : 'couscous', role: 'carb' },
+        { foodId: lowGlycemic ? 'sweet_potato' : 'pita', role: 'carb' },
+        { foodId: lowGlycemic ? 'berries' : 'dates', role: 'carb' },
+      ]);
+    case 'vegan':
+      return withTopUpSnack(blueprint, [
+        ...(needsExtraProtein ? [{ foodId: 'plant_protein', role: 'protein' as const }] : []),
+        { foodId: 'oats_dry', role: 'carb' },
+        { foodId: lowGlycemic ? 'quinoa' : 'brown_rice', role: 'carb' },
+        { foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' },
+      ]);
+    case 'vegetarian':
+      return withTopUpSnack(blueprint, [
+        ...(needsExtraProtein ? [{ foodId: 'whey_protein', role: 'protein' as const }] : []),
+        { foodId: 'oats_dry', role: 'carb' },
+        { foodId: lowGlycemic ? 'quinoa' : 'brown_rice', role: 'carb' },
+        { foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' },
+      ]);
+    case 'keto':
+    case 'carnivore':
+      return blueprint;
+    case 'paleo':
+      return withTopUpSnack(blueprint, [
+        ...(needsExtraProtein ? [{ foodId: 'chicken_breast', role: 'protein' as const }] : []),
+        { foodId: 'sweet_potato', role: 'carb' },
+        { foodId: 'potato', role: 'carb' },
+        { foodId: 'apple', role: 'carb' },
+      ]);
+    case 'standard':
+    default:
+      return withTopUpSnack(blueprint, [
+        ...(needsExtraProtein ? [{ foodId: 'whey_protein', role: 'protein' as const }] : []),
+        { foodId: 'oats_dry', role: 'carb' },
+        { foodId: lowGlycemic ? 'quinoa' : 'white_rice', role: 'carb' },
+        { foodId: lowGlycemic ? 'sweet_potato' : 'potato', role: 'carb' },
+        { foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' },
+      ]);
   }
 }
 
@@ -819,6 +956,7 @@ const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.5;
 const SOLVER_ITERATIONS = 80;
 const DAILY_RECONCILIATION_ITERATIONS = 160;
+const TOP_UP_MAX_MEALS = 3;
 
 type MacroKey = 'protein_g' | 'carbs_g' | 'fat_g';
 type MacroTolerance = { protein: number; carbs: number; fat: number; calories: number };
@@ -852,6 +990,14 @@ function getMealTolerance(target: MacroTargets): MacroTolerance {
     fat: Math.max(2, Math.round(target.fat_g * 0.1)),
     calories: Math.max(25, Math.round(target.calories * 0.08)),
   };
+}
+
+function getCaloriesFromMacros(macros: {
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}): number {
+  return macros.protein_g * 4 + macros.carbs_g * 4 + macros.fat_g * 9;
 }
 
 function scoreTargets(actual: MacroTargets, target: MacroTargets): number {
@@ -910,15 +1056,13 @@ function getAdjustmentOrder(actual: MacroTargets, target: MacroTargets): MacroKe
   });
 }
 
-function scaleMealToTargets(
+function buildMealToTarget(
   blueprint: MealBlueprint,
-  dailyMacros: MacroTargets,
+  mealTarget: MacroTargets,
   modifiers: string[],
   measurementSystem: MeasurementSystem = 'us',
   allergies: UserAllergy[] = []
 ): MealSlot {
-  const mealTarget = getMealTargets(dailyMacros, blueprint.percentage);
-
   const resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[] = [];
   const seenIds = new Set<string>();
 
@@ -956,7 +1100,7 @@ function scaleMealToTargets(
       protein_g: Math.round(macros.protein_g * 10) / 10,
       carbs_g: Math.round(macros.carbs_g * 10) / 10,
       fat_g: Math.round(macros.fat_g * 10) / 10,
-      calories: Math.round(macros.calories),
+      calories: Math.round(getCaloriesFromMacros(macros)),
       category: roleToCategory(ref.role),
       isSubstitutable: true,
     };
@@ -968,6 +1112,22 @@ function scaleMealToTargets(
     percentage: blueprint.percentage,
     suggestions,
   };
+}
+
+function scaleMealToTargets(
+  blueprint: MealBlueprint,
+  dailyMacros: MacroTargets,
+  modifiers: string[],
+  measurementSystem: MeasurementSystem = 'us',
+  allergies: UserAllergy[] = []
+): MealSlot {
+  return buildMealToTarget(
+    blueprint,
+    getMealTargets(dailyMacros, blueprint.percentage),
+    modifiers,
+    measurementSystem,
+    allergies
+  );
 }
 
 function solveMealMacros(
@@ -982,11 +1142,11 @@ function solveMealMacros(
     resolvedFoods.forEach(({ food }, i) => {
       const g = food.basePortionG * (m[i] ?? 1);
       const factor = g / 100;
-      cal += food.per100g.calories * factor;
       p += food.per100g.protein_g * factor;
       c += food.per100g.carbs_g * factor;
       f += food.per100g.fat_g * factor;
     });
+    cal = getCaloriesFromMacros({ protein_g: p, carbs_g: c, fat_g: f });
     return { calories: cal, protein_g: p, carbs_g: c, fat_g: f };
   };
 
@@ -1102,7 +1262,44 @@ function adjustSuggestionPortion(
     ...suggestion,
     portionGrams: targetGrams,
     portion: formatPortionLabel(food, targetGrams, measurementSystem),
-    calories: Math.round(macros.calories),
+    calories: Math.round(getCaloriesFromMacros(macros)),
+    protein_g: Math.round(macros.protein_g * 10) / 10,
+    carbs_g: Math.round(macros.carbs_g * 10) / 10,
+    fat_g: Math.round(macros.fat_g * 10) / 10,
+  };
+
+  return nextMeals;
+}
+
+function adjustSuggestionByGramDelta(
+  meals: MealSlot[],
+  mealIdx: number,
+  suggestionIdx: number,
+  gramDelta: number,
+  measurementSystem: MeasurementSystem
+): MealSlot[] {
+  const nextMeals = cloneMeals(meals);
+  const suggestion = nextMeals[mealIdx].suggestions[suggestionIdx];
+  const food = FOODS[suggestion.foodId];
+  if (!food) return meals;
+
+  const minGrams = Math.round(food.basePortionG * MIN_SCALE);
+  const maxGrams = Math.round(food.basePortionG * MAX_SCALE);
+  const targetGrams = Math.max(
+    minGrams,
+    Math.min(maxGrams, Math.round(suggestion.portionGrams + gramDelta))
+  );
+
+  if (targetGrams === suggestion.portionGrams) {
+    return meals;
+  }
+
+  const macros = computeMacros(food, targetGrams);
+  nextMeals[mealIdx].suggestions[suggestionIdx] = {
+    ...suggestion,
+    portionGrams: targetGrams,
+    portion: formatPortionLabel(food, targetGrams, measurementSystem),
+    calories: Math.round(getCaloriesFromMacros(macros)),
     protein_g: Math.round(macros.protein_g * 10) / 10,
     carbs_g: Math.round(macros.carbs_g * 10) / 10,
     fat_g: Math.round(macros.fat_g * 10) / 10,
@@ -1191,6 +1388,313 @@ function reconcileDailyTotals(
   return workingMeals;
 }
 
+function getPositiveGap(actual: MacroTargets, target: MacroTargets): MacroTargets {
+  return {
+    calories: Math.max(0, Math.round(target.calories - actual.calories)),
+    protein_g: Math.max(0, Math.round(target.protein_g - actual.protein_g)),
+    carbs_g: Math.max(0, Math.round(target.carbs_g - actual.carbs_g)),
+    fat_g: Math.max(0, Math.round(target.fat_g - actual.fat_g)),
+  };
+}
+
+function needsTopUp(actual: MacroTargets, target: MacroTargets): boolean {
+  const gap = getPositiveGap(actual, target);
+  return (
+    gap.calories > 180 ||
+    gap.protein_g > DAILY_TOLERANCE.protein ||
+    gap.carbs_g > DAILY_TOLERANCE.carbs ||
+    gap.fat_g > DAILY_TOLERANCE.fat
+  );
+}
+
+function needsCloseGapTightening(actual: MacroTargets, target: MacroTargets): boolean {
+  const calorieGap = target.calories - actual.calories;
+  return Math.abs(calorieGap) > 20 && Math.abs(calorieGap) <= 180;
+}
+
+function getCloseGapScore(actual: MacroTargets, target: MacroTargets): number {
+  const calorieGap = target.calories - actual.calories;
+  const proteinGap = target.protein_g - actual.protein_g;
+  const carbGap = target.carbs_g - actual.carbs_g;
+  const fatGap = target.fat_g - actual.fat_g;
+
+  const caloriePenalty = Math.abs(calorieGap) / 20;
+  const proteinPenalty = Math.abs(proteinGap) / 6;
+  const carbPenalty = Math.abs(carbGap) / 10;
+  const fatPenalty = Math.abs(fatGap) / 4;
+
+  const overshootPenalty =
+    Math.max(0, actual.protein_g - target.protein_g - 4) * 0.35 +
+    Math.max(0, actual.carbs_g - target.carbs_g - 10) * 0.18 +
+    Math.max(0, actual.fat_g - target.fat_g - 4) * 0.45 +
+    Math.max(0, actual.calories - target.calories - 35) * 0.08;
+
+  return caloriePenalty * 2 + proteinPenalty + carbPenalty + fatPenalty + overshootPenalty;
+}
+
+function getCloseGapMacroOrder(
+  eatingStyle: EatingStyle,
+  actual: MacroTargets,
+  target: MacroTargets
+): MacroKey[] {
+  const calorieGap = target.calories - actual.calories;
+
+  if (calorieGap >= 0) {
+    const energyByMacro: Record<MacroKey, number> = {
+      protein_g: Math.max(0, target.protein_g - actual.protein_g) * 4,
+      carbs_g: Math.max(0, target.carbs_g - actual.carbs_g) * 4,
+      fat_g: Math.max(0, target.fat_g - actual.fat_g) * 9,
+    };
+
+    const baseOrder: MacroKey[] =
+      eatingStyle === 'keto' || eatingStyle === 'carnivore'
+        ? ['fat_g', 'protein_g', 'carbs_g']
+        : ['carbs_g', 'protein_g', 'fat_g'];
+
+    return [...baseOrder].sort((a, b) => {
+      if (energyByMacro[a] !== energyByMacro[b]) {
+        return energyByMacro[b] - energyByMacro[a];
+      }
+      return baseOrder.indexOf(a) - baseOrder.indexOf(b);
+    });
+  }
+
+  const excessEnergyByMacro: Record<MacroKey, number> = {
+    protein_g: Math.max(0, actual.protein_g - target.protein_g) * 4,
+    carbs_g: Math.max(0, actual.carbs_g - target.carbs_g) * 4,
+    fat_g: Math.max(0, actual.fat_g - target.fat_g) * 9,
+  };
+  const baseOrder: MacroKey[] = ['fat_g', 'carbs_g', 'protein_g'];
+
+  return [...baseOrder].sort((a, b) => {
+    if (excessEnergyByMacro[a] !== excessEnergyByMacro[b]) {
+      return excessEnergyByMacro[b] - excessEnergyByMacro[a];
+    }
+    return baseOrder.indexOf(a) - baseOrder.indexOf(b);
+  });
+}
+
+function tightenCloseCalorieGap(
+  meals: MealSlot[],
+  eatingStyle: EatingStyle,
+  dailyTarget: MacroTargets,
+  measurementSystem: MeasurementSystem = 'us'
+): MealSlot[] {
+  let workingMeals = cloneMeals(meals);
+
+  for (let iter = 0; iter < 24; iter++) {
+    const totals = getDailyTotals(workingMeals);
+    if (!needsCloseGapTightening(totals, dailyTarget)) {
+      return workingMeals;
+    }
+
+    const currentScore = getCloseGapScore(totals, dailyTarget);
+    let bestScore = currentScore;
+    let bestMeals = workingMeals;
+
+    const macroOrder = getCloseGapMacroOrder(eatingStyle, totals, dailyTarget);
+    const calorieGap = dailyTarget.calories - totals.calories;
+    for (const key of macroOrder) {
+      const candidates = workingMeals.flatMap((meal, mealIdx) =>
+        meal.suggestions
+          .map((suggestion, suggestionIdx) => {
+            const food = FOODS[suggestion.foodId];
+            if (!food) return null;
+            return {
+              mealIdx,
+              suggestionIdx,
+              priority: getSuggestionRolePriority(suggestion, food, key),
+              density: food.per100g[key],
+            };
+          })
+          .filter((candidate): candidate is NonNullable<typeof candidate> => {
+            return candidate != null && candidate.priority > 0 && candidate.density > 0;
+          })
+      )
+      .sort((a, b) => {
+        if (a.priority !== b.priority) return b.priority - a.priority;
+        return b.density - a.density;
+      })
+      .slice(0, 10);
+
+      for (const candidate of candidates) {
+        const gramSteps =
+          calorieGap >= 0
+            ? [5, 8, 10, 12, 15, 18, 22, 28, 35]
+            : [-5, -8, -10, -12, -15, -18, -22, -28, -35];
+
+        for (const gramDelta of gramSteps) {
+          const nextMeals = adjustSuggestionByGramDelta(
+            workingMeals,
+            candidate.mealIdx,
+            candidate.suggestionIdx,
+            gramDelta,
+            measurementSystem
+          );
+          const nextTotals = getDailyTotals(nextMeals);
+          if (nextTotals.calories > dailyTarget.calories + 45) {
+            continue;
+          }
+          if (
+            totals.protein_g >= dailyTarget.protein_g &&
+            nextTotals.protein_g > totals.protein_g + 1.5
+          ) {
+            continue;
+          }
+          if (
+            totals.fat_g >= dailyTarget.fat_g &&
+            nextTotals.fat_g > totals.fat_g + 1.2
+          ) {
+            continue;
+          }
+          if (
+            totals.carbs_g >= dailyTarget.carbs_g &&
+            nextTotals.carbs_g > totals.carbs_g + 4
+          ) {
+            continue;
+          }
+          const candidateScore = getCloseGapScore(nextTotals, dailyTarget);
+          if (candidateScore + 0.0001 < bestScore) {
+            bestScore = candidateScore;
+            bestMeals = nextMeals;
+          }
+        }
+      }
+    }
+
+    if (bestScore + 0.0001 >= currentScore) {
+      return workingMeals;
+    }
+
+    workingMeals = bestMeals;
+  }
+
+  return workingMeals;
+}
+
+function getTopUpFoods(
+  eatingStyle: EatingStyle,
+  modifiers: string[],
+  gap: MacroTargets
+): MealFoodRef[] {
+  const refs: MealFoodRef[] = [];
+  const lowGlycemic = modifiers.includes('low_glycemic');
+
+  switch (eatingStyle) {
+    case 'mediterranean':
+      if (gap.protein_g > 12) refs.push({ foodId: 'greek_yogurt', role: 'protein' });
+      if (gap.carbs_g > 20) refs.push({ foodId: lowGlycemic ? 'quinoa' : 'couscous', role: 'carb' });
+      if (gap.carbs_g > 55) refs.push({ foodId: 'sweet_potato', role: 'carb' });
+      if (gap.carbs_g > 90) refs.push({ foodId: lowGlycemic ? 'berries' : 'dates', role: 'carb' });
+      if (gap.fat_g > 8) refs.push({ foodId: 'olive_oil', role: 'fat' });
+      break;
+    case 'vegan':
+      if (gap.protein_g > 12) refs.push({ foodId: 'plant_protein', role: 'protein' });
+      if (gap.carbs_g > 20) refs.push({ foodId: 'oats_dry', role: 'carb' });
+      if (gap.carbs_g > 55) refs.push({ foodId: lowGlycemic ? 'quinoa' : 'brown_rice', role: 'carb' });
+      if (gap.carbs_g > 90) refs.push({ foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' });
+      if (gap.fat_g > 8) refs.push({ foodId: 'almond_butter', role: 'fat' });
+      break;
+    case 'vegetarian':
+      if (gap.protein_g > 12) refs.push({ foodId: 'whey_protein', role: 'protein' });
+      if (gap.carbs_g > 20) refs.push({ foodId: 'oats_dry', role: 'carb' });
+      if (gap.carbs_g > 55) refs.push({ foodId: lowGlycemic ? 'quinoa' : 'brown_rice', role: 'carb' });
+      if (gap.carbs_g > 90) refs.push({ foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' });
+      if (gap.fat_g > 8) refs.push({ foodId: 'almonds', role: 'fat' });
+      break;
+    case 'keto':
+      if (gap.protein_g > 10) refs.push({ foodId: 'string_cheese', role: 'protein' });
+      if (gap.fat_g > 10) refs.push({ foodId: 'olive_oil', role: 'fat' });
+      refs.push({ foodId: 'avocado', role: 'fat' });
+      break;
+    case 'carnivore':
+      if (gap.protein_g > 10) refs.push({ foodId: 'hard_boiled_eggs', role: 'protein' });
+      if (gap.fat_g > 10) refs.push({ foodId: 'butter', role: 'fat' });
+      refs.push({ foodId: 'cheddar', role: 'fat' });
+      break;
+    case 'paleo':
+      if (gap.protein_g > 12) refs.push({ foodId: 'chicken_breast', role: 'protein' });
+      if (gap.carbs_g > 20) refs.push({ foodId: 'sweet_potato', role: 'carb' });
+      if (gap.carbs_g > 55) refs.push({ foodId: 'potato', role: 'carb' });
+      if (gap.carbs_g > 90) refs.push({ foodId: 'apple', role: 'carb' });
+      if (gap.fat_g > 8) refs.push({ foodId: 'almond_butter', role: 'fat' });
+      break;
+    case 'standard':
+    default:
+      if (gap.protein_g > 12) refs.push({ foodId: 'whey_protein', role: 'protein' });
+      if (gap.carbs_g > 20) refs.push({ foodId: 'oats_dry', role: 'carb' });
+      if (gap.carbs_g > 55) refs.push({ foodId: lowGlycemic ? 'quinoa' : 'white_rice', role: 'carb' });
+      if (gap.carbs_g > 90) refs.push({ foodId: lowGlycemic ? 'sweet_potato' : 'potato', role: 'carb' });
+      if (gap.carbs_g > 130) refs.push({ foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' });
+      if (gap.fat_g > 8) refs.push({ foodId: 'olive_oil', role: 'fat' });
+      break;
+  }
+
+  if (refs.length === 0) {
+    refs.push({ foodId: 'whey_protein', role: 'protein' });
+  }
+
+  return refs;
+}
+
+function addTopUpMeals(
+  meals: MealSlot[],
+  dailyTarget: MacroTargets,
+  eatingStyle: EatingStyle,
+  modifiers: string[],
+  measurementSystem: MeasurementSystem,
+  allergies: UserAllergy[]
+): MealSlot[] {
+  let workingMeals = cloneMeals(meals);
+
+  for (let idx = 0; idx < TOP_UP_MAX_MEALS; idx++) {
+    const totals = getDailyTotals(workingMeals);
+    if (!needsTopUp(totals, dailyTarget)) {
+      break;
+    }
+
+    const gap = getPositiveGap(totals, dailyTarget);
+    if (gap.calories <= DAILY_TOLERANCE.calories) {
+      break;
+    }
+
+    const remainingMeals = TOP_UP_MAX_MEALS - idx;
+    const mealTarget: MacroTargets = {
+      calories: Math.max(140, Math.round(gap.calories / remainingMeals)),
+      protein_g: Math.max(0, Math.round(gap.protein_g / remainingMeals)),
+      carbs_g: Math.max(0, Math.round(gap.carbs_g / remainingMeals)),
+      fat_g: Math.max(0, Math.round(gap.fat_g / remainingMeals)),
+    };
+
+    const topUpBlueprint: MealBlueprint = {
+      name: remainingMeals === 1 ? 'Final Top-Up' : `Top-Up ${idx + 1}`,
+      icon: 'cookie',
+      percentage: mealTarget.calories / Math.max(dailyTarget.calories, 1),
+      foods: getTopUpFoods(eatingStyle, modifiers, gap),
+    };
+
+    const topUpMeal = buildMealToTarget(
+      topUpBlueprint,
+      mealTarget,
+      modifiers,
+      measurementSystem,
+      allergies
+    );
+
+    if (topUpMeal.suggestions.length === 0) {
+      break;
+    }
+
+    workingMeals = reconcileDailyTotals(
+      [...workingMeals, topUpMeal],
+      dailyTarget,
+      measurementSystem
+    );
+  }
+
+  return workingMeals;
+}
+
 export function generateMealPlan(
   macros: MacroTargets,
   eatingStyle: EatingStyle,
@@ -1200,7 +1704,10 @@ export function generateMealPlan(
   generationSeed = 0
 ): DayPlan {
   const effectiveModifiers = eatingStyle === 'paleo' ? [...modifiers, 'paleo'] : modifiers;
-  const blueprint = selectBlueprint(eatingStyle, macros, generationSeed);
+  const baseBlueprint = selectBlueprint(eatingStyle, macros, generationSeed);
+  const blueprint = isHighCalorieHighCarbTarget(macros)
+    ? getHighTargetBlueprint(baseBlueprint, eatingStyle, effectiveModifiers, macros)
+    : baseBlueprint;
   const isIF = effectiveModifiers.includes('intermittent_fasting');
 
   let mealBlueprints = [...blueprint.meals];
@@ -1213,6 +1720,19 @@ export function generateMealPlan(
     scaleMealToTargets(mb, macros, effectiveModifiers, measurementSystem, allergies)
   );
   meals = reconcileDailyTotals(meals, macros, measurementSystem);
+
+  if (needsTopUp(getDailyTotals(meals), macros)) {
+    meals = addTopUpMeals(
+      meals,
+      macros,
+      eatingStyle,
+      effectiveModifiers,
+      measurementSystem,
+      allergies
+    );
+  }
+
+  meals = tightenCloseCalorieGap(meals, eatingStyle, macros, measurementSystem);
 
   const totalFoods = meals.reduce((s, m) => s + m.suggestions.length, 0);
   const planUnavailable = totalFoods === 0;

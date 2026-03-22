@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import {
 } from '../features/progress/goalTargetTypes';
 import { Goal } from '../types';
 import { toDateKey, fromDateKey, getTodayDateKey } from '../utils/dateKey';
+import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 const METRICS: GoalTargetMetric[] = ['weight_lb', 'bodyfat_pct', 'waist_in', 'lean_mass_lb'];
 const DIRECTIONS: GoalTargetDirection[] = ['lose', 'gain', 'maintain'];
@@ -65,6 +66,8 @@ function getDefaultDeadline(): string {
 }
 
 export default function SetTargetScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { profile } = useUser();
   const { latest } = useMeasurements();
   const { goalType, target, setTarget } = useGoalSettings();
@@ -357,7 +360,7 @@ export default function SetTargetScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scrollContent: { padding: 16, paddingBottom: 40 },
   title: {
@@ -408,9 +411,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
-  segmentActive: { backgroundColor: Colors.primaryMuted, borderColor: Colors.primary },
+  segmentActive: { backgroundColor: colors.primaryMuted, borderColor: colors.primary },
   segmentText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' as const },
-  segmentTextActive: { color: Colors.primary },
+  segmentTextActive: { color: colors.primary },
   input: {
     backgroundColor: Colors.card,
     borderWidth: 1,
@@ -430,15 +433,15 @@ const styles = StyleSheet.create({
   deadlineRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   noDeadlineChip: { paddingHorizontal: 12, paddingVertical: 6 },
   noDeadlineText: { color: Colors.textTertiary, fontSize: 13, fontWeight: '600' as const },
-  noDeadlineTextActive: { color: Colors.primary },
+  noDeadlineTextActive: { color: colors.primary },
   saveBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
   },
-  saveBtnText: { color: Colors.white, fontSize: 16, fontWeight: '700' as const },
+  saveBtnText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' as const },
   modalOverlay: {
     flex: 1,
     backgroundColor: Colors.overlay,
@@ -458,9 +461,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.cardBorder,
   },
-  modalOptionActive: { backgroundColor: Colors.primaryMuted },
+  modalOptionActive: { backgroundColor: colors.primaryMuted },
   modalOptionText: { color: Colors.text, fontSize: 15, fontWeight: '600' as const },
-  modalOptionTextActive: { color: Colors.primary },
+  modalOptionTextActive: { color: colors.primary },
   modalCancel: { alignItems: 'center', paddingVertical: 12, marginTop: 8 },
   modalCancelText: { color: Colors.textSecondary, fontSize: 15, fontWeight: '600' as const },
   deadlineList: { maxHeight: 280 },

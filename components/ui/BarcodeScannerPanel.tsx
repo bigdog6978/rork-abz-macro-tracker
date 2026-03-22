@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { fetchProductByBarcode, type ParsedProduct } from '../../src/services/op
 import * as foodsRepo from '../../src/data/foodsRepo';
 import Colors from '../../constants/colors';
 import { Radius } from '../../theme/tokens';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 const VALID_BARCODE_LENGTHS = [8, 12, 13, 14];
 
@@ -70,6 +71,8 @@ function ProductEditor({
   saving: boolean;
   compact: boolean;
 }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const content = (
     <>
       <View style={styles.modalHeader}>
@@ -159,10 +162,10 @@ function ProductEditor({
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
             <>
-              <Check size={18} color={Colors.white} />
+              <Check size={18} color={colors.onPrimary} />
               <Text style={styles.saveBtnText}>Use in Add Food</Text>
             </>
           )}
@@ -192,6 +195,8 @@ export default function BarcodeScannerPanel({
   onCancel,
   onSaved,
 }: BarcodeScannerPanelProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -315,6 +320,10 @@ export default function BarcodeScannerPanel({
         carbs,
         fat,
         servingSize: product?.servingSize ?? null,
+        unitLabel: product?.unitLabel,
+        servingWeightG: product?.servingWeightG,
+        servingVolumeMl: product?.servingVolumeMl,
+        density_g_per_ml: product?.density_g_per_ml ?? null,
       });
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -343,7 +352,7 @@ export default function BarcodeScannerPanel({
   if (!permission) {
     return (
       <View style={[styles.center, compact && styles.centerCompact]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -384,7 +393,7 @@ export default function BarcodeScannerPanel({
         {locked ? (
           <View style={[styles.inlineToolbar, compact && styles.inlineToolbarCompact]}>
             <TouchableOpacity style={styles.toolbarButton} onPress={handleScanAgain}>
-              <Scan size={18} color={Colors.primary} />
+              <Scan size={18} color={colors.primary} />
               <Text style={[styles.toolbarButtonText, styles.toolbarButtonTextPrimary]}>
                 Scan Again
               </Text>
@@ -395,7 +404,7 @@ export default function BarcodeScannerPanel({
 
       {loading ? (
         <View style={styles.overlay}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.overlayText}>Looking up product...</Text>
         </View>
       ) : null}
@@ -409,7 +418,7 @@ export default function BarcodeScannerPanel({
               <Text style={styles.primaryBtnText}>Enter Manually</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn} onPress={handleScanAgain}>
-              <Scan size={18} color={Colors.primary} />
+              <Scan size={18} color={colors.primary} />
               <Text style={styles.secondaryBtnText}>Scan Again</Text>
             </TouchableOpacity>
           </View>
@@ -470,7 +479,7 @@ export default function BarcodeScannerPanel({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     backgroundColor: '#000',
   },
@@ -520,7 +529,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   primaryBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
@@ -528,7 +537,7 @@ const styles = StyleSheet.create({
     minWidth: 200,
     alignItems: 'center',
   },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  primaryBtnText: { color: colors.onPrimary, fontSize: 16, fontWeight: '600' },
   secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -536,7 +545,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
   },
-  secondaryBtnText: { color: Colors.primary, fontSize: 16, fontWeight: '600' },
+  secondaryBtnText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -585,7 +594,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   toolbarButtonTextPrimary: {
-    color: Colors.primary,
+    color: colors.primary,
   },
   scanGuideBox: {
     borderRadius: 20,
@@ -673,7 +682,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
   },
   saveBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
@@ -681,5 +690,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveBtnText: { color: colors.onPrimary, fontSize: 16, fontWeight: '700' },
 });

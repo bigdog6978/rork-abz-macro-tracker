@@ -19,6 +19,8 @@ export interface LocalFood {
   unitLabel?: string | null;
   /** Grams per 1 unit. Parsed from serving_size JSON. */
   servingWeightG?: number | null;
+  /** Milliliters per 1 serving when the package only provides a volume serving. */
+  servingVolumeMl?: number | null;
   /** Density (g/ml) for volume→grams. Parsed from serving_size JSON. */
   density_g_per_ml?: number | null;
   createdAt: number;

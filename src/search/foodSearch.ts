@@ -37,6 +37,14 @@ export function normalize(text: string): string {
     .replace(/\s+/g, ' ');
 }
 
+function normalizeForPhraseMatch(text: string): string {
+  return (text ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gi, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
 /**
  * Tokenize text into words (split on non-alphanumeric, filter empty).
  */
@@ -91,6 +99,16 @@ const PROCESSED_TERMS = new Set([
   'mayonnaise',
   'ketchup',
   'mustard',
+  'roll',
+  'sliced',
+  'deli',
+  'rotisserie',
+  'seasoned',
+  'flavor',
+  'flavoured',
+  'flavored',
+  'bbq',
+  'barbecue',
 ]);
 
 // ─── Common Form Tokens (boost when query is base term like "chicken") ────────
@@ -107,15 +125,6 @@ const COMMON_FORMS = new Set([
   'ground',
   'whole',
   'meat',
-  'cooked',
-  'raw',
-  'grilled',
-  'roasted',
-  'baked',
-  'fried',
-  'steamed',
-  'boiled',
-  'broiled',
   'fillet',
   'filet',
   'cutlet',
@@ -132,6 +141,45 @@ const COMMON_FORMS = new Set([
   'legs',
 ]);
 
+const NON_INGREDIENT_TERMS = new Set([
+  'bar',
+  'bars',
+  'cereal',
+  'cookie',
+  'cookies',
+  'cracker',
+  'crackers',
+  'chips',
+  'juice',
+  'soda',
+  'soup',
+  'sauce',
+  'meal',
+  'shake',
+  'drink',
+  'smoothie',
+  'yogurt',
+]);
+
+const WEAK_MODIFIER_TOKENS = new Set([
+  'small',
+  'medium',
+  'large',
+  'jumbo',
+  'extra',
+  'mini',
+]);
+
+const WHOLE_FOOD_QUALIFIERS = new Set([
+  'raw',
+  'fresh',
+  'plain',
+  'skinless',
+  'boneless',
+  'meat',
+  'only',
+]);
+
 // ─── Scoring Weights ───────────────────────────────────────────────────────
 
 const WEIGHTS = {
@@ -142,10 +190,29 @@ const WEIGHTS = {
   tokenCoverageMax: 40,
   commonFormMax: 50,
   processedPenaltyMax: 55,
+  genericIngredientBonus: 26,
+  wholeFoodNameBonus: 18,
+  brandedIngredientPenalty: 24,
+  wholeFoodQualifierBonus: 28,
+  primaryIngredientCoverageMax: 50,
+  missingPrimaryIngredientPenalty: 95,
+  partialPrimaryMissPenalty: 22,
   popularityBoostScale: 15,
   recencyBoostMax: 12,
   recencyWindowMs: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
+
+function isIngredientQuery(tokens: string[]): boolean {
+  if (tokens.length === 0 || tokens.length > 4) return false;
+  if (tokens.some((token) => NON_INGREDIENT_TERMS.has(token))) return false;
+  if (tokens.some((token) => PROCESSED_TERMS.has(token))) return false;
+  return true;
+}
+
+function getPrimaryIngredientTokens(tokens: string[]): string[] {
+  const filtered = tokens.filter((token) => !WEAK_MODIFIER_TOKENS.has(token));
+  return filtered.length > 0 ? filtered : tokens;
+}
 
 // ─── Score Food ─────────────────────────────────────────────────────────────
 
@@ -163,17 +230,26 @@ export function scoreFood(
 
   const name = food.name ?? '';
   const nameNorm = normalize(name);
+  const phraseNorm = normalizeForPhraseMatch(name);
+  const queryPhraseNorm = normalizeForPhraseMatch(query.norm);
   const nameTokens = tokenize(name);
   const queryTokensSet = new Set(query.tokens);
+  const ingredientQuery = isIngredientQuery(query.tokens);
+  const primaryIngredientTokens = ingredientQuery
+    ? getPrimaryIngredientTokens(query.tokens)
+    : query.tokens;
 
   // ─── Exact match ─────────────────────────────────────────────────────────
-  if (nameNorm === query.norm) {
+  if (nameNorm === query.norm || phraseNorm === queryPhraseNorm) {
     score += WEIGHTS.exactMatch;
     reasons.push(`exact: +${WEIGHTS.exactMatch}`);
   }
 
   // ─── Prefix match ────────────────────────────────────────────────────────
-  if (nameNorm.startsWith(query.norm) && nameNorm !== query.norm) {
+  if (
+    (nameNorm.startsWith(query.norm) || phraseNorm.startsWith(queryPhraseNorm)) &&
+    phraseNorm !== queryPhraseNorm
+  ) {
     score += WEIGHTS.prefixMatch;
     reasons.push(`prefix: +${WEIGHTS.prefixMatch}`);
   }
@@ -247,6 +323,60 @@ export function scoreFood(
   }
 
   score += commonFormBoost;
+
+  if (ingredientQuery) {
+    const hasBrand = !!normalize(food.brand ?? '');
+    const processedNameTokens = nameTokens.filter((token) => PROCESSED_TERMS.has(token));
+    const wholeFoodQualifierCount = nameTokens.filter((token) => WHOLE_FOOD_QUALIFIERS.has(token)).length;
+    const matchedPrimaryTokens = primaryIngredientTokens.filter((token) =>
+      nameTokens.some((nt) => nt.includes(token) || token.includes(nt))
+    );
+    const primaryCoverage =
+      primaryIngredientTokens.length > 0
+        ? matchedPrimaryTokens.length / primaryIngredientTokens.length
+        : 0;
+    const primaryCoverageBonus = Math.round(
+      primaryCoverage * WEIGHTS.primaryIngredientCoverageMax
+    );
+
+    if (!hasBrand) {
+      score += WEIGHTS.genericIngredientBonus;
+      reasons.push(`genericIngredient: +${WEIGHTS.genericIngredientBonus}`);
+    } else {
+      score -= WEIGHTS.brandedIngredientPenalty;
+      reasons.push(`brandedIngredient: -${WEIGHTS.brandedIngredientPenalty}`);
+    }
+
+    if (processedNameTokens.length === 0) {
+      score += WEIGHTS.wholeFoodNameBonus;
+      reasons.push(`wholeFoodName: +${WEIGHTS.wholeFoodNameBonus}`);
+    }
+
+    if (primaryCoverageBonus > 0) {
+      score += primaryCoverageBonus;
+      reasons.push(`primaryCoverage(${primaryCoverage.toFixed(2)}): +${primaryCoverageBonus}`);
+    }
+
+    if (matchedPrimaryTokens.length === 0 && primaryIngredientTokens.length > 0) {
+      score -= WEIGHTS.missingPrimaryIngredientPenalty;
+      reasons.push(`missingPrimaryIngredient: -${WEIGHTS.missingPrimaryIngredientPenalty}`);
+    } else if (matchedPrimaryTokens.length < primaryIngredientTokens.length) {
+      const missPenalty =
+        (primaryIngredientTokens.length - matchedPrimaryTokens.length) *
+        WEIGHTS.partialPrimaryMissPenalty;
+      score -= missPenalty;
+      reasons.push(`partialPrimaryMiss: -${missPenalty}`);
+    }
+
+    if (wholeFoodQualifierCount > 0) {
+      const qualifierBonus = Math.min(
+        wholeFoodQualifierCount * 8,
+        WEIGHTS.wholeFoodQualifierBonus
+      );
+      score += qualifierBonus;
+      reasons.push(`wholeFoodQualifiers(${wholeFoodQualifierCount}): +${qualifierBonus}`);
+    }
+  }
 
   // ─── Processed penalty (0..40) — only if user did NOT type those tokens ───
   let processedPenalty = 0;

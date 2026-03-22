@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Colors from '../../constants/colors';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 export default function DashboardBrandHeader() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.brandRow}>
@@ -16,7 +20,7 @@ export default function DashboardBrandHeader() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     marginTop: -7,
     paddingBottom: 6,
@@ -31,7 +35,7 @@ const styles = StyleSheet.create({
   physiqText: {
     fontSize: 22,
     letterSpacing: 0.6,
-    color: Colors.primary,
+    color: colors.primary,
   },
   physiqBold: {
     fontWeight: '700' as const,

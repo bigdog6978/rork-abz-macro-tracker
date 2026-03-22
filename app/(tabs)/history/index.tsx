@@ -34,6 +34,7 @@ import {
   formatTargetSummary,
 } from '../../../features/progress/progressScoring';
 import { fromDateKey } from '../../../utils/dateKey';
+import { useThemeColors } from '../../../providers/ThemeProvider';
 
 type ViewMode = 'progress' | 'history';
 type TimeRange = 7 | 14 | 30;
@@ -175,6 +176,7 @@ const trendStyles = StyleSheet.create({
 });
 
 function MeasurementTimeline({ records }: { records: Array<{ id: string; recordedAt: string; weightLb?: number; waistIn?: number; chestIn?: number; bodyFatPercent?: number; dressSize?: string; isBaseline?: boolean }> }) {
+  const colors = useThemeColors();
   if (records.length === 0) return null;
 
   const sorted = [...records].reverse().slice(0, 10);
@@ -195,10 +197,10 @@ function MeasurementTimeline({ records }: { records: Array<{ id: string; recorde
           <View key={r.id} style={timelineStyles.row}>
             <View style={timelineStyles.dateCol}>
               <Text style={timelineStyles.dateText}>{dateStr}</Text>
-              {r.isBaseline && <Text style={timelineStyles.baselineTag}>Baseline</Text>}
+              {r.isBaseline && <Text style={[timelineStyles.baselineTag, { color: colors.primary }]}>Baseline</Text>}
             </View>
             <View style={timelineStyles.dotCol}>
-              <View style={[timelineStyles.dot, r.isBaseline && timelineStyles.dotBaseline]} />
+              <View style={[timelineStyles.dot, r.isBaseline && [timelineStyles.dotBaseline, { backgroundColor: colors.primary }]]} />
               {idx < sorted.length - 1 && <View style={timelineStyles.line} />}
             </View>
             <View style={timelineStyles.valueCol}>
@@ -318,6 +320,7 @@ function DayRow({
 }
 
 export default function HistoryScreen() {
+  const colors = useThemeColors();
   const queryClient = useQueryClient();
   const { profile, macros } = useUser();
   const { getTotalsForDate, getDatesWithEntries, getStreak, ensureDayExists, logs } = useDailyLog();
@@ -474,16 +477,16 @@ export default function HistoryScreen() {
       >
         <View style={styles.modeToggle}>
           <TouchableOpacity
-            style={[styles.modeTab, viewMode === 'progress' && styles.modeTabActive]}
+            style={[styles.modeTab, viewMode === 'progress' && [styles.modeTabActive, { backgroundColor: colors.primaryMuted }]]}
             onPress={() => setViewMode('progress')}
           >
-            <Text style={[styles.modeTabText, viewMode === 'progress' && styles.modeTabTextActive]}>Progress</Text>
+            <Text style={[styles.modeTabText, viewMode === 'progress' && [styles.modeTabTextActive, { color: colors.primary }]]}>Progress</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.modeTab, viewMode === 'history' && styles.modeTabActive]}
+            style={[styles.modeTab, viewMode === 'history' && [styles.modeTabActive, { backgroundColor: colors.primaryMuted }]]}
             onPress={() => setViewMode('history')}
           >
-            <Text style={[styles.modeTabText, viewMode === 'history' && styles.modeTabTextActive]}>Food Log</Text>
+            <Text style={[styles.modeTabText, viewMode === 'history' && [styles.modeTabTextActive, { color: colors.primary }]]}>Food Log</Text>
           </TouchableOpacity>
         </View>
 
@@ -503,12 +506,12 @@ export default function HistoryScreen() {
                 </View>
                 <View style={styles.addEditRow}>
                   <TouchableOpacity
-                    style={styles.addMeasurementBtn}
+                    style={[styles.addMeasurementBtn, { backgroundColor: colors.primaryMuted }]}
                     onPress={handleAddMeasurement}
                     activeOpacity={0.7}
                   >
-                    <Plus size={16} color={Colors.primary} />
-                    <Text style={styles.addMeasurementText}>Add</Text>
+                    <Plus size={16} color={colors.primary} />
+                    <Text style={[styles.addMeasurementText, { color: colors.primary }]}>Add</Text>
                   </TouchableOpacity>
                   {(records.length > 0 || target) && (
                     <>
@@ -541,8 +544,8 @@ export default function HistoryScreen() {
                   <Text style={styles.scoreEmptyText}>
                     Set a baseline measurement to start tracking progress toward your target.
                   </Text>
-                  <TouchableOpacity style={styles.scoreEmptyCta} onPress={handleAddMeasurement}>
-                    <Text style={styles.scoreEmptyCtaText}>Add Measurement</Text>
+                  <TouchableOpacity style={[styles.scoreEmptyCta, { backgroundColor: colors.primary }]} onPress={handleAddMeasurement}>
+                    <Text style={[styles.scoreEmptyCtaText, { color: colors.onPrimary }]}>Add Measurement</Text>
                   </TouchableOpacity>
                 </View>
               ) : records.length >= 2 || (target && (baseline || latest)) ? (
@@ -562,8 +565,8 @@ export default function HistoryScreen() {
                       ? 'Add baseline measurements to start tracking progress.'
                       : 'Add a second measurement to see your score.'}
                   </Text>
-                  <TouchableOpacity style={styles.scoreEmptyCta} onPress={handleAddMeasurement}>
-                    <Text style={styles.scoreEmptyCtaText}>
+                  <TouchableOpacity style={[styles.scoreEmptyCta, { backgroundColor: colors.primary }]} onPress={handleAddMeasurement}>
+                    <Text style={[styles.scoreEmptyCtaText, { color: colors.onPrimary }]}>
                       {!hasBaseline ? 'Add Baseline' : 'Add Measurement'}
                     </Text>
                   </TouchableOpacity>
@@ -576,7 +579,7 @@ export default function HistoryScreen() {
                 <Text style={styles.insightsTitle}>Insights</Text>
                 {goalScore.insights.map((insight, idx) => (
                   <View key={idx} style={styles.insightRow}>
-                    <View style={styles.insightDot} />
+                    <View style={[styles.insightDot, { backgroundColor: colors.primary }]} />
                     <Text style={styles.insightText}>{insight}</Text>
                   </View>
                 ))}
@@ -646,8 +649,8 @@ export default function HistoryScreen() {
 
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
-                <View style={[styles.statIcon, { backgroundColor: Colors.primaryMuted }]}>
-                  <Flame size={18} color={Colors.primary} />
+                <View style={[styles.statIcon, { backgroundColor: colors.primaryMuted }]}>
+                  <Flame size={18} color={colors.primary} />
                 </View>
                 <Text style={styles.statValue}>{streak}</Text>
                 <Text style={styles.statLabel}>Day Streak</Text>
@@ -677,15 +680,15 @@ export default function HistoryScreen() {
                   accessibilityLabel="Add day"
                   accessibilityRole="button"
                 >
-                  <Plus size={16} color={Colors.primary} />
-                  <Text style={styles.addDayBtnText}>Add Day</Text>
+                  <Plus size={16} color={colors.primary} />
+                  <Text style={[styles.addDayBtnText, { color: colors.primary }]}>Add Day</Text>
                 </TouchableOpacity>
               </View>
               {datesToShow.map((date) => {
                 const totals = getTotalsForDate(date);
                 const isHighlighted = highlightDateKey === date;
                 return (
-                  <View style={isHighlighted ? styles.dayRowHighlighted : undefined} key={date}>
+                  <View style={isHighlighted ? [styles.dayRowHighlighted, { backgroundColor: colors.primaryMuted }] : undefined} key={date}>
                     <DayRow
                       date={date}
                       totals={totals}

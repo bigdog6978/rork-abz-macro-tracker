@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { X } from 'lucide-react-native';
 import Colors from '../../constants/colors';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 interface DensityModalProps {
   visible: boolean;
@@ -30,6 +31,8 @@ export default function DensityModal({
   onSave,
   onCancel,
 }: DensityModalProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [input, setInput] = useState(
     initialValue != null && initialValue > 0 ? String(initialValue) : ''
   );
@@ -118,7 +121,7 @@ export default function DensityModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: Colors.overlay,
@@ -202,13 +205,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
   primaryText: {
-    color: Colors.white,
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '700' as const,
   },

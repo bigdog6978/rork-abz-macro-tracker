@@ -29,6 +29,7 @@ import CalorieGauge from '../../../components/ui/CalorieGauge';
 import { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
 import WhyTheseMacrosCard from '../../../components/ui/WhyTheseMacrosCard';
+import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_HORIZONTAL_PADDING = 18;
@@ -44,6 +45,8 @@ function getDialSize(cardWidth: number): number {
 
 export default function DashboardScreen() {
   const { profile, macros, isLoading: userLoading } = useUser();
+  const colors = useThemeColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [cardWidth, setCardWidth] = useState(0);
 
   const dialSize = useMemo(() => getDialSize(cardWidth), [cardWidth]);
@@ -153,7 +156,7 @@ export default function DashboardScreen() {
                   <CalorieGauge
                     consumed={todayTotals.calories}
                     target={macros.calories}
-                    color={Colors.primary}
+                    color={colors.primary}
                     size={dialSize}
                     strokeWidth={dialStrokeWidth}
                   />
@@ -210,7 +213,7 @@ export default function DashboardScreen() {
                 {streak > 0 && (
                   <View style={styles.streakWrap}>
                     <View style={styles.streakBadge}>
-                      <Flame size={14} color={Colors.primary} />
+                      <Flame size={14} color={colors.primary} />
                       <Text style={styles.streakText}>{streak} day streak</Text>
                     </View>
                   </View>
@@ -328,7 +331,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -353,10 +356,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
+    borderColor: colors.primary,
   },
   strategyTagText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '600' as const,
   },
@@ -447,7 +450,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 30,
     fontWeight: '800' as const,
-    color: Colors.primary,
+    color: colors.primary,
     minWidth: 56,
     textAlign: 'right' as const,
   },
@@ -459,13 +462,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: Colors.primaryMuted,
+    backgroundColor: colors.primaryMuted,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: Radius.sm,
   },
   streakText: {
-    color: Colors.primary,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: '600' as const,
   },
