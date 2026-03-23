@@ -25,6 +25,7 @@ import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { getMealPlanForEatingStyle } from '../../../mocks/mealTemplates';
 import { getAllergies } from '../../../storage/allergiesRepo';
+import { getDislikedFoods } from '../../../storage/dislikedFoodsRepo';
 import {
   EATING_STYLE_LABELS,
   DIETARY_MODIFIER_LABELS,
@@ -925,6 +926,12 @@ export default function PlanScreen() {
     queryFn: getAllergies,
   });
   const allergies = allergiesQuery.data ?? [];
+
+  const dislikedFoodsQuery = useQuery({
+    queryKey: ['disliked_foods'],
+    queryFn: getDislikedFoods,
+  });
+  const dislikedFoodIds = (dislikedFoodsQuery.data ?? []).map((f) => f.foodId);
   const measurementSystem = profile.measurementSystem ?? 'us';
   const activePlan = activePlanQuery.data;
   const [generationSeed, setGenerationSeed] = useState(0);
@@ -967,9 +974,10 @@ export default function PlanScreen() {
       macros,
       profile.measurementSystem ?? 'us',
       allergies,
-      generationSeed
+      generationSeed,
+      dislikedFoodIds
     );
-  }, [profile.eatingStyle, profile.dietModifiers, profile.goal, macros, profile.measurementSystem, allergies, generationSeed]);
+  }, [profile.eatingStyle, profile.dietModifiers, profile.goal, macros, profile.measurementSystem, allergies, generationSeed, dislikedFoodIds]);
 
   const [substitutionMap, setSubstitutionMap] = useState<
     Record<string, MealSuggestion>

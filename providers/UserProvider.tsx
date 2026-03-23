@@ -14,6 +14,7 @@ function mergeDefined<T extends object>(base: T, updates: Partial<T>): T {
 export const [UserProvider, useUser] = createContextHook(() => {
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [customMacros, setCustomMacrosState] = useState<MacroTargets | null>(null);
 
   const profileQuery = useQuery({
     queryKey: ['user_profile'],
@@ -31,11 +32,22 @@ export const [UserProvider, useUser] = createContextHook(() => {
     },
   });
 
+  const customMacrosQuery = useQuery({
+    queryKey: ['custom_macro_targets'],
+    queryFn: () => loadData<MacroTargets>(STORAGE_KEYS.CUSTOM_MACRO_TARGETS),
+  });
+
   useEffect(() => {
     if (profileQuery.data) {
       setProfile(profileQuery.data);
     }
   }, [profileQuery.data]);
+
+  useEffect(() => {
+    if (customMacrosQuery.data !== undefined) {
+      setCustomMacrosState(customMacrosQuery.data);
+    }
+  }, [customMacrosQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: async (updated: UserProfile) => {
@@ -73,22 +85,39 @@ export const [UserProvider, useUser] = createContextHook(() => {
     await removeData(STORAGE_KEYS.USER_PROFILE);
     await removeData(STORAGE_KEYS.MACRO_TARGETS);
     await removeData(STORAGE_KEYS.PROTOCOL);
+    await removeData(STORAGE_KEYS.CUSTOM_MACRO_TARGETS);
     setProfile(DEFAULT_PROFILE);
+    setCustomMacrosState(null);
     queryClient.setQueryData(['user_profile'], DEFAULT_PROFILE);
+    queryClient.setQueryData(['custom_macro_targets'], null);
   }, [queryClient]);
 
-  const macros: MacroTargets = useMemo(() => {
+  const setCustomMacros = useCallback(async (targets: MacroTargets | null) => {
+    if (targets) {
+      await saveData(STORAGE_KEYS.CUSTOM_MACRO_TARGETS, targets);
+    } else {
+      await removeData(STORAGE_KEYS.CUSTOM_MACRO_TARGETS);
+    }
+    setCustomMacrosState(targets);
+    queryClient.setQueryData(['custom_macro_targets'], targets);
+  }, [queryClient]);
+
+  const calculatedMacros: MacroTargets = useMemo(() => {
     if (!profile.onboardingComplete) {
       return { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
     }
     return calculateMacros(profile);
   }, [profile]);
 
+  const macros: MacroTargets = customMacros ?? calculatedMacros;
+
   const isLoading = profileQuery.isLoading;
 
   return {
     profile,
     macros,
+    customMacros,
+    setCustomMacros,
     isLoading,
     updateProfile,
     completeOnboarding,

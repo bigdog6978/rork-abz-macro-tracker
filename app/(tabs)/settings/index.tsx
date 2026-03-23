@@ -12,7 +12,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, ChevronRight, FileText, Mail, RefreshCw, Shield, Trash2, User } from 'lucide-react-native';
+import { AlertCircle, ChevronRight, FileText, Mail, RefreshCw, Shield, Trash2, User, Utensils } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Shadows, Spacing } from '../../../theme/tokens';
 import { useTheme, useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
@@ -20,6 +20,7 @@ import { ACCENT_THEMES, type AccentThemeId } from '../../../theme/accentThemes';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { getAllergies } from '../../../storage/allergiesRepo';
+import { getDislikedFoods } from '../../../storage/dislikedFoodsRepo';
 import {
   ACTIVITY_LABELS,
   ActivityLevel,
@@ -82,6 +83,12 @@ export default function SettingsScreen() {
     queryFn: getAllergies,
   });
   const allergies = allergiesQuery.data ?? [];
+
+  const dislikedFoodsQuery = useQuery({
+    queryKey: ['disliked_foods'],
+    queryFn: getDislikedFoods,
+  });
+  const dislikedFoods = dislikedFoodsQuery.data ?? [];
 
   const handleSaveProfile = useCallback(() => {
     const parsedHeightCm =
@@ -182,6 +189,11 @@ export default function SettingsScreen() {
       : allergies.length <= 2
         ? allergies.map((item) => item.name).join(', ')
         : `${allergies[0].name}, ${allergies[1].name} +${allergies.length - 2}`;
+
+  const dislikedFoodsSummary =
+    dislikedFoods.length === 0
+      ? 'None excluded'
+      : `${dislikedFoods.length} food${dislikedFoods.length !== 1 ? 's' : ''} excluded`;
 
   const currentWeightLabel =
     profile.measurementSystem === 'us'
@@ -387,6 +399,19 @@ export default function SettingsScreen() {
             <View style={styles.rowCopy}>
               <Text style={styles.rowTitle}>Allergies</Text>
               <Text style={styles.rowSubtitle}>{allergySummary}</Text>
+            </View>
+            <ChevronRight size={16} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/settings/food-preferences' as never)}>
+            <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
+              <Utensils size={16} color={colors.primary} />
+            </View>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Food Preferences</Text>
+              <Text style={styles.rowSubtitle}>{dislikedFoodsSummary}</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
           </TouchableOpacity>

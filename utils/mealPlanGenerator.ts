@@ -30,654 +30,292 @@ interface StrategyBlueprints {
 
 type StrategyBlueprintVariant = StrategyBlueprints[];
 
-const BALANCED_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: 'berries', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'chicken_breast', role: 'protein' },
-        { foodId: 'brown_rice', role: 'carb' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'salmon', role: 'protein' },
-        { foodId: 'sweet_potato', role: 'carb' },
-        { foodId: 'broccoli', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'almonds', role: 'fat' },
-      ],
-    },
-  ],
+// ─── Snack blueprints per eating style ──────────────────────────────────────
+
+interface SnackSet {
+  morning: MealFoodRef[];
+  afternoon: MealFoodRef[];
+  evening: MealFoodRef[];
+}
+
+const BALANCED_SNACKS: SnackSet = {
+  morning: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }],
+  afternoon: [{ foodId: 'almonds', role: 'fat' }, { foodId: 'apple', role: 'carb' }],
+  evening: [{ foodId: 'whey_protein', role: 'protein' }, { foodId: 'banana', role: 'carb' }],
 };
 
-const BALANCED_BLUEPRINTS_ALT: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: 'banana', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'turkey_breast', role: 'protein' },
-        { foodId: 'quinoa', role: 'carb' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'cod', role: 'protein' },
-        { foodId: 'brown_rice', role: 'carb' },
-        { foodId: 'broccoli', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'whey_protein', role: 'protein' },
-        { foodId: 'apple', role: 'carb' },
-      ],
-    },
-  ],
+const HIGH_PROTEIN_SNACKS: SnackSet = {
+  morning: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }],
+  afternoon: [{ foodId: 'whey_protein', role: 'protein' }, { foodId: 'apple', role: 'carb' }],
+  evening: [{ foodId: 'cottage_cheese', role: 'protein' }, { foodId: 'almonds', role: 'fat' }],
 };
 
-const HIGH_PROTEIN_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'turkey_breast', role: 'protein' },
-        { foodId: 'oats_dry', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'chicken_breast', role: 'protein' },
-        { foodId: 'quinoa', role: 'carb' },
-        { foodId: 'broccoli', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'cod', role: 'protein' },
-        { foodId: 'sweet_potato', role: 'carb' },
-        { foodId: 'asparagus', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'whey_protein', role: 'protein' },
-        { foodId: 'apple', role: 'carb' },
-      ],
-    },
-  ],
+const LOW_CARB_SNACKS: SnackSet = {
+  morning: [{ foodId: 'cottage_cheese', role: 'protein' }, { foodId: 'almonds', role: 'fat' }],
+  afternoon: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }],
+  evening: [{ foodId: 'string_cheese', role: 'protein' }, { foodId: 'almonds', role: 'fat' }],
 };
 
-const LOW_CARB_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'avocado', role: 'fat' },
-        { foodId: 'spinach_cooked', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'chicken_breast', role: 'protein' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-        { foodId: 'olive_oil', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'salmon', role: 'protein' },
-        { foodId: 'cauliflower', role: 'veggie' },
-        { foodId: 'green_beans', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'cottage_cheese', role: 'protein' },
-        { foodId: 'almonds', role: 'fat' },
-      ],
-    },
-  ],
+const KETO_SNACKS: SnackSet = {
+  morning: [{ foodId: 'string_cheese', role: 'protein' }, { foodId: 'macadamia', role: 'fat' }],
+  afternoon: [{ foodId: 'almonds', role: 'fat' }, { foodId: 'avocado', role: 'fat' }],
+  evening: [{ foodId: 'cheddar', role: 'fat' }, { foodId: 'olive_oil', role: 'fat' }],
 };
 
-const KETO_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'bacon', role: 'fat' },
-        { foodId: 'avocado', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'ground_beef_80', role: 'protein' },
-        { foodId: 'cheddar', role: 'fat' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'ribeye', role: 'protein' },
-        { foodId: 'spinach_cooked', role: 'veggie' },
-        { foodId: 'butter', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'macadamia', role: 'fat' },
-        { foodId: 'string_cheese', role: 'protein' },
-      ],
-    },
-  ],
+const CARNIVORE_SNACKS: SnackSet = {
+  morning: [{ foodId: 'hard_boiled_eggs', role: 'protein' }, { foodId: 'string_cheese', role: 'fat' }],
+  afternoon: [{ foodId: 'bacon', role: 'fat' }, { foodId: 'cheddar', role: 'fat' }],
+  evening: [{ foodId: 'hard_boiled_eggs', role: 'protein' }, { foodId: 'butter', role: 'fat' }],
 };
 
-const KETO_BLUEPRINTS_ALT: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'cheddar', role: 'fat' },
-        { foodId: 'avocado', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'salmon', role: 'protein' },
-        { foodId: 'olive_oil', role: 'fat' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'ground_beef_80', role: 'protein' },
-        { foodId: 'butter', role: 'fat' },
-        { foodId: 'cauliflower', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'macadamia', role: 'fat' },
-        { foodId: 'string_cheese', role: 'protein' },
-      ],
-    },
-  ],
+const MEDITERRANEAN_SNACKS: SnackSet = {
+  morning: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }],
+  afternoon: [{ foodId: 'mixed_nuts', role: 'fat' }, { foodId: 'dates', role: 'carb' }],
+  evening: [{ foodId: 'hummus', role: 'fat' }, { foodId: 'pita', role: 'carb' }],
 };
 
-const KETO_HIGH_PROTEIN_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'turkey_breast', role: 'protein' },
-        { foodId: 'avocado', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'chicken_breast', role: 'protein' },
-        { foodId: 'olive_oil', role: 'fat' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'salmon', role: 'protein' },
-        { foodId: 'cauliflower', role: 'veggie' },
-        { foodId: 'butter', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'whey_protein', role: 'protein' },
-        { foodId: 'macadamia', role: 'fat' },
-      ],
-    },
-  ],
+const VEGETARIAN_SNACKS: SnackSet = {
+  morning: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }],
+  afternoon: [{ foodId: 'almonds', role: 'fat' }, { foodId: 'apple', role: 'carb' }],
+  evening: [{ foodId: 'whey_protein', role: 'protein' }, { foodId: 'banana', role: 'carb' }],
 };
 
-const CARNIVORE_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'bacon', role: 'fat' },
-        { foodId: 'butter', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'ground_beef_80', role: 'protein' },
-        { foodId: 'butter', role: 'fat' },
-        { foodId: 'bacon', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'ribeye', role: 'protein' },
-        { foodId: 'butter', role: 'fat' },
-        { foodId: 'cheddar', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'string_cheese', role: 'fat' },
-        { foodId: 'hard_boiled_eggs', role: 'protein' },
-      ],
-    },
-  ],
+const VEGAN_SNACKS: SnackSet = {
+  morning: [{ foodId: 'plant_protein', role: 'protein' }, { foodId: 'banana', role: 'carb' }],
+  afternoon: [{ foodId: 'almond_butter', role: 'fat' }, { foodId: 'apple', role: 'carb' }],
+  evening: [{ foodId: 'edamame', role: 'protein' }, { foodId: 'almonds', role: 'fat' }],
 };
 
-const CARNIVORE_BLUEPRINTS_ALT: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'hard_boiled_eggs', role: 'protein' },
-        { foodId: 'cheddar', role: 'fat' },
-        { foodId: 'bacon', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'ribeye', role: 'protein' },
-        { foodId: 'butter', role: 'fat' },
-        { foodId: 'hard_boiled_eggs', role: 'protein' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'ground_beef_80', role: 'protein' },
-        { foodId: 'cheddar', role: 'fat' },
-        { foodId: 'bacon', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'string_cheese', role: 'fat' },
-        { foodId: 'hard_boiled_eggs', role: 'protein' },
-      ],
-    },
-  ],
+const LOW_FAT_SNACKS: SnackSet = {
+  morning: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }],
+  afternoon: [{ foodId: 'apple', role: 'carb' }, { foodId: 'rice_cake', role: 'carb' }],
+  evening: [{ foodId: 'whey_protein', role: 'protein' }, { foodId: 'banana', role: 'carb' }],
 };
 
-const LOW_FAT_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: 'banana', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'turkey_breast', role: 'protein' },
-        { foodId: 'white_rice', role: 'carb' },
-        { foodId: 'green_beans', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'cod', role: 'protein' },
-        { foodId: 'sweet_potato', role: 'carb' },
-        { foodId: 'broccoli', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'berries', role: 'carb' },
-      ],
-    },
-  ],
+const PERFORMANCE_SNACKS: SnackSet = {
+  morning: [{ foodId: 'whey_protein', role: 'protein' }, { foodId: 'banana', role: 'carb' }],
+  afternoon: [{ foodId: 'rice_cake', role: 'carb' }, { foodId: 'peanut_butter', role: 'fat' }],
+  evening: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }],
 };
 
-const PERFORMANCE_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: 'banana', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'chicken_breast', role: 'protein' },
-        { foodId: 'white_rice', role: 'carb' },
-        { foodId: 'roasted_veggies', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'salmon', role: 'protein' },
-        { foodId: 'ww_pasta', role: 'carb' },
-        { foodId: 'asparagus', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'whey_protein', role: 'protein' },
-        { foodId: 'rice_cake', role: 'carb' },
-        { foodId: 'peanut_butter', role: 'fat' },
-      ],
-    },
-  ],
+const VEGETARIAN_KETO_SNACKS: SnackSet = {
+  morning: [{ foodId: 'string_cheese', role: 'protein' }, { foodId: 'macadamia', role: 'fat' }],
+  afternoon: [{ foodId: 'almonds', role: 'fat' }, { foodId: 'avocado', role: 'fat' }],
+  evening: [{ foodId: 'cheddar', role: 'fat' }, { foodId: 'olive_oil', role: 'fat' }],
 };
 
-const MEDITERRANEAN_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'feta', role: 'fat' },
-        { foodId: 'pita', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'chicken_breast', role: 'protein' },
-        { foodId: 'tabbouleh', role: 'carb' },
-        { foodId: 'hummus', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'sea_bass', role: 'protein' },
-        { foodId: 'couscous', role: 'carb' },
-        { foodId: 'roasted_veggies', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'mixed_nuts', role: 'fat' },
-        { foodId: 'dates', role: 'carb' },
-      ],
-    },
-  ],
+const VEGETARIAN_HP_SNACKS: SnackSet = {
+  morning: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }],
+  afternoon: [{ foodId: 'whey_protein', role: 'protein' }, { foodId: 'edamame', role: 'protein' }],
+  evening: [{ foodId: 'cottage_cheese', role: 'protein' }, { foodId: 'almonds', role: 'fat' }],
 };
 
-const MEDITERRANEAN_LEAN_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'pita', role: 'carb' },
-        { foodId: 'berries', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'chicken_breast', role: 'protein' },
-        { foodId: 'tabbouleh', role: 'carb' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'sea_bass', role: 'protein' },
-        { foodId: 'couscous', role: 'carb' },
-        { foodId: 'roasted_veggies', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'dates', role: 'carb' },
-      ],
-    },
-  ],
-};
+// ─── Calorie-aware snack slot builder ────────────────────────────────────────
 
-const MEDITERRANEAN_BLUEPRINTS_ALT: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'berries', role: 'carb' },
-        { foodId: 'pita', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'chicken_breast', role: 'protein' },
-        { foodId: 'couscous', role: 'carb' },
-        { foodId: 'roasted_veggies', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'sea_bass', role: 'protein' },
-        { foodId: 'tabbouleh', role: 'carb' },
-        { foodId: 'roasted_veggies', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'dates', role: 'carb' },
-      ],
-    },
-  ],
-};
+function buildSnackSlots(snacks: SnackSet, calories: number): MealBlueprint[] {
+  const use3 = calories >= 2200;
+  if (use3) {
+    return [
+      { name: 'Morning Snack', icon: 'cookie', percentage: 0.08, foods: snacks.morning },
+      { name: 'Afternoon Snack', icon: 'cookie', percentage: 0.08, foods: snacks.afternoon },
+      { name: 'Evening Snack', icon: 'cookie', percentage: 0.06, foods: snacks.evening },
+    ];
+  }
+  return [
+    { name: 'Morning Snack', icon: 'cookie', percentage: 0.09, foods: snacks.morning },
+    { name: 'Afternoon Snack', icon: 'cookie', percentage: 0.09, foods: snacks.afternoon },
+  ];
+}
 
-const VEGETARIAN_BALANCED_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: 'berries', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'lentils', role: 'complete' },
-        { foodId: 'quinoa', role: 'carb' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'tempeh', role: 'protein' },
-        { foodId: 'sweet_potato', role: 'carb' },
-        { foodId: 'broccoli', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'greek_yogurt', role: 'protein' },
-        { foodId: 'almonds', role: 'fat' },
-      ],
-    },
-  ],
-};
+function adjustMealPercentages(mainMeals: MealBlueprint[], snackSlots: MealBlueprint[]): MealBlueprint[] {
+  const snackTotal = snackSlots.reduce((s, sl) => s + sl.percentage, 0);
+  const mainTotal = mainMeals.reduce((s, m) => s + m.percentage, 0);
+  const scale = (1 - snackTotal) / mainTotal;
+  return mainMeals.map((m) => ({ ...m, percentage: Math.round(m.percentage * scale * 1000) / 1000 }));
+}
 
-const VEGAN_BALANCED_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'tofu', role: 'protein' },
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: 'banana', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'lentils', role: 'complete' },
-        { foodId: 'brown_rice', role: 'carb' },
-        { foodId: 'roasted_veggies', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'tempeh', role: 'protein' },
-        { foodId: 'quinoa', role: 'carb' },
-        { foodId: 'broccoli', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'plant_protein', role: 'protein' },
-        { foodId: 'almond_butter', role: 'fat' },
-      ],
-    },
-  ],
-};
+function assembleBlueprint(mainMeals: MealBlueprint[], snacks: SnackSet, calories: number): StrategyBlueprints {
+  const snackSlots = buildSnackSlots(snacks, calories);
+  const scaled = adjustMealPercentages(mainMeals, snackSlots);
+  // Interleave: Breakfast, Morning Snack, Lunch, Afternoon Snack, Dinner, [Evening Snack]
+  const result: MealBlueprint[] = [];
+  const breakfast = scaled.find((m) => m.name === 'Breakfast');
+  const lunch = scaled.find((m) => m.name === 'Lunch');
+  const dinner = scaled.find((m) => m.name === 'Dinner');
+  if (breakfast) result.push(breakfast);
+  result.push(snackSlots[0]);
+  if (lunch) result.push(lunch);
+  result.push(snackSlots[1]);
+  if (dinner) result.push(dinner);
+  if (snackSlots[2]) result.push(snackSlots[2]);
+  return { meals: result };
+}
 
-const VEGETARIAN_KETO_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'avocado', role: 'fat' },
-        { foodId: 'cream_cheese', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'tofu', role: 'protein' },
-        { foodId: 'cheddar', role: 'fat' },
-        { foodId: 'spinach_cooked', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'tempeh', role: 'protein' },
-        { foodId: 'cauliflower', role: 'veggie' },
-        { foodId: 'olive_oil', role: 'fat' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'macadamia', role: 'fat' },
-        { foodId: 'string_cheese', role: 'protein' },
-      ],
-    },
-  ],
-};
+// ─── Main meal cores (without snacks) ────────────────────────────────────────
 
-const VEGETARIAN_HIGH_PROTEIN_BLUEPRINTS: StrategyBlueprints = {
-  meals: [
-    {
-      name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
-      foods: [
-        { foodId: 'eggs', role: 'protein' },
-        { foodId: 'cottage_cheese', role: 'protein' },
-        { foodId: 'oats_dry', role: 'carb' },
-      ],
-    },
-    {
-      name: 'Lunch', icon: 'sun', percentage: 0.35,
-      foods: [
-        { foodId: 'tofu', role: 'protein' },
-        { foodId: 'lentils', role: 'complete' },
-        { foodId: 'mixed_greens', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Dinner', icon: 'moon', percentage: 0.30,
-      foods: [
-        { foodId: 'tempeh', role: 'protein' },
-        { foodId: 'quinoa', role: 'carb' },
-        { foodId: 'broccoli', role: 'veggie' },
-      ],
-    },
-    {
-      name: 'Snacks', icon: 'cookie', percentage: 0.10,
-      foods: [
-        { foodId: 'whey_protein', role: 'protein' },
-        { foodId: 'edamame', role: 'protein' },
-      ],
-    },
-  ],
-};
+const BALANCED_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }, { foodId: 'berries', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'brown_rice', role: 'carb' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'salmon', role: 'protein' }, { foodId: 'sweet_potato', role: 'carb' }, { foodId: 'broccoli', role: 'veggie' }] },
+];
+
+const BALANCED_MAIN_ALT: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }, { foodId: 'banana', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'turkey_breast', role: 'protein' }, { foodId: 'quinoa', role: 'carb' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'cod', role: 'protein' }, { foodId: 'brown_rice', role: 'carb' }, { foodId: 'broccoli', role: 'veggie' }] },
+];
+
+const HIGH_PROTEIN_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'turkey_breast', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'quinoa', role: 'carb' }, { foodId: 'broccoli', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'cod', role: 'protein' }, { foodId: 'sweet_potato', role: 'carb' }, { foodId: 'asparagus', role: 'veggie' }] },
+];
+
+const LOW_CARB_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'avocado', role: 'fat' }, { foodId: 'spinach_cooked', role: 'veggie' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'mixed_greens', role: 'veggie' }, { foodId: 'olive_oil', role: 'fat' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'salmon', role: 'protein' }, { foodId: 'cauliflower', role: 'veggie' }, { foodId: 'green_beans', role: 'veggie' }] },
+];
+
+const KETO_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'bacon', role: 'fat' }, { foodId: 'avocado', role: 'fat' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'ground_beef_80', role: 'protein' }, { foodId: 'cheddar', role: 'fat' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'ribeye', role: 'protein' }, { foodId: 'spinach_cooked', role: 'veggie' }, { foodId: 'butter', role: 'fat' }] },
+];
+
+const KETO_MAIN_ALT: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'cheddar', role: 'fat' }, { foodId: 'avocado', role: 'fat' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'salmon', role: 'protein' }, { foodId: 'olive_oil', role: 'fat' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'ground_beef_80', role: 'protein' }, { foodId: 'butter', role: 'fat' }, { foodId: 'cauliflower', role: 'veggie' }] },
+];
+
+const KETO_HP_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'turkey_breast', role: 'protein' }, { foodId: 'avocado', role: 'fat' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'olive_oil', role: 'fat' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'salmon', role: 'protein' }, { foodId: 'cauliflower', role: 'veggie' }, { foodId: 'butter', role: 'fat' }] },
+];
+
+const CARNIVORE_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'bacon', role: 'fat' }, { foodId: 'butter', role: 'fat' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'ground_beef_80', role: 'protein' }, { foodId: 'butter', role: 'fat' }, { foodId: 'bacon', role: 'fat' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'ribeye', role: 'protein' }, { foodId: 'butter', role: 'fat' }, { foodId: 'cheddar', role: 'fat' }] },
+];
+
+const CARNIVORE_MAIN_ALT: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'hard_boiled_eggs', role: 'protein' }, { foodId: 'cheddar', role: 'fat' }, { foodId: 'bacon', role: 'fat' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'ribeye', role: 'protein' }, { foodId: 'butter', role: 'fat' }, { foodId: 'hard_boiled_eggs', role: 'protein' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'ground_beef_80', role: 'protein' }, { foodId: 'cheddar', role: 'fat' }, { foodId: 'bacon', role: 'fat' }] },
+];
+
+const LOW_FAT_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }, { foodId: 'banana', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'turkey_breast', role: 'protein' }, { foodId: 'white_rice', role: 'carb' }, { foodId: 'green_beans', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'cod', role: 'protein' }, { foodId: 'sweet_potato', role: 'carb' }, { foodId: 'broccoli', role: 'veggie' }] },
+];
+
+const PERFORMANCE_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }, { foodId: 'banana', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'white_rice', role: 'carb' }, { foodId: 'roasted_veggies', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'salmon', role: 'protein' }, { foodId: 'ww_pasta', role: 'carb' }, { foodId: 'asparagus', role: 'veggie' }] },
+];
+
+const MEDITERRANEAN_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'feta', role: 'fat' }, { foodId: 'pita', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'tabbouleh', role: 'carb' }, { foodId: 'hummus', role: 'fat' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'sea_bass', role: 'protein' }, { foodId: 'couscous', role: 'carb' }, { foodId: 'roasted_veggies', role: 'veggie' }] },
+];
+
+const MEDITERRANEAN_LEAN_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'pita', role: 'carb' }, { foodId: 'berries', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'tabbouleh', role: 'carb' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'sea_bass', role: 'protein' }, { foodId: 'couscous', role: 'carb' }, { foodId: 'roasted_veggies', role: 'veggie' }] },
+];
+
+const MEDITERRANEAN_MAIN_ALT: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }, { foodId: 'pita', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'couscous', role: 'carb' }, { foodId: 'roasted_veggies', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'sea_bass', role: 'protein' }, { foodId: 'tabbouleh', role: 'carb' }, { foodId: 'roasted_veggies', role: 'veggie' }] },
+];
+
+const VEGETARIAN_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }, { foodId: 'berries', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'lentils', role: 'complete' }, { foodId: 'quinoa', role: 'carb' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'tempeh', role: 'protein' }, { foodId: 'sweet_potato', role: 'carb' }, { foodId: 'broccoli', role: 'veggie' }] },
+];
+
+const VEGAN_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'tofu', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }, { foodId: 'banana', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'lentils', role: 'complete' }, { foodId: 'brown_rice', role: 'carb' }, { foodId: 'roasted_veggies', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'tempeh', role: 'protein' }, { foodId: 'quinoa', role: 'carb' }, { foodId: 'broccoli', role: 'veggie' }] },
+];
+
+const VEGETARIAN_KETO_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'avocado', role: 'fat' }, { foodId: 'cream_cheese', role: 'fat' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'tofu', role: 'protein' }, { foodId: 'cheddar', role: 'fat' }, { foodId: 'spinach_cooked', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'tempeh', role: 'protein' }, { foodId: 'cauliflower', role: 'veggie' }, { foodId: 'olive_oil', role: 'fat' }] },
+];
+
+const VEGETARIAN_HP_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'cottage_cheese', role: 'protein' }, { foodId: 'oats_dry', role: 'carb' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'tofu', role: 'protein' }, { foodId: 'lentils', role: 'complete' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'tempeh', role: 'protein' }, { foodId: 'quinoa', role: 'carb' }, { foodId: 'broccoli', role: 'veggie' }] },
+];
+
+// ─── Food swap tables ────────────────────────────────────────────────────────
 
 const MEAT_TAGS = ['meat', 'fish'];
 const ANIMAL_TAGS = ['meat', 'fish', 'dairy', 'egg', 'animal'];
@@ -796,7 +434,7 @@ function applyFoodSwaps(
   return current;
 }
 
-function pickVariant(variants: StrategyBlueprintVariant, generationSeed = 0): StrategyBlueprints {
+function pickVariant<T>(variants: T[], generationSeed = 0): T {
   if (variants.length === 0) {
     throw new Error('No meal plan variants available');
   }
@@ -804,159 +442,111 @@ function pickVariant(variants: StrategyBlueprintVariant, generationSeed = 0): St
   return variants[index];
 }
 
-function isHighCalorieHighCarbTarget(macros: MacroTargets): boolean {
-  return macros.calories >= 3200 || macros.carbs_g >= 400;
+// ─── Blueprint selection ─────────────────────────────────────────────────────
+
+interface MainMealConfig {
+  main: MealBlueprint[];
+  snacks: SnackSet;
 }
 
-function withTopUpSnack(
-  blueprint: StrategyBlueprints,
-  extraFoods: MealFoodRef[],
-  percentage = 0.12
-): StrategyBlueprints {
-  const scale = 1 - percentage;
-  return {
-    meals: [
-      ...blueprint.meals.map((meal) => ({
-        ...meal,
-        percentage: Math.round(meal.percentage * scale * 1000) / 1000,
-      })),
-      {
-        name: 'Top-Up Snack',
-        icon: 'cookie',
-        percentage,
-        foods: extraFoods,
-      },
-    ],
-  };
-}
-
-function selectBlueprint(
+function selectMainConfig(
   eatingStyle: EatingStyle,
   macros: MacroTargets,
   generationSeed = 0
-): StrategyBlueprints {
+): MainMealConfig {
   const fatRatio = macros.calories > 0 ? (macros.fat_g * 9) / macros.calories : 0;
   const proteinRatio = macros.calories > 0 ? (macros.protein_g * 4) / macros.calories : 0;
 
   switch (eatingStyle) {
     case 'mediterranean':
-      return fatRatio <= 0.28
-        ? pickVariant([MEDITERRANEAN_LEAN_BLUEPRINTS, MEDITERRANEAN_BLUEPRINTS_ALT], generationSeed)
-        : pickVariant([MEDITERRANEAN_BLUEPRINTS, MEDITERRANEAN_BLUEPRINTS_ALT], generationSeed);
+      if (fatRatio <= 0.28) {
+        return {
+          main: pickVariant([MEDITERRANEAN_LEAN_MAIN, MEDITERRANEAN_MAIN_ALT], generationSeed),
+          snacks: MEDITERRANEAN_SNACKS,
+        };
+      }
+      return {
+        main: pickVariant([MEDITERRANEAN_MAIN, MEDITERRANEAN_MAIN_ALT], generationSeed),
+        snacks: MEDITERRANEAN_SNACKS,
+      };
     case 'vegan':
-      return VEGAN_BALANCED_BLUEPRINTS;
+      return { main: VEGAN_MAIN, snacks: VEGAN_SNACKS };
     case 'vegetarian':
-      return VEGETARIAN_BALANCED_BLUEPRINTS;
+      return { main: VEGETARIAN_MAIN, snacks: VEGETARIAN_SNACKS };
     case 'keto':
       if (proteinRatio >= 0.28 && fatRatio <= 0.7) {
-        return KETO_HIGH_PROTEIN_BLUEPRINTS;
+        return { main: KETO_HP_MAIN, snacks: KETO_SNACKS };
       }
-      return pickVariant([KETO_BLUEPRINTS, KETO_BLUEPRINTS_ALT], generationSeed);
+      return {
+        main: pickVariant([KETO_MAIN, KETO_MAIN_ALT], generationSeed),
+        snacks: KETO_SNACKS,
+      };
     case 'carnivore':
-      return pickVariant([CARNIVORE_BLUEPRINTS, CARNIVORE_BLUEPRINTS_ALT], generationSeed);
+      return {
+        main: pickVariant([CARNIVORE_MAIN, CARNIVORE_MAIN_ALT], generationSeed),
+        snacks: CARNIVORE_SNACKS,
+      };
     case 'paleo':
     case 'standard':
       if (proteinRatio > 0.38) {
-        return HIGH_PROTEIN_BLUEPRINTS;
+        return { main: HIGH_PROTEIN_MAIN, snacks: HIGH_PROTEIN_SNACKS };
       }
     default:
-      return pickVariant([BALANCED_BLUEPRINTS, BALANCED_BLUEPRINTS_ALT], generationSeed);
+      return {
+        main: pickVariant([BALANCED_MAIN, BALANCED_MAIN_ALT], generationSeed),
+        snacks: BALANCED_SNACKS,
+      };
   }
 }
 
-function getHighTargetBlueprint(
-  blueprint: StrategyBlueprints,
-  eatingStyle: EatingStyle,
-  modifiers: string[],
-  macros: MacroTargets
-): StrategyBlueprints {
-  const lowGlycemic = modifiers.includes('low_glycemic');
-  const needsExtraProtein = macros.calories > 0 ? (macros.protein_g * 4) / macros.calories >= 0.28 : false;
-
-  switch (eatingStyle) {
-    case 'mediterranean':
-      return withTopUpSnack(blueprint, [
-        ...(needsExtraProtein ? [{ foodId: 'greek_yogurt', role: 'protein' as const }] : []),
-        { foodId: lowGlycemic ? 'quinoa' : 'couscous', role: 'carb' },
-        { foodId: lowGlycemic ? 'sweet_potato' : 'pita', role: 'carb' },
-        { foodId: lowGlycemic ? 'berries' : 'dates', role: 'carb' },
-      ]);
-    case 'vegan':
-      return withTopUpSnack(blueprint, [
-        ...(needsExtraProtein ? [{ foodId: 'plant_protein', role: 'protein' as const }] : []),
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: lowGlycemic ? 'quinoa' : 'brown_rice', role: 'carb' },
-        { foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' },
-      ]);
-    case 'vegetarian':
-      return withTopUpSnack(blueprint, [
-        ...(needsExtraProtein ? [{ foodId: 'whey_protein', role: 'protein' as const }] : []),
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: lowGlycemic ? 'quinoa' : 'brown_rice', role: 'carb' },
-        { foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' },
-      ]);
-    case 'keto':
-    case 'carnivore':
-      return blueprint;
-    case 'paleo':
-      return withTopUpSnack(blueprint, [
-        ...(needsExtraProtein ? [{ foodId: 'chicken_breast', role: 'protein' as const }] : []),
-        { foodId: 'sweet_potato', role: 'carb' },
-        { foodId: 'potato', role: 'carb' },
-        { foodId: 'apple', role: 'carb' },
-      ]);
-    case 'standard':
-    default:
-      return withTopUpSnack(blueprint, [
-        ...(needsExtraProtein ? [{ foodId: 'whey_protein', role: 'protein' as const }] : []),
-        { foodId: 'oats_dry', role: 'carb' },
-        { foodId: lowGlycemic ? 'quinoa' : 'white_rice', role: 'carb' },
-        { foodId: lowGlycemic ? 'sweet_potato' : 'potato', role: 'carb' },
-        { foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' },
-      ]);
-  }
-}
+// ─── IF timing ───────────────────────────────────────────────────────────────
 
 function applyIFTimings(meals: MealBlueprint[]): MealBlueprint[] {
   const breakfast = meals.find((m) => m.name === 'Breakfast');
   const lunch = meals.find((m) => m.name === 'Lunch');
   const dinner = meals.find((m) => m.name === 'Dinner');
-  const snacks = meals.find((m) => m.name === 'Snacks');
+  const afternoonSnack = meals.find((m) => m.name === 'Afternoon Snack');
 
   if (!lunch || !dinner) return meals;
 
   const breakfastPct = breakfast?.percentage ?? 0;
-  const redistributed = breakfastPct / 2;
+  const morningSnackPct = meals.find((m) => m.name === 'Morning Snack')?.percentage ?? 0;
+  const eveningSnackPct = meals.find((m) => m.name === 'Evening Snack')?.percentage ?? 0;
+  const redistributed = (breakfastPct + morningSnackPct + eveningSnackPct) / 2;
 
-  return [
+  const result: MealBlueprint[] = [
     {
       name: 'First Meal (Noon)',
       icon: 'sun',
-      percentage: (lunch.percentage + redistributed),
+      percentage: lunch.percentage + redistributed,
       foods: [
-        ...(lunch.foods),
+        ...lunch.foods,
         ...(breakfast?.foods.slice(0, 1) ?? []),
       ],
     },
+    ...(afternoonSnack ? [{
+      ...afternoonSnack,
+      name: 'Snack (Eating Window)',
+      percentage: afternoonSnack.percentage,
+    }] : []),
     {
       name: 'Second Meal',
       icon: 'moon',
-      percentage: (dinner.percentage + redistributed),
+      percentage: dinner.percentage + redistributed,
       foods: dinner.foods,
     },
-    ...(snacks ? [{
-      ...snacks,
-      name: 'Snacks (Eating Window)',
-    }] : []),
   ];
+
+  return result;
 }
+
+// ─── Solver and reconciliation ───────────────────────────────────────────────
 
 const DAILY_TOLERANCE = { protein: 8, carbs: 15, fat: 6, calories: 60 };
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.5;
 const SOLVER_ITERATIONS = 80;
 const DAILY_RECONCILIATION_ITERATIONS = 160;
-const TOP_UP_MAX_MEALS = 3;
 
 type MacroKey = 'protein_g' | 'carbs_g' | 'fat_g';
 type MacroTolerance = { protein: number; carbs: number; fat: number; calories: number };
@@ -1061,7 +651,8 @@ function buildMealToTarget(
   mealTarget: MacroTargets,
   modifiers: string[],
   measurementSystem: MeasurementSystem = 'us',
-  allergies: UserAllergy[] = []
+  allergies: UserAllergy[] = [],
+  dislikedFoodIds: string[] = []
 ): MealSlot {
   const resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[] = [];
   const seenIds = new Set<string>();
@@ -1071,6 +662,7 @@ function buildMealToTarget(
     const food = FOODS[foodId];
     if (!food || seenIds.has(foodId)) continue;
     if (isFoodBlockedByAllergies(food, allergies)) continue;
+    if (dislikedFoodIds.includes(foodId)) continue;
     seenIds.add(foodId);
     resolvedFoods.push({ food, ref: { ...ref, foodId } });
   }
@@ -1119,14 +711,16 @@ function scaleMealToTargets(
   dailyMacros: MacroTargets,
   modifiers: string[],
   measurementSystem: MeasurementSystem = 'us',
-  allergies: UserAllergy[] = []
+  allergies: UserAllergy[] = [],
+  dislikedFoodIds: string[] = []
 ): MealSlot {
   return buildMealToTarget(
     blueprint,
     getMealTargets(dailyMacros, blueprint.percentage),
     modifiers,
     measurementSystem,
-    allergies
+    allergies,
+    dislikedFoodIds
   );
 }
 
@@ -1388,25 +982,6 @@ function reconcileDailyTotals(
   return workingMeals;
 }
 
-function getPositiveGap(actual: MacroTargets, target: MacroTargets): MacroTargets {
-  return {
-    calories: Math.max(0, Math.round(target.calories - actual.calories)),
-    protein_g: Math.max(0, Math.round(target.protein_g - actual.protein_g)),
-    carbs_g: Math.max(0, Math.round(target.carbs_g - actual.carbs_g)),
-    fat_g: Math.max(0, Math.round(target.fat_g - actual.fat_g)),
-  };
-}
-
-function needsTopUp(actual: MacroTargets, target: MacroTargets): boolean {
-  const gap = getPositiveGap(actual, target);
-  return (
-    gap.calories > 180 ||
-    gap.protein_g > DAILY_TOLERANCE.protein ||
-    gap.carbs_g > DAILY_TOLERANCE.carbs ||
-    gap.fat_g > DAILY_TOLERANCE.fat
-  );
-}
-
 function needsCloseGapTightening(actual: MacroTargets, target: MacroTargets): boolean {
   const calorieGap = target.calories - actual.calories;
   return Math.abs(calorieGap) > 20 && Math.abs(calorieGap) <= 180;
@@ -1572,128 +1147,7 @@ function tightenCloseCalorieGap(
   return workingMeals;
 }
 
-function getTopUpFoods(
-  eatingStyle: EatingStyle,
-  modifiers: string[],
-  gap: MacroTargets
-): MealFoodRef[] {
-  const refs: MealFoodRef[] = [];
-  const lowGlycemic = modifiers.includes('low_glycemic');
-
-  switch (eatingStyle) {
-    case 'mediterranean':
-      if (gap.protein_g > 12) refs.push({ foodId: 'greek_yogurt', role: 'protein' });
-      if (gap.carbs_g > 20) refs.push({ foodId: lowGlycemic ? 'quinoa' : 'couscous', role: 'carb' });
-      if (gap.carbs_g > 55) refs.push({ foodId: 'sweet_potato', role: 'carb' });
-      if (gap.carbs_g > 90) refs.push({ foodId: lowGlycemic ? 'berries' : 'dates', role: 'carb' });
-      if (gap.fat_g > 8) refs.push({ foodId: 'olive_oil', role: 'fat' });
-      break;
-    case 'vegan':
-      if (gap.protein_g > 12) refs.push({ foodId: 'plant_protein', role: 'protein' });
-      if (gap.carbs_g > 20) refs.push({ foodId: 'oats_dry', role: 'carb' });
-      if (gap.carbs_g > 55) refs.push({ foodId: lowGlycemic ? 'quinoa' : 'brown_rice', role: 'carb' });
-      if (gap.carbs_g > 90) refs.push({ foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' });
-      if (gap.fat_g > 8) refs.push({ foodId: 'almond_butter', role: 'fat' });
-      break;
-    case 'vegetarian':
-      if (gap.protein_g > 12) refs.push({ foodId: 'whey_protein', role: 'protein' });
-      if (gap.carbs_g > 20) refs.push({ foodId: 'oats_dry', role: 'carb' });
-      if (gap.carbs_g > 55) refs.push({ foodId: lowGlycemic ? 'quinoa' : 'brown_rice', role: 'carb' });
-      if (gap.carbs_g > 90) refs.push({ foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' });
-      if (gap.fat_g > 8) refs.push({ foodId: 'almonds', role: 'fat' });
-      break;
-    case 'keto':
-      if (gap.protein_g > 10) refs.push({ foodId: 'string_cheese', role: 'protein' });
-      if (gap.fat_g > 10) refs.push({ foodId: 'olive_oil', role: 'fat' });
-      refs.push({ foodId: 'avocado', role: 'fat' });
-      break;
-    case 'carnivore':
-      if (gap.protein_g > 10) refs.push({ foodId: 'hard_boiled_eggs', role: 'protein' });
-      if (gap.fat_g > 10) refs.push({ foodId: 'butter', role: 'fat' });
-      refs.push({ foodId: 'cheddar', role: 'fat' });
-      break;
-    case 'paleo':
-      if (gap.protein_g > 12) refs.push({ foodId: 'chicken_breast', role: 'protein' });
-      if (gap.carbs_g > 20) refs.push({ foodId: 'sweet_potato', role: 'carb' });
-      if (gap.carbs_g > 55) refs.push({ foodId: 'potato', role: 'carb' });
-      if (gap.carbs_g > 90) refs.push({ foodId: 'apple', role: 'carb' });
-      if (gap.fat_g > 8) refs.push({ foodId: 'almond_butter', role: 'fat' });
-      break;
-    case 'standard':
-    default:
-      if (gap.protein_g > 12) refs.push({ foodId: 'whey_protein', role: 'protein' });
-      if (gap.carbs_g > 20) refs.push({ foodId: 'oats_dry', role: 'carb' });
-      if (gap.carbs_g > 55) refs.push({ foodId: lowGlycemic ? 'quinoa' : 'white_rice', role: 'carb' });
-      if (gap.carbs_g > 90) refs.push({ foodId: lowGlycemic ? 'sweet_potato' : 'potato', role: 'carb' });
-      if (gap.carbs_g > 130) refs.push({ foodId: lowGlycemic ? 'apple' : 'banana', role: 'carb' });
-      if (gap.fat_g > 8) refs.push({ foodId: 'olive_oil', role: 'fat' });
-      break;
-  }
-
-  if (refs.length === 0) {
-    refs.push({ foodId: 'whey_protein', role: 'protein' });
-  }
-
-  return refs;
-}
-
-function addTopUpMeals(
-  meals: MealSlot[],
-  dailyTarget: MacroTargets,
-  eatingStyle: EatingStyle,
-  modifiers: string[],
-  measurementSystem: MeasurementSystem,
-  allergies: UserAllergy[]
-): MealSlot[] {
-  let workingMeals = cloneMeals(meals);
-
-  for (let idx = 0; idx < TOP_UP_MAX_MEALS; idx++) {
-    const totals = getDailyTotals(workingMeals);
-    if (!needsTopUp(totals, dailyTarget)) {
-      break;
-    }
-
-    const gap = getPositiveGap(totals, dailyTarget);
-    if (gap.calories <= DAILY_TOLERANCE.calories) {
-      break;
-    }
-
-    const remainingMeals = TOP_UP_MAX_MEALS - idx;
-    const mealTarget: MacroTargets = {
-      calories: Math.max(140, Math.round(gap.calories / remainingMeals)),
-      protein_g: Math.max(0, Math.round(gap.protein_g / remainingMeals)),
-      carbs_g: Math.max(0, Math.round(gap.carbs_g / remainingMeals)),
-      fat_g: Math.max(0, Math.round(gap.fat_g / remainingMeals)),
-    };
-
-    const topUpBlueprint: MealBlueprint = {
-      name: remainingMeals === 1 ? 'Final Top-Up' : `Top-Up ${idx + 1}`,
-      icon: 'cookie',
-      percentage: mealTarget.calories / Math.max(dailyTarget.calories, 1),
-      foods: getTopUpFoods(eatingStyle, modifiers, gap),
-    };
-
-    const topUpMeal = buildMealToTarget(
-      topUpBlueprint,
-      mealTarget,
-      modifiers,
-      measurementSystem,
-      allergies
-    );
-
-    if (topUpMeal.suggestions.length === 0) {
-      break;
-    }
-
-    workingMeals = reconcileDailyTotals(
-      [...workingMeals, topUpMeal],
-      dailyTarget,
-      measurementSystem
-    );
-  }
-
-  return workingMeals;
-}
+// ─── Main entry point ────────────────────────────────────────────────────────
 
 export function generateMealPlan(
   macros: MacroTargets,
@@ -1701,37 +1155,24 @@ export function generateMealPlan(
   modifiers: DietaryModifier[],
   measurementSystem: MeasurementSystem = 'us',
   allergies: UserAllergy[] = [],
-  generationSeed = 0
+  generationSeed = 0,
+  dislikedFoodIds: string[] = []
 ): DayPlan {
   const effectiveModifiers = eatingStyle === 'paleo' ? [...modifiers, 'paleo'] : modifiers;
-  const baseBlueprint = selectBlueprint(eatingStyle, macros, generationSeed);
-  const blueprint = isHighCalorieHighCarbTarget(macros)
-    ? getHighTargetBlueprint(baseBlueprint, eatingStyle, effectiveModifiers, macros)
-    : baseBlueprint;
   const isIF = effectiveModifiers.includes('intermittent_fasting');
 
-  let mealBlueprints = [...blueprint.meals];
+  const config = selectMainConfig(eatingStyle, macros, generationSeed);
+  const blueprint = assembleBlueprint(config.main, config.snacks, macros.calories);
 
+  let mealBlueprints = [...blueprint.meals];
   if (isIF) {
     mealBlueprints = applyIFTimings(mealBlueprints);
   }
 
   let meals = mealBlueprints.map((mb) =>
-    scaleMealToTargets(mb, macros, effectiveModifiers, measurementSystem, allergies)
+    scaleMealToTargets(mb, macros, effectiveModifiers, measurementSystem, allergies, dislikedFoodIds)
   );
   meals = reconcileDailyTotals(meals, macros, measurementSystem);
-
-  if (needsTopUp(getDailyTotals(meals), macros)) {
-    meals = addTopUpMeals(
-      meals,
-      macros,
-      eatingStyle,
-      effectiveModifiers,
-      measurementSystem,
-      allergies
-    );
-  }
-
   meals = tightenCloseCalorieGap(meals, eatingStyle, macros, measurementSystem);
 
   const totalFoods = meals.reduce((s, m) => s + m.suggestions.length, 0);

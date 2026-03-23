@@ -42,31 +42,19 @@ export default function SplashScreen() {
   const router = useRouter();
   const { profile, isLoading: userLoading } = useUser();
   const { isLoading: logsLoading } = useDailyLog();
-  const [hasNavigated, setHasNavigated] = useState(false);
+  const hasNavigatedRef = useRef(false);
   const [pendingTap, setPendingTap] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const tapHintAnim = useRef(new Animated.Value(0)).current;
-  const exitAnim = useRef(new Animated.Value(1)).current;
 
   const isHydrated = !userLoading && !logsLoading;
   const version = Constants.expoConfig?.version;
 
   const startExitAndNavigate = useCallback(() => {
-    if (hasNavigated) return;
-
-    setHasNavigated(true);
-    Animated.timing(exitAnim, {
-      toValue: 0,
-      duration: 160,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) {
-        navigateFromProfile(router, profile);
-      } else {
-        setHasNavigated(false);
-      }
-    });
-  }, [exitAnim, hasNavigated, profile, router]);
+    if (hasNavigatedRef.current) return;
+    hasNavigatedRef.current = true;
+    navigateFromProfile(router, profile);
+  }, [profile, router]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -87,20 +75,20 @@ export default function SplashScreen() {
   }, [isHydrated, tapHintAnim]);
 
   useEffect(() => {
-    if (isHydrated && pendingTap && !hasNavigated) {
+    if (isHydrated && pendingTap && !hasNavigatedRef.current) {
       setPendingTap(false);
       startExitAndNavigate();
     }
-  }, [hasNavigated, isHydrated, pendingTap, startExitAndNavigate]);
+  }, [isHydrated, pendingTap, startExitAndNavigate]);
 
   const handlePress = useCallback(() => {
-    if (hasNavigated) return;
+    if (hasNavigatedRef.current) return;
     if (isHydrated) {
       startExitAndNavigate();
     } else {
       setPendingTap(true);
     }
-  }, [hasNavigated, isHydrated, startExitAndNavigate]);
+  }, [isHydrated, startExitAndNavigate]);
 
   return (
     <Pressable
@@ -113,7 +101,7 @@ export default function SplashScreen() {
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
       />
-      <Animated.View style={[styles.centerStack, { opacity: Animated.multiply(fadeAnim, exitAnim) }]}>
+      <Animated.View style={[styles.centerStack, { opacity: fadeAnim }]}>
         <Image
           source={require('../assets/images/splash_icon.png')}
           style={styles.logo}
@@ -141,7 +129,7 @@ export default function SplashScreen() {
         <Text style={styles.subtitle}>Macro Tracker</Text>
       </Animated.View>
 
-      <Animated.View style={[styles.bottomArea, { bottom: insets.bottom + 16, opacity: exitAnim }]}>
+      <Animated.View style={[styles.bottomArea, { bottom: insets.bottom + 16, opacity: fadeAnim }]}>
         {isHydrated && (
           <Animated.Text style={[styles.tapHint, { opacity: tapHintAnim }]}>
             Tap to continue

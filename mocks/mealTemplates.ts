@@ -7,10 +7,11 @@ export function getMealPlanForEatingStyle(
   macros?: MacroTargets,
   measurementSystem: MeasurementSystem = 'us',
   allergies: UserAllergy[] = [],
-  generationSeed = 0
+  generationSeed = 0,
+  dislikedFoodIds: string[] = []
 ): DayPlan {
   const targets = macros ?? { calories: 2000, protein_g: 150, carbs_g: 200, fat_g: 67 };
-  return generateMealPlan(targets, eatingStyle, modifiers, measurementSystem, allergies, generationSeed);
+  return generateMealPlan(targets, eatingStyle, modifiers, measurementSystem, allergies, generationSeed, dislikedFoodIds);
 }
 
 export const getMealPlanForStrategy = getMealPlanForEatingStyle;

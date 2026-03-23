@@ -1,5 +1,12 @@
 export type MeasurementSystem = 'metric' | 'us';
 
+export interface DislikedFood {
+  id: string;
+  foodId: string;
+  name: string;
+  createdAt: number;
+}
+
 export interface UserAllergy {
   id: string;
   name: string;

@@ -15,6 +15,8 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Info, Zap } from 'lucide-react-native';
 import Colors from '../constants/colors';
+import { FOODS } from '../constants/foodDatabase';
+import { setDislikedFoods } from '../storage/dislikedFoodsRepo';
 import PlanDefinitionSheet from '../components/ui/PlanDefinitionSheet';
 import { useUser } from '../providers/UserProvider';
 import {
@@ -43,7 +45,26 @@ import {
 import { calculateMacros } from '../utils/macroEngine';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 8;
+
+const PROTEIN_FOOD_IDS = [
+  'bacon', 'beef_jerky', 'beef_liver', 'chicken_breast', 'cod', 'cottage_cheese',
+  'eggs', 'ground_beef_80', 'ground_beef_90', 'greek_yogurt', 'hard_boiled_eggs',
+  'lamb_chop', 'lentils', 'pork_loin', 'pork_rinds', 'ribeye', 'salmon', 'sea_bass',
+  'shrimp', 'tempeh', 'tofu', 'tuna_canned', 'turkey_breast', 'whey_protein', 'plant_protein',
+].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
+
+const CARB_FOOD_IDS = [
+  'apple', 'banana', 'berries', 'brown_rice', 'corn_tortilla', 'couscous',
+  'dates', 'oats_dry', 'pita', 'potato', 'quinoa', 'rice_cake',
+  'sweet_potato', 'tabbouleh', 'tortilla', 'white_rice', 'ww_bread', 'ww_pasta',
+].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
+
+const VEGGIE_FOOD_IDS = [
+  'asparagus', 'bell_pepper', 'broccoli', 'cauliflower', 'cucumber',
+  'green_beans', 'mixed_greens', 'roasted_veggies', 'sauerkraut',
+  'spinach_cooked', 'tomato', 'zucchini',
+].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
 
 export default function OnboardingScreen() {
   const colors = useThemeColors();
@@ -67,6 +88,7 @@ export default function OnboardingScreen() {
   const [eatingStyle, setEatingStyle] = useState<EatingStyle>('standard');
   const [dietModifiers, setDietModifiers] = useState<DietaryModifier[]>([]);
   const [dietNotes, setDietNotes] = useState('');
+  const [dislikedFoodIds, setDislikedFoodIds] = useState<string[]>([]);
   const [definitionSheetVisible, setDefinitionSheetVisible] = useState(false);
   const [definitionSheetTitle, setDefinitionSheetTitle] = useState('');
   const [definitionSheetSections, setDefinitionSheetSections] = useState<LearnMoreSection[]>([]);
@@ -103,6 +125,17 @@ export default function OnboardingScreen() {
     setStep(nextStep);
     animateProgress(nextStep);
   }, [animateProgress, step]);
+
+  const toggleDislikedFood = useCallback((foodId: string) => {
+    if (Platform.OS !== 'web') {
+      Haptics.selectionAsync();
+    }
+    setDislikedFoodIds((prev) =>
+      prev.includes(foodId)
+        ? prev.filter((id) => id !== foodId)
+        : [...prev, foodId]
+    );
+  }, []);
 
   const toggleDietModifier = useCallback((modifier: DietaryModifier) => {
     if (Platform.OS !== 'web') {
@@ -163,13 +196,23 @@ export default function OnboardingScreen() {
 
   const previewMacros = useMemo(() => calculateMacros({ ...draftProfile, onboardingComplete: true }), [draftProfile]);
 
-  const handleComplete = useCallback(() => {
+  const handleComplete = useCallback(async () => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    if (dislikedFoodIds.length > 0) {
+      await setDislikedFoods(
+        dislikedFoodIds.map((foodId) => ({
+          id: `dislike_${foodId}`,
+          foodId,
+          name: FOODS[foodId].name,
+          createdAt: Date.now(),
+        }))
+      );
+    }
     completeOnboarding(draftProfile);
     router.replace('/(tabs)' as never);
-  }, [completeOnboarding, draftProfile]);
+  }, [completeOnboarding, draftProfile, dislikedFoodIds]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -431,6 +474,52 @@ export default function OnboardingScreen() {
     </View>
   );
 
+  const renderFoodDislikeGrid = (title: string, subtitle: string, foodIds: string[]) => (
+    <View style={styles.stepContainer}>
+      {renderStepHeader(title, subtitle)}
+      <View style={styles.foodGrid}>
+        {foodIds.map((foodId) => {
+          const food = FOODS[foodId];
+          const active = dislikedFoodIds.includes(foodId);
+          return (
+            <TouchableOpacity
+              key={foodId}
+              style={[styles.foodChip, active && styles.foodChipActive]}
+              onPress={() => toggleDislikedFood(foodId)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.foodChipText, active && styles.foodChipTextActive]}>
+                {food.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <Text style={styles.foodDislikeNote}>Tap to mark foods you'd rather avoid.</Text>
+    </View>
+  );
+
+  const renderProteinDislikesStep = () =>
+    renderFoodDislikeGrid(
+      'Proteins You Dislike',
+      "We'll swap these out of your meal plan automatically.",
+      PROTEIN_FOOD_IDS
+    );
+
+  const renderCarbDislikesStep = () =>
+    renderFoodDislikeGrid(
+      'Carbs & Fruits You Dislike',
+      "We'll avoid these when building your carb sources.",
+      CARB_FOOD_IDS
+    );
+
+  const renderVeggieDislikesStep = () =>
+    renderFoodDislikeGrid(
+      'Vegetables You Dislike',
+      "We'll leave these out of your meals.",
+      VEGGIE_FOOD_IDS
+    );
+
   const renderRestrictionStep = () => (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Dietary Restrictions</Text>
@@ -485,6 +574,9 @@ export default function OnboardingScreen() {
     renderGoalStep,
     renderActivityStep,
     renderEatingStyleStep,
+    renderProteinDislikesStep,
+    renderCarbDislikesStep,
+    renderVeggieDislikesStep,
     renderRestrictionStep,
   ];
 
@@ -830,5 +922,38 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '800',
+  },
+  foodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  foodChip: {
+    width: '47%',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+  },
+  foodChipActive: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
+  foodChipText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700' as const,
+    textAlign: 'center',
+  },
+  foodChipTextActive: {
+    color: '#ef4444',
+  },
+  foodDislikeNote: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    marginTop: 4,
   },
 });

@@ -1,309 +1,364 @@
 import { SubstituteCatalogItem } from './types';
 
 export const SUBSTITUTE_CATALOG: SubstituteCatalogItem[] = [
-  // PROTEIN
+  // ─── PROTEIN ─────────────────────────────────────────────────────────────
+
   {
     id: 'sub_chicken_breast', foodId: 'chicken_breast', name: 'Grilled chicken breast',
     defaultServingG: 170, category: 'protein',
     macrosPerServing: { calories: 281, protein_g: 52.7, carbs_g: 0, fat_g: 6.1 },
     tags: ['meat', 'animal', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['turkey_breast', 'pork_loin', 'cod', 'shrimp', 'salmon'],
   },
   {
     id: 'sub_turkey_breast', foodId: 'turkey_breast', name: 'Turkey breast',
     defaultServingG: 170, category: 'protein',
     macrosPerServing: { calories: 230, protein_g: 51, carbs_g: 0, fat_g: 1.7 },
     tags: ['meat', 'animal', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['chicken_breast', 'pork_loin', 'cod', 'shrimp', 'salmon'],
   },
   {
     id: 'sub_salmon', foodId: 'salmon', name: 'Salmon fillet',
     defaultServingG: 140, category: 'protein',
     macrosPerServing: { calories: 291, protein_g: 28, carbs_g: 0, fat_g: 18.2 },
     tags: ['fish', 'animal', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['cod', 'shrimp', 'tuna_canned', 'chicken_breast', 'turkey_breast'],
   },
   {
     id: 'sub_cod', foodId: 'cod', name: 'Baked cod',
     defaultServingG: 170, category: 'protein',
     macrosPerServing: { calories: 179, protein_g: 39.1, carbs_g: 0, fat_g: 1.5 },
     tags: ['fish', 'animal', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['shrimp', 'salmon', 'tuna_canned', 'turkey_breast', 'chicken_breast'],
   },
   {
     id: 'sub_shrimp', foodId: 'shrimp', name: 'Shrimp',
     defaultServingG: 140, category: 'protein',
     macrosPerServing: { calories: 139, protein_g: 33.6, carbs_g: 0.3, fat_g: 0.4 },
     tags: ['fish', 'animal', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['cod', 'salmon', 'tuna_canned', 'turkey_breast', 'chicken_breast'],
   },
   {
     id: 'sub_eggs', foodId: 'eggs', name: 'Eggs',
     defaultServingG: 150, category: 'protein',
     macrosPerServing: { calories: 233, protein_g: 19.5, carbs_g: 1.7, fat_g: 16.5 },
     tags: ['egg', 'animal', 'gluten_free', 'vegetarian', 'paleo'],
+    similarFoods: ['cottage_cheese', 'greek_yogurt', 'tofu', 'tempeh'],
   },
   {
     id: 'sub_ground_beef_90', foodId: 'ground_beef_90', name: 'Lean ground beef',
     defaultServingG: 170, category: 'protein',
     macrosPerServing: { calories: 369, protein_g: 45.9, carbs_g: 0, fat_g: 18.7 },
     tags: ['meat', 'animal', 'gluten_free', 'dairy_free', 'paleo', 'carnivore'],
+    similarFoods: ['ribeye', 'pork_loin', 'chicken_breast', 'turkey_breast', 'lamb_chop'],
   },
   {
     id: 'sub_ribeye', foodId: 'ribeye', name: 'Ribeye steak',
     defaultServingG: 225, category: 'protein',
     macrosPerServing: { calories: 610, protein_g: 54, carbs_g: 0, fat_g: 42.8 },
     tags: ['meat', 'animal', 'gluten_free', 'dairy_free', 'paleo', 'carnivore', 'keto'],
+    similarFoods: ['ground_beef_90', 'pork_loin', 'lamb_chop', 'chicken_breast'],
   },
   {
     id: 'sub_pork_loin', foodId: 'pork_loin', name: 'Pork tenderloin',
     defaultServingG: 170, category: 'protein',
     macrosPerServing: { calories: 243, protein_g: 45.9, carbs_g: 0, fat_g: 6.0 },
     tags: ['meat', 'animal', 'gluten_free', 'dairy_free', 'paleo', 'carnivore'],
+    similarFoods: ['chicken_breast', 'turkey_breast', 'ground_beef_90', 'cod', 'shrimp'],
   },
   {
     id: 'sub_tofu', foodId: 'tofu', name: 'Firm tofu',
     defaultServingG: 170, category: 'protein',
     macrosPerServing: { calories: 245, protein_g: 28.9, carbs_g: 5.1, fat_g: 15.3 },
     tags: ['plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free'],
+    similarFoods: ['tempeh', 'lentils', 'cottage_cheese', 'greek_yogurt'],
   },
   {
     id: 'sub_tempeh', foodId: 'tempeh', name: 'Tempeh',
     defaultServingG: 170, category: 'protein',
     macrosPerServing: { calories: 326, protein_g: 34, carbs_g: 13.6, fat_g: 18.7 },
     tags: ['plant', 'vegetarian', 'vegan', 'dairy_free'],
+    similarFoods: ['tofu', 'lentils', 'cottage_cheese', 'greek_yogurt'],
   },
   {
     id: 'sub_greek_yogurt', foodId: 'greek_yogurt', name: 'Greek yogurt (plain)',
     defaultServingG: 170, category: 'protein',
     macrosPerServing: { calories: 124, protein_g: 17, carbs_g: 6.1, fat_g: 3.4 },
     tags: ['dairy', 'animal', 'vegetarian', 'gluten_free'],
+    similarFoods: ['cottage_cheese', 'whey_protein', 'eggs', 'tofu'],
   },
   {
     id: 'sub_cottage_cheese', foodId: 'cottage_cheese', name: 'Cottage cheese',
     defaultServingG: 113, category: 'protein',
     macrosPerServing: { calories: 92, protein_g: 12.4, carbs_g: 4.5, fat_g: 2.6 },
     tags: ['dairy', 'animal', 'vegetarian', 'gluten_free'],
+    similarFoods: ['greek_yogurt', 'whey_protein', 'eggs', 'tofu'],
   },
   {
     id: 'sub_lentils', foodId: 'lentils', name: 'Cooked lentils',
     defaultServingG: 200, category: 'protein',
     macrosPerServing: { calories: 232, protein_g: 18, carbs_g: 40, fat_g: 0.8 },
     tags: ['plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free'],
+    similarFoods: ['black_beans', 'chickpeas', 'edamame', 'tofu', 'tempeh'],
   },
   {
     id: 'sub_whey_protein', foodId: 'whey_protein', name: 'Whey protein shake',
     defaultServingG: 31, category: 'protein',
     macrosPerServing: { calories: 124, protein_g: 24.8, carbs_g: 3.1, fat_g: 1.6 },
     tags: ['dairy', 'animal', 'vegetarian', 'gluten_free'],
+    similarFoods: ['plant_protein', 'greek_yogurt', 'cottage_cheese'],
   },
   {
     id: 'sub_plant_protein', foodId: 'plant_protein', name: 'Plant protein shake',
     defaultServingG: 33, category: 'protein',
     macrosPerServing: { calories: 124, protein_g: 24.8, carbs_g: 4, fat_g: 1.3 },
     tags: ['plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free'],
+    similarFoods: ['whey_protein', 'tofu', 'lentils', 'greek_yogurt'],
   },
 
-  // CARB
+  // ─── CARB ─────────────────────────────────────────────────────────────────
+
   {
     id: 'sub_oats', foodId: 'oats_dry', name: 'Oatmeal (dry)',
     defaultServingG: 40, category: 'carb',
     macrosPerServing: { calories: 156, protein_g: 6.8, carbs_g: 26.4, fat_g: 2.8 },
     tags: ['grain', 'vegetarian', 'vegan', 'dairy_free'],
+    similarFoods: ['quinoa', 'brown_rice', 'sweet_potato', 'ww_pasta', 'couscous'],
   },
   {
     id: 'sub_brown_rice', foodId: 'brown_rice', name: 'Brown rice (cooked)',
     defaultServingG: 200, category: 'carb',
     macrosPerServing: { calories: 224, protein_g: 5.2, carbs_g: 48, fat_g: 1.8 },
     tags: ['grain', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free'],
+    similarFoods: ['quinoa', 'white_rice', 'sweet_potato', 'potato', 'ww_pasta'],
   },
   {
     id: 'sub_white_rice', foodId: 'white_rice', name: 'White rice (cooked)',
     defaultServingG: 200, category: 'carb',
     macrosPerServing: { calories: 260, protein_g: 5.4, carbs_g: 56, fat_g: 0.6 },
     tags: ['grain', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free'],
+    similarFoods: ['brown_rice', 'quinoa', 'couscous', 'sweet_potato', 'potato'],
   },
   {
     id: 'sub_sweet_potato', foodId: 'sweet_potato', name: 'Sweet potato',
     defaultServingG: 130, category: 'carb',
     macrosPerServing: { calories: 112, protein_g: 2.1, carbs_g: 26, fat_g: 0.1 },
     tags: ['starch', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['potato', 'brown_rice', 'quinoa', 'couscous', 'white_rice'],
   },
   {
     id: 'sub_quinoa', foodId: 'quinoa', name: 'Quinoa (cooked)',
     defaultServingG: 185, category: 'carb',
     macrosPerServing: { calories: 222, protein_g: 8.1, carbs_g: 38.9, fat_g: 3.5 },
     tags: ['grain', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free'],
+    similarFoods: ['brown_rice', 'couscous', 'sweet_potato', 'white_rice', 'ww_pasta'],
   },
   {
     id: 'sub_potato', foodId: 'potato', name: 'Baked potato',
     defaultServingG: 173, category: 'carb',
     macrosPerServing: { calories: 161, protein_g: 4.3, carbs_g: 36.3, fat_g: 0.2 },
     tags: ['starch', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['sweet_potato', 'brown_rice', 'quinoa', 'white_rice'],
   },
   {
     id: 'sub_banana', foodId: 'banana', name: 'Banana',
     defaultServingG: 118, category: 'carb',
     macrosPerServing: { calories: 105, protein_g: 1.3, carbs_g: 27.1, fat_g: 0.4 },
     tags: ['fruit', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['apple', 'berries', 'dates', 'sweet_potato'],
   },
   {
     id: 'sub_ww_pasta', foodId: 'ww_pasta', name: 'Whole wheat pasta (cooked)',
     defaultServingG: 140, category: 'carb',
     macrosPerServing: { calories: 174, protein_g: 7, carbs_g: 35, fat_g: 0.7 },
     tags: ['grain', 'vegetarian', 'vegan', 'dairy_free'],
+    similarFoods: ['brown_rice', 'quinoa', 'couscous', 'white_rice', 'sweet_potato'],
   },
   {
     id: 'sub_couscous', foodId: 'couscous', name: 'Couscous (cooked)',
     defaultServingG: 157, category: 'carb',
     macrosPerServing: { calories: 176, protein_g: 6, carbs_g: 36.1, fat_g: 0.3 },
     tags: ['grain', 'vegetarian', 'vegan', 'dairy_free'],
+    similarFoods: ['quinoa', 'brown_rice', 'white_rice', 'ww_pasta', 'sweet_potato'],
   },
 
-  // FAT
+  // ─── FAT ──────────────────────────────────────────────────────────────────
+
   {
     id: 'sub_avocado', foodId: 'avocado', name: 'Avocado',
     defaultServingG: 68, category: 'fat',
     macrosPerServing: { calories: 109, protein_g: 1.4, carbs_g: 6.1, fat_g: 10.2 },
     tags: ['plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['olive_oil', 'almonds', 'almond_butter', 'mixed_nuts', 'walnuts'],
   },
   {
     id: 'sub_almonds', foodId: 'almonds', name: 'Almonds',
     defaultServingG: 28, category: 'fat',
     macrosPerServing: { calories: 162, protein_g: 5.9, carbs_g: 6.2, fat_g: 14 },
     tags: ['nut', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['walnuts', 'mixed_nuts', 'macadamia', 'almond_butter', 'peanut_butter'],
   },
   {
     id: 'sub_walnuts', foodId: 'walnuts', name: 'Walnuts',
     defaultServingG: 28, category: 'fat',
     macrosPerServing: { calories: 183, protein_g: 4.2, carbs_g: 3.9, fat_g: 18.2 },
     tags: ['nut', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['almonds', 'mixed_nuts', 'macadamia', 'peanut_butter', 'almond_butter'],
   },
   {
     id: 'sub_olive_oil', foodId: 'olive_oil', name: 'Olive oil',
     defaultServingG: 14, category: 'fat',
     macrosPerServing: { calories: 124, protein_g: 0, carbs_g: 0, fat_g: 14 },
     tags: ['plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['coconut_oil', 'avocado', 'butter', 'almond_butter'],
   },
   {
     id: 'sub_peanut_butter', foodId: 'peanut_butter', name: 'Peanut butter',
     defaultServingG: 32, category: 'fat',
     macrosPerServing: { calories: 188, protein_g: 8, carbs_g: 6.4, fat_g: 16 },
     tags: ['nut', 'plant', 'vegetarian', 'vegan', 'dairy_free'],
+    similarFoods: ['almond_butter', 'mixed_nuts', 'almonds', 'walnuts', 'macadamia'],
   },
   {
     id: 'sub_almond_butter', foodId: 'almond_butter', name: 'Almond butter',
     defaultServingG: 32, category: 'fat',
     macrosPerServing: { calories: 196, protein_g: 6.7, carbs_g: 6.1, fat_g: 17.9 },
     tags: ['nut', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['peanut_butter', 'almonds', 'mixed_nuts', 'walnuts', 'macadamia'],
   },
   {
     id: 'sub_macadamia', foodId: 'macadamia', name: 'Macadamia nuts',
     defaultServingG: 28, category: 'fat',
     macrosPerServing: { calories: 201, protein_g: 2.2, carbs_g: 3.9, fat_g: 21.3 },
     tags: ['nut', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['walnuts', 'almonds', 'mixed_nuts', 'almond_butter', 'peanut_butter'],
   },
   {
     id: 'sub_mixed_nuts', foodId: 'mixed_nuts', name: 'Mixed nuts',
     defaultServingG: 28, category: 'fat',
     macrosPerServing: { calories: 170, protein_g: 5.6, carbs_g: 5.9, fat_g: 15.1 },
     tags: ['nut', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['almonds', 'walnuts', 'macadamia', 'peanut_butter', 'almond_butter'],
   },
   {
     id: 'sub_butter', foodId: 'butter', name: 'Butter',
     defaultServingG: 14, category: 'fat',
     macrosPerServing: { calories: 100, protein_g: 0.1, carbs_g: 0, fat_g: 11.3 },
     tags: ['dairy', 'animal', 'vegetarian', 'gluten_free', 'carnivore', 'keto'],
+    similarFoods: ['coconut_oil', 'olive_oil', 'avocado'],
   },
   {
     id: 'sub_coconut_oil', foodId: 'coconut_oil', name: 'Coconut oil',
     defaultServingG: 14, category: 'fat',
     macrosPerServing: { calories: 121, protein_g: 0, carbs_g: 0, fat_g: 14 },
     tags: ['plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['olive_oil', 'butter', 'avocado', 'almonds'],
   },
 
-  // FRUIT
+  // ─── FRUIT ────────────────────────────────────────────────────────────────
+
   {
     id: 'sub_berries', foodId: 'berries', name: 'Mixed berries',
     defaultServingG: 150, category: 'fruit',
     macrosPerServing: { calories: 86, protein_g: 1.1, carbs_g: 21, fat_g: 0.5 },
     tags: ['fruit', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['apple', 'banana', 'dates'],
   },
   {
     id: 'sub_apple', foodId: 'apple', name: 'Apple',
     defaultServingG: 182, category: 'fruit',
     macrosPerServing: { calories: 95, protein_g: 0.5, carbs_g: 25.5, fat_g: 0.4 },
     tags: ['fruit', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['berries', 'banana', 'dates'],
   },
   {
     id: 'sub_banana_fruit', foodId: 'banana', name: 'Banana',
     defaultServingG: 118, category: 'fruit',
     macrosPerServing: { calories: 105, protein_g: 1.3, carbs_g: 27.1, fat_g: 0.4 },
     tags: ['fruit', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['apple', 'berries', 'dates'],
   },
   {
     id: 'sub_dates', foodId: 'dates', name: 'Medjool dates',
     defaultServingG: 48, category: 'fruit',
     macrosPerServing: { calories: 133, protein_g: 0.9, carbs_g: 36, fat_g: 0.1 },
     tags: ['fruit', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['banana', 'berries', 'apple'],
   },
 
-  // VEGGIE
+  // ─── VEGGIE ───────────────────────────────────────────────────────────────
+
   {
     id: 'sub_broccoli', foodId: 'broccoli', name: 'Steamed broccoli',
     defaultServingG: 91, category: 'veggie',
     macrosPerServing: { calories: 32, protein_g: 2.2, carbs_g: 6.4, fat_g: 0.4 },
     tags: ['veggie', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['cauliflower', 'green_beans', 'asparagus', 'zucchini', 'spinach_cooked'],
   },
   {
     id: 'sub_spinach', foodId: 'spinach_cooked', name: 'Sautéed spinach',
     defaultServingG: 180, category: 'veggie',
     macrosPerServing: { calories: 41, protein_g: 5.2, carbs_g: 6.8, fat_g: 0.5 },
     tags: ['veggie', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['mixed_greens', 'broccoli', 'asparagus', 'green_beans', 'zucchini'],
   },
   {
     id: 'sub_mixed_greens', foodId: 'mixed_greens', name: 'Mixed green salad',
     defaultServingG: 85, category: 'veggie',
     macrosPerServing: { calories: 14, protein_g: 1.3, carbs_g: 2.6, fat_g: 0.2 },
     tags: ['veggie', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['spinach_cooked', 'roasted_veggies', 'zucchini', 'broccoli', 'cauliflower'],
   },
   {
     id: 'sub_asparagus', foodId: 'asparagus', name: 'Roasted asparagus',
     defaultServingG: 134, category: 'veggie',
     macrosPerServing: { calories: 29, protein_g: 3.2, carbs_g: 5.4, fat_g: 0.3 },
     tags: ['veggie', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['broccoli', 'green_beans', 'cauliflower', 'zucchini', 'spinach_cooked'],
   },
   {
     id: 'sub_cauliflower', foodId: 'cauliflower', name: 'Roasted cauliflower',
     defaultServingG: 124, category: 'veggie',
     macrosPerServing: { calories: 29, protein_g: 2.2, carbs_g: 5.1, fat_g: 0.6 },
     tags: ['veggie', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['broccoli', 'asparagus', 'green_beans', 'zucchini', 'spinach_cooked'],
   },
   {
     id: 'sub_green_beans', foodId: 'green_beans', name: 'Green beans',
     defaultServingG: 110, category: 'veggie',
     macrosPerServing: { calories: 39, protein_g: 2, carbs_g: 8.8, fat_g: 0.1 },
     tags: ['veggie', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['broccoli', 'asparagus', 'cauliflower', 'zucchini', 'roasted_veggies'],
   },
   {
     id: 'sub_roasted_veggies', foodId: 'roasted_veggies', name: 'Roasted vegetables',
     defaultServingG: 150, category: 'veggie',
     macrosPerServing: { calories: 90, protein_g: 2.3, carbs_g: 15, fat_g: 3 },
     tags: ['veggie', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo'],
+    similarFoods: ['mixed_greens', 'cauliflower', 'broccoli', 'green_beans', 'zucchini'],
   },
   {
     id: 'sub_zucchini', foodId: 'zucchini', name: 'Grilled zucchini',
     defaultServingG: 180, category: 'veggie',
     macrosPerServing: { calories: 31, protein_g: 2.2, carbs_g: 5.4, fat_g: 0.5 },
     tags: ['veggie', 'plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free', 'paleo', 'keto'],
+    similarFoods: ['cauliflower', 'broccoli', 'asparagus', 'green_beans', 'mixed_greens'],
   },
 
-  // MIXED
+  // ─── MIXED ────────────────────────────────────────────────────────────────
+
   {
     id: 'sub_hummus', foodId: 'hummus', name: 'Hummus',
     defaultServingG: 62, category: 'mixed',
     macrosPerServing: { calories: 103, protein_g: 5, carbs_g: 8.7, fat_g: 6.2 },
     tags: ['plant', 'vegetarian', 'vegan', 'gluten_free', 'dairy_free'],
+    similarFoods: ['avocado', 'cottage_cheese', 'greek_yogurt', 'almond_butter'],
   },
   {
     id: 'sub_tabbouleh', foodId: 'tabbouleh', name: 'Tabbouleh salad',
     defaultServingG: 160, category: 'mixed',
     macrosPerServing: { calories: 192, protein_g: 4.8, carbs_g: 25.6, fat_g: 9.6 },
     tags: ['grain', 'plant', 'vegetarian', 'vegan', 'dairy_free'],
+    similarFoods: ['quinoa', 'couscous', 'brown_rice', 'roasted_veggies'],
   },
 ];

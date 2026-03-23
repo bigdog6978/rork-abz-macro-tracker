@@ -124,6 +124,39 @@ function formatSubstitutePortion(
   return `${servingG}g`;
 }
 
+// Tags that represent food type, used for similarity scoring (excludes generic diet tags)
+const FOOD_TYPE_TAGS = new Set([
+  'meat', 'fish', 'egg', 'dairy', 'animal',
+  'nut', 'plant', 'grain', 'starch', 'fruit', 'veggie', 'legume', 'soy',
+]);
+
+const SIMILARITY_BONUSES = [-0.5, -0.4, -0.3, -0.2, -0.15];
+
+function getSimilarityBonus(
+  originalCatalogItem: SubstituteCatalogItem | undefined,
+  candidateFoodId: string
+): number {
+  const similar = originalCatalogItem?.similarFoods;
+  if (!similar) return 0;
+  const idx = similar.indexOf(candidateFoodId);
+  if (idx < 0 || idx >= SIMILARITY_BONUSES.length) return 0;
+  return SIMILARITY_BONUSES[idx];
+}
+
+function getTagOverlapBonus(
+  originalCatalogItem: SubstituteCatalogItem | undefined,
+  candidate: SubstituteCatalogItem
+): number {
+  if (!originalCatalogItem) return 0;
+  let shared = 0;
+  for (const tag of originalCatalogItem.tags) {
+    if (FOOD_TYPE_TAGS.has(tag) && candidate.tags.includes(tag)) {
+      shared++;
+    }
+  }
+  return shared * -0.05;
+}
+
 export function getSubstitutes(
   foodItem: MealSuggestion,
   options: SubstituteOptions,
@@ -136,6 +169,9 @@ export function getSubstitutes(
 
   const allExcluded = new Set([foodItem.foodId, ...excludeFoodIds]);
   const mealFoodIds = mealType ? new Set(MEAL_TYPE_FOOD_IDS[mealType]) : null;
+
+  // Look up the original food's catalog entry to access similarFoods and tags
+  const originalCatalogItem = SUBSTITUTE_CATALOG.find((c) => c.foodId === foodItem.foodId);
 
   let candidates = SUBSTITUTE_CATALOG.filter((item) => {
     if (allExcluded.has(item.foodId)) return false;
@@ -161,6 +197,14 @@ export function getSubstitutes(
         selected.push(item);
       }
     }
+  };
+
+  const scoreCandidate = (c: SubstituteCatalogItem): number => {
+    const base = macroDistance(foodItem, c, category);
+    const mealBonus = mealFoodIds && mealFoodIds.has(c.foodId) ? -0.1 : 0;
+    const similarityBonus = getSimilarityBonus(originalCatalogItem, c.foodId);
+    const tagBonus = getTagOverlapBonus(originalCatalogItem, c);
+    return base + mealBonus + similarityBonus + tagBonus;
   };
 
   for (let step = 0; step < maxRelaxSteps && selected.length < count; step++) {
@@ -194,11 +238,7 @@ export function getSubstitutes(
         return true;
       });
 
-      const scored = filtered.map((c) => {
-        const base = macroDistance(foodItem, c, category);
-        const mealBonus = mealFoodIds && mealFoodIds.has(c.foodId) ? -0.1 : 0;
-        return { item: c, score: base + mealBonus };
-      });
+      const scored = filtered.map((c) => ({ item: c, score: scoreCandidate(c) }));
       scored.sort((a, b) => a.score - b.score);
       tryAdd(scored.map((s) => s.item));
     }
@@ -209,7 +249,7 @@ export function getSubstitutes(
   if (selected.length < count) {
     const remaining = candidates
       .filter((c) => !allExcluded.has(c.foodId) && !selectedIds.has(c.foodId))
-      .sort((a, b) => macroDistance(foodItem, a, category) - macroDistance(foodItem, b, category));
+      .sort((a, b) => scoreCandidate(a) - scoreCandidate(b));
     tryAdd(remaining);
   }
 

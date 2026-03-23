@@ -9,6 +9,8 @@ export const STORAGE_KEYS = {
   MEAL_PLAN_QUANTITIES: 'physiq_meal_plan_quantities',
   GOAL_SETTINGS: 'physiq_goal_settings',
   USER_ALLERGIES: 'physiq_user_allergies_v1',
+  DISLIKED_FOODS: 'physiq_disliked_foods_v1',
+  CUSTOM_MACRO_TARGETS: 'physiq_custom_macro_targets',
 } as const;
 
 export async function saveData(key: string, value: unknown): Promise<void> {

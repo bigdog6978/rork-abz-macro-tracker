@@ -21,6 +21,10 @@ export default function SettingsLayout() {
         options={{ title: "Allergies" }}
       />
       <Stack.Screen
+        name="food-preferences"
+        options={{ title: "Food Preferences" }}
+      />
+      <Stack.Screen
         name="nutrition-science"
         options={{ title: "Macro Calculation Methodology" }}
       />

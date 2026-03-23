@@ -13,6 +13,8 @@ export interface SubstituteCatalogItem {
   };
   category: FoodCategory;
   tags: string[];
+  /** Ordered list of foodIds that are the closest culinary substitutes, best match first. */
+  similarFoods?: string[];
 }
 
 export interface SubstituteResult {
