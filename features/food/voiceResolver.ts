@@ -12,7 +12,7 @@
 import type { ParsedMealVoiceItem } from './mealVoiceParser';
 import type { NormalizedFood } from './types';
 import * as foodService from './foodService';
-import { detectUnitFromName } from './servingDefaults';
+import { detectUnitFromName, getVolumeWeightGrams } from './servingDefaults';
 import type { UnitId, UnitKind } from '../../src/lib/units';
 
 // ─── Public Types ──────────────────────────────────────────────────────────────
@@ -191,8 +191,34 @@ function buildResolvedResult(
   );
 
   if (!scaling.ok) {
-    // Liquid density missing — try interpreting as grams as a graceful fallback
     if (scaling.reason === 'NEEDS_DENSITY') {
+      // Try volume-to-weight lookup for solid foods (rice, oats, etc.)
+      const volumeGrams = getVolumeWeightGrams(effectiveFood.name, parsedItem.query, unitId);
+      if (typeof volumeGrams === 'number' && volumeGrams > 0) {
+        const totalGrams = parsedItem.quantity * volumeGrams;
+        const volScaling = foodService.scaleMacrosFromQuantity(effectiveFood, totalGrams, 'g', 'mass');
+        if (volScaling.ok) {
+          return {
+            status: 'resolved',
+            item: {
+              id: generateId(),
+              label: parsedItem.label,
+              displayName: effectiveFood.name,
+              quantity: parsedItem.quantity,
+              displayUnit: formatDisplayUnit(parsedItem.quantity, unitId),
+              unitKind: 'mass',
+              unitId: 'g',
+              grams: volScaling.gramsUsedForScaling,
+              food: effectiveFood,
+              macros: volScaling.macros,
+              confidence,
+              alternatives,
+              entryOpts: { measureMode: 'grams', quantity: volScaling.gramsUsedForScaling },
+            },
+          };
+        }
+      }
+      // Last resort: interpret the raw quantity as grams
       const fallback = foodService.scaleMacrosFromQuantity(
         effectiveFood,
         parsedItem.quantity,

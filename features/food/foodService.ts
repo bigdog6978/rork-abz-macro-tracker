@@ -20,6 +20,8 @@ import {
   FoodStats,
 } from '../../src/search/foodSearch';
 import { applyKnownLiquidDensity } from './liquidDensity';
+import { getVolumeWeightGrams } from './servingDefaults';
+import { FOODS } from '../../constants/foodDatabase';
 
 const SEARCH_PAGE_SIZE = 50;
 
@@ -83,12 +85,18 @@ export function scaleMacrosFromQuantity(
     if (kind === 'volume') {
       const ml = toMilliliters(value, unit);
       const density = food.density_g_per_ml;
-      if (typeof density !== 'number' || density <= 0) {
-        return { ok: false, reason: 'NEEDS_DENSITY' };
+      if (typeof density === 'number' && density > 0) {
+        const grams = mlToGrams(ml, density);
+        const macros = computeMacrosForServing(food, grams);
+        return { ok: true, macros, gramsUsedForScaling: grams };
       }
-      const grams = mlToGrams(ml, density);
-      const macros = computeMacrosForServing(food, grams);
-      return { ok: true, macros, gramsUsedForScaling: grams };
+      const volumeGrams = getVolumeWeightGrams(food.name, '', unit);
+      if (typeof volumeGrams === 'number' && volumeGrams > 0) {
+        const grams = value * volumeGrams;
+        const macros = computeMacrosForServing(food, grams);
+        return { ok: true, macros, gramsUsedForScaling: grams };
+      }
+      return { ok: false, reason: 'NEEDS_DENSITY' };
     }
     if (kind === 'serving') {
       const servingWeightG = food.servingWeightGrams;
@@ -215,17 +223,39 @@ async function getFoodStatsMap(): Promise<Record<string, FoodStats>> {
 }
 
 /**
- * Local-only search: searches SQLite (CoFID, saved, recent, cached USDA) without
- * any network calls. Used by the voice resolver as a fast path for common foods.
+ * Search the built-in curated food database (used for meal plans) so that
+ * common foods like "white rice" resolve instantly with correct serving data.
+ */
+function searchFoodDatabase(query: string): NormalizedFood[] {
+  const q = query.toLowerCase();
+  return Object.values(FOODS)
+    .filter((f) => f.name.toLowerCase().includes(q) || f.id.includes(q))
+    .map((f): NormalizedFood => ({
+      id: `builtin:${f.id}`,
+      providerId: 'manual',
+      name: f.name,
+      basis: 'per100g',
+      per100g: f.per100g,
+      servingWeightGrams: f.gramsPerUnit,
+      updatedAt: new Date().toISOString(),
+    }));
+}
+
+/**
+ * Local-only search: checks the built-in food database first, then SQLite
+ * (CoFID, saved, recent, cached USDA) — no network calls. Used by the voice
+ * resolver as a fast path for common foods.
  */
 export async function searchLocalOnly(query: string): Promise<NormalizedFood[]> {
   if (!query.trim()) return [];
+  const builtIn = searchFoodDatabase(query.trim());
   try {
     await ensureFoodCatalogReady();
     const localFoods = await foodsRepo.searchLocalFoods(query.trim());
-    return localFoods.map(foodsRepo.localFoodToNormalizedFood).map(withKnownDensity);
+    const sqliteResults = localFoods.map(foodsRepo.localFoodToNormalizedFood).map(withKnownDensity);
+    return [...builtIn, ...sqliteResults];
   } catch {
-    return [];
+    return builtIn;
   }
 }
 
