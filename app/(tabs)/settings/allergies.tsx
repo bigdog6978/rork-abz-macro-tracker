@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import DismissKeyboard from '../../../components/ui/DismissKeyboard';
 import { X } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Colors from '../../../constants/colors';
@@ -57,6 +58,7 @@ export default function AllergiesScreen() {
   }, [queryClient]);
 
   return (
+    <DismissKeyboard>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -128,6 +130,7 @@ export default function AllergiesScreen() {
         For severe allergies, always verify labels and ingredients.
       </Text>
     </ScrollView>
+    </DismissKeyboard>
   );
 }
 

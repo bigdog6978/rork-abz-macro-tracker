@@ -108,48 +108,15 @@ function makeUnresolved(parsedItem: ParsedMealVoiceItem, reason: string): VoiceR
 // ─── Core Resolver ─────────────────────────────────────────────────────────────
 
 /**
- * Resolve a single parsed voice item through the unified food resolver.
- *
- * Resolution order (mirrors typed search):
- *  1. Local SQLite catalog (saved, recent, CoFID, cached USDA/OFF)
- *  2. USDA API if local results are insufficient
- *
- * The same `foodService.searchSuggestions` pipeline is used for both typed
- * and spoken paths — there is no separate voice-specific search.
+ * Shared scaling + result-building logic used by both the fast-path and slow-path
+ * resolvers. Receives an already-resolved primary food and the full candidate list.
  */
-export async function resolveVoiceItem(
-  parsedItem: ParsedMealVoiceItem
-): Promise<VoiceResolutionResult> {
-  // Try the query as-is, then also try singular form (e.g. "eggs" → "egg")
-  const candidates = Array.from(
-    new Set([parsedItem.query, singularize(parsedItem.query)].filter(Boolean))
-  );
-
-  let allResults: NormalizedFood[] = [];
-
-  for (const candidate of candidates) {
-    const result = await foodService.searchSuggestions(candidate);
-    if (result.status === 'ok' && result.results.length > 0) {
-      allResults = result.results;
-      break;
-    }
-  }
-
-  if (allResults.length === 0) {
-    return makeUnresolved(parsedItem, 'No matching food found.');
-  }
-
-  // Primary result is already ranked by the unified resolver
-  const primaryRaw = allResults[0];
-
-  // Fetch full USDA nutrient detail when the top hit is a USDA search stub
-  const primary =
-    primaryRaw.providerId === 'usda' && primaryRaw.externalId
-      ? (await foodService.getFood(primaryRaw.externalId)) ?? primaryRaw
-      : primaryRaw;
-
-  const confidence = scoreConfidence(primary, parsedItem.query);
-  // Surface the next 3 results as alternatives for medium/low confidence
+function buildResolvedResult(
+  parsedItem: ParsedMealVoiceItem,
+  primary: NormalizedFood,
+  allResults: NormalizedFood[],
+  confidence: ResolutionConfidence
+): VoiceResolutionResult {
   const alternatives = confidence !== 'high' ? allResults.slice(1, 4) : [];
 
   // ── Resolve effective unit (handle ambiguous "oz" for liquids) ──
@@ -281,6 +248,61 @@ export async function resolveVoiceItem(
       entryOpts,
     },
   };
+}
+
+/**
+ * Resolve a single parsed voice item.
+ *
+ * Resolution order:
+ *  1. Fast path — local SQLite only (CoFID, saved, recent, cached USDA).
+ *     If a high-confidence match is found, return immediately with no network call.
+ *  2. Slow path — full searchSuggestions pipeline (local + USDA network).
+ *     Used when the local catalog has no high-confidence result.
+ */
+export async function resolveVoiceItem(
+  parsedItem: ParsedMealVoiceItem
+): Promise<VoiceResolutionResult> {
+  const candidates = Array.from(
+    new Set([parsedItem.query, singularize(parsedItem.query)].filter(Boolean))
+  );
+
+  // ── Fast path: local-only, no network ────────────────────────────────────────
+  for (const candidate of candidates) {
+    const localResults = await foodService.searchLocalOnly(candidate);
+    if (localResults.length > 0) {
+      const topLocal = localResults[0];
+      const localConfidence = scoreConfidence(topLocal, parsedItem.query);
+      if (localConfidence === 'high') {
+        return buildResolvedResult(parsedItem, topLocal, localResults, 'high');
+      }
+    }
+  }
+
+  // ── Slow path: full pipeline (local + USDA network) ───────────────────────────
+  let allResults: NormalizedFood[] = [];
+
+  for (const candidate of candidates) {
+    const result = await foodService.searchSuggestions(candidate);
+    if (result.status === 'ok' && result.results.length > 0) {
+      allResults = result.results;
+      break;
+    }
+  }
+
+  if (allResults.length === 0) {
+    return makeUnresolved(parsedItem, 'No matching food found.');
+  }
+
+  const primaryRaw = allResults[0];
+
+  // Fetch full USDA nutrient detail when the top hit is a USDA search stub
+  const primary =
+    primaryRaw.providerId === 'usda' && primaryRaw.externalId
+      ? (await foodService.getFood(primaryRaw.externalId)) ?? primaryRaw
+      : primaryRaw;
+
+  const confidence = scoreConfidence(primary, parsedItem.query);
+  return buildResolvedResult(parsedItem, primary, allResults, confidence);
 }
 
 /**

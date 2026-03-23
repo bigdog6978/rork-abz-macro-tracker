@@ -16,6 +16,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
+import DismissKeyboard from '../components/ui/DismissKeyboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
@@ -30,6 +31,7 @@ import * as foodsRepo from '../src/data/foodsRepo';
 import QuantityPillsCompact from '../components/ui/QuantityPillsCompact';
 import QuantityCallout, { type CalloutReason } from '../components/ui/QuantityCallout';
 import DensityModal from '../components/ui/DensityModal';
+import VoiceRecordingSheet from '../components/ui/VoiceRecordingSheet';
 import BarcodeScannerPanel from '../components/ui/BarcodeScannerPanel';
 import type { UnitKind, UnitId } from '../src/lib/units';
 import { getPreferredServingUnit } from '../storage/userSettingsRepo';
@@ -452,6 +454,16 @@ export default function AddFoodScreen() {
       Alert.alert('Voice entry unavailable', 'Unable to start speech recognition on this device.');
     }
   }, [animateScanner, isListening, scannerOpen, voiceMealAvailable]);
+
+  const handleCancelVoice = useCallback(() => {
+    try {
+      ExpoSpeechRecognitionModule.abort();
+    } catch {
+      // native module may not be available
+    }
+    setIsListening(false);
+    setIsVoiceProcessing(false);
+  }, []);
 
   const handleConfirmVoiceMeal = useCallback(async () => {
     if (!voiceMealDraft || voiceMealDraft.items.length === 0) return;
@@ -1002,6 +1014,7 @@ export default function AddFoodScreen() {
   };
 
   return (
+    <DismissKeyboard>
     <View style={styles.container}>
       <Stack.Screen
         options={{
@@ -1149,14 +1162,14 @@ export default function AddFoodScreen() {
               </Text>
             )}
 
-            {(isListening || isVoiceProcessing || voiceTranscript.length > 0) && (
-              <View style={styles.voiceStatusCard}>
-                <Text style={styles.voiceStatusLabel}>
-                  {isListening ? 'Listening for your meal...' : isVoiceProcessing ? 'Calculating meal macros...' : 'Last transcript'}
-                </Text>
-                <Text style={styles.voiceTranscriptText}>{voiceTranscript || 'Try "2 eggs, 1 avocado, 6 oz orange juice"'}</Text>
-              </View>
-            )}
+            <VoiceRecordingSheet
+              visible={isListening || isVoiceProcessing}
+              isListening={isListening}
+              isProcessing={isVoiceProcessing}
+              transcript={voiceTranscript}
+              onCancel={handleCancelVoice}
+              colors={colors}
+            />
 
             <View style={styles.savedFoodsRow}>
               <TouchableOpacity
@@ -1710,6 +1723,7 @@ export default function AddFoodScreen() {
         </Pressable>
       </Modal>
     </View>
+    </DismissKeyboard>
   );
 }
 
@@ -1790,28 +1804,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginTop: 6,
-  },
-  voiceStatusCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    padding: 12,
-    marginTop: 10,
-  },
-  voiceStatusLabel: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  voiceTranscriptText: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '500' as const,
-    lineHeight: 20,
   },
   savedFoodsRow: {
     alignItems: 'flex-end',
@@ -2003,7 +1995,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: 10,
   },
   voiceTotalsCard: {
-    backgroundColor: Colors.caloriesMuted,
+    backgroundColor: colors.primaryMuted,
     borderRadius: 14,
     padding: 14,
     marginTop: 16,

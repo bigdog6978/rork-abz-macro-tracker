@@ -13,6 +13,7 @@ import {
   Pressable,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import DismissKeyboard from '../components/ui/DismissKeyboard';
 import * as Haptics from 'expo-haptics';
 import { Check, Info, ChevronDown } from 'lucide-react-native';
 import Colors from '../constants/colors';
@@ -145,6 +146,7 @@ export default function AddMeasurementScreen() {
   const isEditing = existingEntry !== null;
 
   return (
+    <DismissKeyboard>
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Add Measurement', headerStyle: { backgroundColor: Colors.background }, headerTintColor: Colors.text }} />
       <KeyboardAvoidingView
@@ -403,6 +405,7 @@ export default function AddMeasurementScreen() {
         </Pressable>
       </Modal>
     </View>
+    </DismissKeyboard>
   );
 }
 

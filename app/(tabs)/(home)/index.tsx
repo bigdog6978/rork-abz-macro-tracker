@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import {
   Modal,
   Pressable,
   TextInput,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Flame, Trash2, Ruler, X, ChevronRight, Pencil } from 'lucide-react-native';
+import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
@@ -69,6 +71,12 @@ function CustomMacrosModal({
   const [carbs, setCarbs] = useState(String(currentMacros.carbs_g));
   const [fat, setFat] = useState(String(currentMacros.fat_g));
 
+  const ref0 = useRef<TextInput>(null);
+  const ref1 = useRef<TextInput>(null);
+  const ref2 = useRef<TextInput>(null);
+  const ref3 = useRef<TextInput>(null);
+  const inputRefs = [ref0, ref1, ref2, ref3];
+
   useEffect(() => {
     if (visible) {
       setCalories(String(currentMacros.calories));
@@ -79,6 +87,7 @@ function CustomMacrosModal({
   }, [visible, currentMacros]);
 
   const handleSave = () => {
+    Keyboard.dismiss();
     const c = parseInt(calories, 10);
     const p = parseInt(protein, 10);
     const cb = parseInt(carbs, 10);
@@ -96,20 +105,51 @@ function CustomMacrosModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={modalStyles.backdrop} onPress={onClose} />
-      <View style={modalStyles.sheet}>
+      <Pressable
+        style={modalStyles.backdrop}
+        onPress={() => {
+          if (Keyboard.isVisible()) {
+            Keyboard.dismiss();
+          } else {
+            onClose();
+          }
+        }}
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={modalStyles.sheet}
+      >
+        <View style={modalStyles.sheetHeader}>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity
+            onPress={Keyboard.dismiss}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <ChevronDown size={20} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
         <Text style={modalStyles.title}>Set Custom Targets</Text>
         <Text style={modalStyles.subtitle}>Override your calculated daily targets.</Text>
-        {fields.map(({ label, value, onChange, color }) => (
+        {fields.map(({ label, value, onChange, color }, index) => (
           <View key={label} style={modalStyles.fieldRow}>
             <Text style={[modalStyles.fieldLabel, { color }]}>{label}</Text>
             <TextInput
+              ref={inputRefs[index]}
               style={[modalStyles.fieldInput, { borderColor: color }]}
               value={value}
               onChangeText={onChange}
               keyboardType="number-pad"
               placeholder="0"
               placeholderTextColor={Colors.textTertiary}
+              returnKeyType={index < 3 ? 'next' : 'done'}
+              blurOnSubmit={false}
+              onSubmitEditing={() => {
+                if (index < 3) {
+                  inputRefs[index + 1].current?.focus();
+                } else {
+                  Keyboard.dismiss();
+                }
+              }}
             />
           </View>
         ))}
@@ -126,7 +166,7 @@ function CustomMacrosModal({
             <Text style={modalStyles.resetBtnText}>Reset to Calculated</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -518,6 +558,11 @@ const modalStyles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     gap: 14,
+  },
+  sheetHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginBottom: 4,
   },
   title: {
     color: Colors.text,

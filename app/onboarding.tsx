@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import DismissKeyboard from '../components/ui/DismissKeyboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -592,6 +593,7 @@ export default function OnboardingScreen() {
   const isLastStep = step === TOTAL_STEPS - 1;
 
   return (
+    <DismissKeyboard>
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.progressContainer}>
         <View style={styles.progressTrack}>
@@ -642,6 +644,7 @@ export default function OnboardingScreen() {
         onClose={() => setDefinitionSheetVisible(false)}
       />
     </View>
+    </DismissKeyboard>
   );
 }
 

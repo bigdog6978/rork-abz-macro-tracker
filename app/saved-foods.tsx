@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
+import DismissKeyboard from '../components/ui/DismissKeyboard';
 import { Search, ChevronRight, Trash2, Scan, UtensilsCrossed } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '../constants/colors';
@@ -108,6 +109,7 @@ export default function SavedFoodsScreen() {
   }, []);
 
   return (
+    <DismissKeyboard>
     <View style={styles.container}>
       <Stack.Screen
         options={{
@@ -190,6 +192,7 @@ export default function SavedFoodsScreen() {
         </ScrollView>
       )}
     </View>
+    </DismissKeyboard>
   );
 }
 

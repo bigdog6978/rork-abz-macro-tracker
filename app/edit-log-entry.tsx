@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import DismissKeyboard from '../components/ui/DismissKeyboard';
 import * as Haptics from 'expo-haptics';
 import { Check, X, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
 import Colors from '../constants/colors';
@@ -283,6 +284,7 @@ export default function EditLogEntryScreen() {
   }
 
   return (
+    <DismissKeyboard>
     <View style={styles.container}>
       <Stack.Screen
         options={{
@@ -471,6 +473,7 @@ export default function EditLogEntryScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
+    </DismissKeyboard>
   );
 }
 

@@ -214,6 +214,21 @@ async function getFoodStatsMap(): Promise<Record<string, FoodStats>> {
   return map;
 }
 
+/**
+ * Local-only search: searches SQLite (CoFID, saved, recent, cached USDA) without
+ * any network calls. Used by the voice resolver as a fast path for common foods.
+ */
+export async function searchLocalOnly(query: string): Promise<NormalizedFood[]> {
+  if (!query.trim()) return [];
+  try {
+    await ensureFoodCatalogReady();
+    const localFoods = await foodsRepo.searchLocalFoods(query.trim());
+    return localFoods.map(foodsRepo.localFoodToNormalizedFood).map(withKnownDensity);
+  } catch {
+    return [];
+  }
+}
+
 export async function searchSuggestions(query: string): Promise<SearchResult> {
   if (!query.trim()) {
     return { status: 'empty', results: [] };
