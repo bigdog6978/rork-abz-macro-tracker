@@ -240,6 +240,11 @@ export default function DashboardScreen() {
                 <Text style={styles.modifierTagText}>{DIETARY_MODIFIER_LABELS[mod]}</Text>
               </View>
             ))}
+            {customMacros && (
+              <View style={styles.customBadge}>
+                <Text style={styles.customBadgeText}>Custom</Text>
+              </View>
+            )}
           </View>
         </Animated.View>
 
@@ -351,15 +356,8 @@ export default function DashboardScreen() {
               onPress={() => setEditMacrosVisible(true)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Pencil size={14} color={Colors.textTertiary} />
+              <Pencil size={14} color={customMacros ? colors.primary : Colors.textTertiary} />
             </TouchableOpacity>
-
-            {/* Custom badge */}
-            {customMacros && (
-              <View style={styles.customBadge}>
-                <Text style={styles.customBadgeText}>Custom</Text>
-              </View>
-            )}
           </View>
         </Animated.View>
 
@@ -626,7 +624,6 @@ const createStyles = (colors: AppColors) =>
     },
     calorieCardWrap: {
       position: 'relative',
-      marginTop: Spacing.lg,
     },
     calorieCard: {
       width: '100%',
@@ -640,14 +637,12 @@ const createStyles = (colors: AppColors) =>
       padding: 6,
     },
     customBadge: {
-      position: 'absolute',
-      top: 12,
-      left: 14,
+      marginLeft: 'auto',
+      alignSelf: 'center',
       backgroundColor: colors.primaryMuted,
       paddingHorizontal: 8,
-      paddingVertical: 3,
+      paddingVertical: 4,
       borderRadius: 6,
-      zIndex: 10,
     },
     customBadgeText: {
       color: colors.primary,

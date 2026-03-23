@@ -939,8 +939,8 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
   },
   foodChipActive: {
-    borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
   },
   foodChipText: {
     color: Colors.textSecondary,
@@ -949,7 +949,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     textAlign: 'center',
   },
   foodChipTextActive: {
-    color: '#ef4444',
+    color: colors.primary,
   },
   foodDislikeNote: {
     color: Colors.textTertiary,

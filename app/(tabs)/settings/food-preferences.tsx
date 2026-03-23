@@ -156,8 +156,8 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
   },
   chipActive: {
-    borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
   },
   chipText: {
     color: Colors.textSecondary,
@@ -166,7 +166,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     textAlign: 'center',
   },
   chipTextActive: {
-    color: '#ef4444',
+    color: colors.primary,
     fontWeight: '700' as const,
   },
   note: {
