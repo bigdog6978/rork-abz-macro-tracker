@@ -34,7 +34,7 @@ import {
   formatTargetSummary,
 } from '../../../features/progress/progressScoring';
 import { fromDateKey } from '../../../utils/dateKey';
-import { useThemeColors } from '../../../providers/ThemeProvider';
+import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
 type ViewMode = 'progress' | 'history';
 type TimeRange = 7 | 14 | 30;
@@ -280,19 +280,18 @@ function DayRow({
   totals,
   targets,
   onPress,
+  colors,
 }: {
   date: string;
   totals: MacroTargets;
   targets: MacroTargets;
   onPress: () => void;
+  colors: AppColors;
 }) {
   const adherence = getAdherencePercent(totals, targets);
   const d = new Date(date + 'T12:00:00');
   const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
   const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-  const adherenceColor =
-    adherence >= 80 ? Colors.success : adherence >= 50 ? Colors.warning : Colors.danger;
 
   return (
     <Pressable
@@ -310,8 +309,8 @@ function DayRow({
           <Text style={styles.dayCalValue}>{formatNumber(totals.calories)}</Text>
           <Text style={styles.dayCalLabel}>cal</Text>
         </View>
-        <View style={[styles.adherenceBadge, { backgroundColor: adherenceColor + '20' }]}>
-          <Text style={[styles.adherenceText, { color: adherenceColor }]}>{adherence}%</Text>
+        <View style={[styles.adherenceBadge, { backgroundColor: colors.primaryMuted }]}>
+          <Text style={[styles.adherenceText, { color: colors.primary }]}>{adherence}%</Text>
         </View>
         <ChevronRight size={16} color={Colors.textTertiary} />
       </View>
@@ -637,10 +636,10 @@ export default function HistoryScreen() {
               {rangeOptions.map((opt) => (
                 <TouchableOpacity
                   key={opt}
-                  style={[styles.rangeChip, range === opt && styles.rangeChipActive]}
+                  style={[styles.rangeChip, range === opt && [styles.rangeChipActive, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]]}
                   onPress={() => setRange(opt)}
                 >
-                  <Text style={[styles.rangeChipText, range === opt && styles.rangeChipTextActive]}>
+                  <Text style={[styles.rangeChipText, range === opt && [styles.rangeChipTextActive, { color: colors.primary }]]}>
                     {opt}D
                   </Text>
                 </TouchableOpacity>
@@ -694,6 +693,7 @@ export default function HistoryScreen() {
                       totals={totals}
                       targets={macros}
                       onPress={() => handleDayPress(date)}
+                      colors={colors}
                     />
                   </View>
                 );
@@ -1019,18 +1019,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
-  rangeChipActive: {
-    backgroundColor: Colors.primaryMuted,
-    borderColor: Colors.primary,
-  },
+  rangeChipActive: {},
   rangeChipText: {
     color: Colors.textSecondary,
     fontSize: 14,
     fontWeight: '700' as const,
   },
-  rangeChipTextActive: {
-    color: Colors.primary,
-  },
+  rangeChipTextActive: {},
   statsRow: {
     flexDirection: 'row',
     gap: 10,

@@ -222,16 +222,45 @@ async function getFoodStatsMap(): Promise<Record<string, FoodStats>> {
   return map;
 }
 
+const FOOD_ALIASES: Record<string, string[]> = {
+  chicken_breast: ['chicken'],
+  salmon: ['fish'],
+  ground_beef_90: ['beef', 'ground beef', 'mince'],
+  ground_beef_80: ['beef patty', 'burger patty'],
+  eggs: ['egg'],
+  hard_boiled_eggs: ['boiled egg', 'hard boiled egg'],
+  turkey_breast: ['turkey'],
+  white_rice: ['rice'],
+  brown_rice: ['rice'],
+  greek_yogurt: ['yogurt', 'yoghurt'],
+  oats_dry: ['oats', 'oatmeal', 'porridge'],
+  ww_bread: ['bread', 'toast'],
+  ww_pasta: ['pasta', 'spaghetti'],
+  peanut_butter: ['pb'],
+  whey_protein: ['protein shake', 'protein powder', 'whey'],
+  plant_protein: ['protein shake', 'vegan protein'],
+  sweet_potato: ['yam'],
+  mixed_greens: ['salad'],
+  broccoli: ['broc'],
+  spinach_cooked: ['spinach'],
+};
+
 /**
  * Search the built-in curated food database (used for meal plans) so that
  * common foods like "white rice" resolve instantly with correct serving data.
  */
 function searchFoodDatabase(query: string): NormalizedFood[] {
   const q = query.toLowerCase();
-  return Object.values(FOODS)
-    .filter((f) => f.name.toLowerCase().includes(q) || f.id.includes(q))
-    .map((f): NormalizedFood => ({
-      id: `builtin:${f.id}`,
+  return Object.entries(FOODS)
+    .filter(([id, f]) => {
+      if (f.name.toLowerCase().includes(q)) return true;
+      if (id.includes(q)) return true;
+      const aliases = FOOD_ALIASES[id];
+      if (aliases?.some((alias) => alias.includes(q) || q.includes(alias))) return true;
+      return false;
+    })
+    .map(([id, f]): NormalizedFood => ({
+      id: `builtin:${id}`,
       providerId: 'manual',
       name: f.name,
       basis: 'per100g',
@@ -269,13 +298,14 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
   // Ensure catalogs (UK CoFID etc.) are imported before first search
   try { await ensureFoodCatalogReady(); } catch { /* non-fatal */ }
 
-  // ── 1. Local-first: search SQLite (saved, manual, CoFID, cached USDA, OFF) ──
-  let localResults: NormalizedFood[] = [];
+  // ── 1. Local-first: built-in curated foods + SQLite (saved, manual, CoFID, cached USDA, OFF) ──
+  const builtIn = searchFoodDatabase(q);
+  let localResults: NormalizedFood[] = [...builtIn];
   try {
     const localFoods = await foodsRepo.searchLocalFoods(q);
-    localResults = localFoods.map(foodsRepo.localFoodToNormalizedFood).map(withKnownDensity);
+    localResults = [...builtIn, ...localFoods.map(foodsRepo.localFoodToNormalizedFood).map(withKnownDensity)];
   } catch {
-    // SQLite may not be ready
+    // SQLite may not be ready — builtIn still available
   }
 
   // ── 2. If USDA API key is missing, return local-only results ──

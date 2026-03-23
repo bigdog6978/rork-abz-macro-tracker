@@ -201,6 +201,7 @@ const WEIGHTS = {
   missingPrimaryIngredientPenalty: 95,
   partialPrimaryMissPenalty: 22,
   trustedReferenceBonus: 10,
+  curatedBuiltinBonus: 65,
   hasMacrosBonus: 6,
   popularityBoostScale: 15,
   recencyBoostMax: 12,
@@ -400,6 +401,12 @@ export function scoreFood(
   if (ingredientQuery && food.source && TRUSTED_REFERENCE_SOURCES.has(food.source)) {
     score += WEIGHTS.trustedReferenceBonus;
     reasons.push(`trustedRef(${food.source}): +${WEIGHTS.trustedReferenceBonus}`);
+  }
+
+  // ─── Curated built-in bonus: always surface app's canonical foods first ───
+  if (food.id?.startsWith('builtin:')) {
+    score += WEIGHTS.curatedBuiltinBonus;
+    reasons.push(`curatedBuiltin: +${WEIGHTS.curatedBuiltinBonus}`);
   }
 
   // ─── Macro data present: slight boost for foods with actual nutrition data ──
