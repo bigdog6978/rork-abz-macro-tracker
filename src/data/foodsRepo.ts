@@ -1,5 +1,5 @@
 /**
- * SQLite repository for local foods (barcode-scanned, saved).
+ * SQLite repository for local foods (barcode-scanned, saved, imported catalogs).
  */
 
 import { openDb } from './db';
@@ -10,6 +10,18 @@ import { applyKnownLiquidDensity } from '../../features/food/liquidDensity';
 const PREFIX_OFF = 'off:';
 const PREFIX_MANUAL = 'manual:';
 const PREFIX_USDA = 'usda:';
+
+/**
+ * Normalize a food name for search indexing.
+ * Strips punctuation, collapses whitespace, lowercases.
+ */
+export function generateSearchName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[,\-()\/\.;:'"]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 function toId(barcode: string, source: LocalFoodSource): string {
   if (source === 'manual' || source === 'usda') return barcode;
@@ -27,6 +39,7 @@ interface FoodRow {
   carbs: number;
   fat: number;
   serving_size: string | null;
+  search_name: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -143,11 +156,13 @@ export async function upsertFoodFromBarcode(
     [barcode]
   );
 
+  const searchName = generateSearchName(data.name);
+
   if (existing) {
     await db.runAsync(
       `UPDATE foods SET
         name = ?, brand = ?, calories = ?, protein = ?, carbs = ?, fat = ?,
-        serving_size = ?, updated_at = ?
+        serving_size = ?, search_name = ?, updated_at = ?
       WHERE barcode = ?`,
       [
         data.name,
@@ -157,14 +172,15 @@ export async function upsertFoodFromBarcode(
         data.carbs,
         data.fat,
         servingSizeEnc,
+        searchName,
         now,
         barcode,
       ]
     );
   } else {
     await db.runAsync(
-      `INSERT INTO foods (id, name, brand, barcode, source, calories, protein, carbs, fat, serving_size, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'openfoodfacts', ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO foods (id, name, brand, barcode, source, calories, protein, carbs, fat, serving_size, search_name, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'openfoodfacts', ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         data.name,
@@ -175,6 +191,7 @@ export async function upsertFoodFromBarcode(
         data.carbs,
         data.fat,
         servingSizeEnc,
+        searchName,
         now,
         now,
       ]
@@ -251,11 +268,13 @@ export async function addManualFood(data: {
     density_g_per_ml: data.density_g_per_ml,
   });
 
+  const manualSearchName = generateSearchName(data.name);
+
   if (existing) {
     await db.runAsync(
       `UPDATE foods SET
         name = ?, brand = ?, calories = ?, protein = ?, carbs = ?, fat = ?,
-        serving_size = ?, updated_at = ?
+        serving_size = ?, search_name = ?, updated_at = ?
       WHERE id = ?`,
       [
         data.name.trim(),
@@ -265,6 +284,7 @@ export async function addManualFood(data: {
         data.carbs,
         data.fat,
         servingSizeEnc,
+        manualSearchName,
         now,
         existing.id,
       ]
@@ -275,8 +295,8 @@ export async function addManualFood(data: {
   }
 
   await db.runAsync(
-    `INSERT INTO foods (id, name, brand, barcode, source, calories, protein, carbs, fat, serving_size, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'manual', ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO foods (id, name, brand, barcode, source, calories, protein, carbs, fat, serving_size, search_name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'manual', ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.name.trim(),
@@ -287,6 +307,7 @@ export async function addManualFood(data: {
       data.carbs,
       data.fat,
       servingSizeEnc,
+      manualSearchName,
       now,
       now,
     ]
@@ -324,13 +345,14 @@ export async function addUsdaFood(
     density_g_per_ml: data.density_g_per_ml,
   });
 
+  const usdaSearchName = generateSearchName(data.name);
   const existing = await db.getFirstAsync<FoodRow>('SELECT * FROM foods WHERE id = ?', [id]);
 
   if (existing) {
     await db.runAsync(
       `UPDATE foods SET
         name = ?, brand = ?, calories = ?, protein = ?, carbs = ?, fat = ?,
-        serving_size = ?, updated_at = ?
+        serving_size = ?, search_name = ?, updated_at = ?
       WHERE id = ?`,
       [
         data.name.trim(),
@@ -340,6 +362,7 @@ export async function addUsdaFood(
         data.carbs,
         data.fat,
         servingSizeEnc,
+        usdaSearchName,
         now,
         id,
       ]
@@ -350,8 +373,8 @@ export async function addUsdaFood(
   }
 
   await db.runAsync(
-    `INSERT INTO foods (id, name, brand, barcode, source, calories, protein, carbs, fat, serving_size, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'usda', ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO foods (id, name, brand, barcode, source, calories, protein, carbs, fat, serving_size, search_name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 'usda', ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.name.trim(),
@@ -362,6 +385,7 @@ export async function addUsdaFood(
       data.carbs,
       data.fat,
       servingSizeEnc,
+      usdaSearchName,
       now,
       now,
     ]
@@ -373,22 +397,33 @@ export async function addUsdaFood(
 }
 
 /**
- * Search local foods by name (case-insensitive, token match).
- * Used to merge barcode-saved foods into search suggestions.
+ * Search all local foods (saved, imported catalogs, cached USDA) by name.
+ * Matches against both `search_name` (normalized) and `name` (display).
+ * Returns up to 80 candidates for re-ranking by the scoring engine.
  */
 export async function searchLocalFoods(query: string): Promise<LocalFood[]> {
   if (!query?.trim()) return [];
   const db = await openDb();
-  const term = `%${query.trim().toLowerCase()}%`;
+  const rawTerm = `%${query.trim().toLowerCase()}%`;
+  const normalizedTerm = `%${generateSearchName(query)}%`;
   const rows = await db.getAllAsync<FoodRow>(
-    `SELECT * FROM foods WHERE LOWER(name) LIKE ? OR (brand IS NOT NULL AND LOWER(brand) LIKE ?) ORDER BY updated_at DESC LIMIT 30`,
-    [term, term]
+    `SELECT * FROM foods
+     WHERE search_name LIKE ?
+        OR LOWER(name) LIKE ?
+        OR (brand IS NOT NULL AND LOWER(brand) LIKE ?)
+     ORDER BY updated_at DESC
+     LIMIT 80`,
+    [normalizedTerm, rawTerm, rawTerm]
   );
   return rows.map(mapRow);
 }
 
 export function localFoodToNormalizedFood(f: LocalFood): NormalizedFood {
-  const providerId = f.source === 'usda' ? 'usda' : f.source === 'manual' ? 'manual' : 'openfoodfacts';
+  const providerId: NormalizedFood['providerId'] =
+    f.source === 'usda' ? 'usda'
+    : f.source === 'manual' ? 'manual'
+    : f.source === 'cofid_uk' ? 'cofid_uk'
+    : 'openfoodfacts';
   const norm: NormalizedFood = {
     id: f.id,
     providerId,
@@ -451,4 +486,125 @@ export async function recordFoodSelection(foodId: string): Promise<void> {
        last_selected_at = ?`,
     [foodId, now, now]
   );
+}
+
+// ─── Catalog metadata helpers ───────────────────────────────────────────────
+
+export async function getCatalogMeta(key: string): Promise<string | null> {
+  const db = await openDb();
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM catalog_meta WHERE key = ?',
+    [key]
+  );
+  return row?.value ?? null;
+}
+
+export async function setCatalogMeta(key: string, value: string): Promise<void> {
+  const db = await openDb();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO catalog_meta (key, value) VALUES (?, ?)`,
+    [key, value]
+  );
+}
+
+// ─── Batch catalog import ───────────────────────────────────────────────────
+
+export interface CatalogImportRecord {
+  id: string;
+  name: string;
+  searchName: string;
+  brand?: string | null;
+  source: LocalFoodSource;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+/**
+ * Batch-import catalog records (e.g. UK CoFID) into the foods table.
+ * Uses INSERT OR IGNORE so reruns skip existing rows without error.
+ */
+export async function importCatalogFoods(
+  records: CatalogImportRecord[]
+): Promise<number> {
+  if (records.length === 0) return 0;
+  const db = await openDb();
+  const now = Math.floor(Date.now() / 1000);
+  let inserted = 0;
+
+  await db.execAsync('BEGIN TRANSACTION');
+  try {
+    for (const r of records) {
+      const result = await db.runAsync(
+        `INSERT OR IGNORE INTO foods
+           (id, name, brand, barcode, source, calories, protein, carbs, fat,
+            serving_size, search_name, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
+        [
+          r.id,
+          r.name,
+          r.brand ?? null,
+          r.id,
+          r.source,
+          r.calories,
+          r.protein,
+          r.carbs,
+          r.fat,
+          r.searchName,
+          now,
+          now,
+        ]
+      );
+      if (result.changes > 0) inserted++;
+    }
+    await db.execAsync('COMMIT');
+  } catch (e) {
+    await db.execAsync('ROLLBACK');
+    throw e;
+  }
+
+  return inserted;
+}
+
+/**
+ * Hydrate USDA search results into SQLite so they appear in future local searches.
+ * Uses INSERT OR IGNORE so duplicates are silently skipped.
+ */
+export async function hydrateUsdaResults(
+  foods: NormalizedFood[]
+): Promise<void> {
+  if (foods.length === 0) return;
+  const db = await openDb();
+  const now = Math.floor(Date.now() / 1000);
+
+  await db.execAsync('BEGIN TRANSACTION');
+  try {
+    for (const f of foods) {
+      const id = f.id;
+      const searchName = generateSearchName(f.name);
+      await db.runAsync(
+        `INSERT OR IGNORE INTO foods
+           (id, name, brand, barcode, source, calories, protein, carbs, fat,
+            serving_size, search_name, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'usda', ?, ?, ?, ?, NULL, ?, ?, ?)`,
+        [
+          id,
+          f.name,
+          f.brand ?? null,
+          id,
+          f.per100g.calories,
+          f.per100g.protein_g,
+          f.per100g.carbs_g,
+          f.per100g.fat_g,
+          searchName,
+          now,
+          now,
+        ]
+      );
+    }
+    await db.execAsync('COMMIT');
+  } catch {
+    try { await db.execAsync('ROLLBACK'); } catch { /* ignore */ }
+  }
 }

@@ -10,6 +10,7 @@ export interface FoodItem {
   id: string;
   name: string;
   brand?: string | null;
+  source?: string | null;
   calories?: number;
   protein?: number;
   carbs?: number;
@@ -182,6 +183,8 @@ const WHOLE_FOOD_QUALIFIERS = new Set([
 
 // ─── Scoring Weights ───────────────────────────────────────────────────────
 
+const TRUSTED_REFERENCE_SOURCES = new Set(['cofid_uk', 'usda']);
+
 const WEIGHTS = {
   exactMatch: 120,
   prefixMatch: 60,
@@ -197,6 +200,8 @@ const WEIGHTS = {
   primaryIngredientCoverageMax: 50,
   missingPrimaryIngredientPenalty: 95,
   partialPrimaryMissPenalty: 22,
+  trustedReferenceBonus: 10,
+  hasMacrosBonus: 6,
   popularityBoostScale: 15,
   recencyBoostMax: 12,
   recencyWindowMs: 7 * 24 * 60 * 60 * 1000, // 7 days
@@ -389,6 +394,22 @@ export function scoreFood(
   if (processedPenalty > 0) {
     score -= processedPenalty;
     reasons.push(`processedPenalty: -${processedPenalty}`);
+  }
+
+  // ─── Source trust: boost trusted reference databases for ingredient queries ─
+  if (ingredientQuery && food.source && TRUSTED_REFERENCE_SOURCES.has(food.source)) {
+    score += WEIGHTS.trustedReferenceBonus;
+    reasons.push(`trustedRef(${food.source}): +${WEIGHTS.trustedReferenceBonus}`);
+  }
+
+  // ─── Macro data present: slight boost for foods with actual nutrition data ──
+  if (
+    typeof food.calories === 'number' &&
+    food.calories > 0 &&
+    typeof food.protein === 'number'
+  ) {
+    score += WEIGHTS.hasMacrosBonus;
+    reasons.push(`hasMacros: +${WEIGHTS.hasMacrosBonus}`);
   }
 
   // ─── Personalization: popularity & recency ────────────────────────────────

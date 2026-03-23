@@ -27,20 +27,10 @@ type UnitMatch = {
 };
 
 const UNIT_MATCHES: UnitMatch[] = [
+  // Volume — fluid ounces first to win over bare "ounce"
   { token: 'fluid ounces', unitId: 'fl_oz', unitKind: 'volume' },
   { token: 'fluid ounce', unitId: 'fl_oz', unitKind: 'volume' },
   { token: 'fl oz', unitId: 'fl_oz', unitKind: 'volume' },
-  { token: 'ounces', unitId: 'oz', unitKind: 'mass', ambiguousOunces: true },
-  { token: 'ounce', unitId: 'oz', unitKind: 'mass', ambiguousOunces: true },
-  { token: 'ozs', unitId: 'oz', unitKind: 'mass', ambiguousOunces: true },
-  { token: 'oz', unitId: 'oz', unitKind: 'mass', ambiguousOunces: true },
-  { token: 'grams', unitId: 'g', unitKind: 'mass' },
-  { token: 'gram', unitId: 'g', unitKind: 'mass' },
-  { token: 'g', unitId: 'g', unitKind: 'mass' },
-  { token: 'pounds', unitId: 'lb', unitKind: 'mass' },
-  { token: 'pound', unitId: 'lb', unitKind: 'mass' },
-  { token: 'lbs', unitId: 'lb', unitKind: 'mass' },
-  { token: 'lb', unitId: 'lb', unitKind: 'mass' },
   { token: 'milliliters', unitId: 'ml', unitKind: 'volume' },
   { token: 'milliliter', unitId: 'ml', unitKind: 'volume' },
   { token: 'ml', unitId: 'ml', unitKind: 'volume' },
@@ -55,6 +45,27 @@ const UNIT_MATCHES: UnitMatch[] = [
   { token: 'teaspoons', unitId: 'tsp', unitKind: 'volume' },
   { token: 'teaspoon', unitId: 'tsp', unitKind: 'volume' },
   { token: 'tsp', unitId: 'tsp', unitKind: 'volume' },
+  // Mass
+  { token: 'ounces', unitId: 'oz', unitKind: 'mass', ambiguousOunces: true },
+  { token: 'ounce', unitId: 'oz', unitKind: 'mass', ambiguousOunces: true },
+  { token: 'ozs', unitId: 'oz', unitKind: 'mass', ambiguousOunces: true },
+  { token: 'oz', unitId: 'oz', unitKind: 'mass', ambiguousOunces: true },
+  { token: 'grams', unitId: 'g', unitKind: 'mass' },
+  { token: 'gram', unitId: 'g', unitKind: 'mass' },
+  { token: 'g', unitId: 'g', unitKind: 'mass' },
+  { token: 'pounds', unitId: 'lb', unitKind: 'mass' },
+  { token: 'pound', unitId: 'lb', unitKind: 'mass' },
+  { token: 'lbs', unitId: 'lb', unitKind: 'mass' },
+  { token: 'lb', unitId: 'lb', unitKind: 'mass' },
+  // Serving descriptors — treat as count/piece unit
+  { token: 'servings', unitId: 'piece', unitKind: 'serving' },
+  { token: 'serving', unitId: 'piece', unitKind: 'serving' },
+  { token: 'slices', unitId: 'piece', unitKind: 'serving' },
+  { token: 'slice', unitId: 'piece', unitKind: 'serving' },
+  { token: 'pieces', unitId: 'piece', unitKind: 'serving' },
+  { token: 'piece', unitId: 'piece', unitKind: 'serving' },
+  { token: 'scoops', unitId: 'piece', unitKind: 'serving' },
+  { token: 'scoop', unitId: 'piece', unitKind: 'serving' },
 ];
 
 export type ParsedMealVoiceItem = {
@@ -101,8 +112,12 @@ function parseLeadingUnit(segment: string): {
   rest: string;
 } {
   const trimmed = segment.trim();
+  // Strip a leading "a" or "an" so patterns like "half a cup of" and "a slice of" work
+  const withoutArticle = trimmed.replace(/^(?:a|an)\s+/i, '');
+  const toMatch = withoutArticle !== trimmed ? withoutArticle : trimmed;
+
   for (const match of UNIT_MATCHES) {
-    const unitMatch = trimmed.match(new RegExp(`^${match.token}\\b\\s*(.*)$`, 'i'));
+    const unitMatch = toMatch.match(new RegExp(`^${match.token}\\b\\s*(.*)$`, 'i'));
     if (unitMatch) {
       return {
         unitId: match.unitId,
@@ -113,6 +128,7 @@ function parseLeadingUnit(segment: string): {
     }
   }
 
+  // No unit found — return original (with article) as food name
   return {
     unitId: 'piece',
     unitKind: 'serving',
@@ -124,17 +140,38 @@ function parseLeadingUnit(segment: string): {
 function normalizeFoodName(segment: string): string {
   return segment
     .trim()
-    .replace(/^of\s+/i, '')
+    .replace(/^(?:of|a|an)\s+/i, '')
     .replace(/\s+/g, ' ')
     .replace(/[.]+$/g, '')
     .trim();
 }
 
+/**
+ * Split a transcript string into individual item segments.
+ *
+ * Handles:
+ *  - Commas and semicolons as explicit separators
+ *  - "and" / "plus" before a new quantity word
+ *  - Implicit item boundaries: a letter word followed directly by a number
+ *    word or digit (e.g. "two eggs one avocado" → "two eggs, one avocado")
+ *    Note: "a" and "an" are NOT used as implicit boundaries because they are
+ *    too ambiguous (they appear in food names like "a handful of nuts").
+ */
 function splitTranscript(transcript: string): string[] {
   const normalized = transcript
     .toLowerCase()
     .replace(/[;]/g, ',')
-    .replace(/\s+(?:plus|and)\s+(?=(?:\d+(?:\.\d+)?|\d+\s*\/\s*\d+|a\b|an\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|half\b|quarter\b))/g, ', ')
+    // Split on explicit connectors (and / plus) before a new quantity
+    .replace(
+      /\s+(?:plus|and)\s+(?=(?:\d+(?:\.\d+)?|\d+\s*\/\s*\d+|a\b|an\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|half\b|quarter\b))/g,
+      ', '
+    )
+    // Split on implicit item boundary: a letter-word followed by a number word
+    // (excludes "a" / "an" which are articles)
+    .replace(
+      /([a-z])\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|half|quarter|\d+(?:\.\d+)?)\s+/g,
+      '$1, $2 '
+    )
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -147,8 +184,8 @@ function splitTranscript(transcript: string): string[] {
 export function parseMealVoiceTranscript(transcript: string): ParsedMealVoiceItem[] {
   return splitTranscript(transcript)
     .map((segment) => {
-      const { quantity, rest } = parseLeadingQuantity(segment);
-      const unit = parseLeadingUnit(rest);
+      const { quantity, rest: afterQty } = parseLeadingQuantity(segment);
+      const unit = parseLeadingUnit(afterQty);
       const query = normalizeFoodName(unit.rest);
 
       if (!query) return null;

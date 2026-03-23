@@ -2,7 +2,7 @@
  * Local SQLite food model for barcode-scanned and saved foods.
  */
 
-export type LocalFoodSource = 'openfoodfacts' | 'manual' | 'usda';
+export type LocalFoodSource = 'openfoodfacts' | 'manual' | 'usda' | 'cofid_uk';
 
 export interface LocalFood {
   id: string;

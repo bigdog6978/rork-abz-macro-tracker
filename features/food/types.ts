@@ -1,6 +1,6 @@
 export interface NormalizedFood {
   id: string;
-  providerId: 'usda' | 'manual' | 'openfoodfacts';
+  providerId: 'usda' | 'manual' | 'openfoodfacts' | 'cofid_uk';
   externalId?: string;
   name: string;
   brand?: string;

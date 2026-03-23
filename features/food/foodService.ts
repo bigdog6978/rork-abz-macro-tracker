@@ -12,6 +12,7 @@ import { normalizeSearchResult, normalizeDetailResult } from './providers/usda/u
 import * as foodRepo from '../../storage/foodRepo';
 import * as foodsRepo from '../../src/data/foodsRepo';
 import { openDb } from '../../src/data/db';
+import { ensureFoodCatalogReady } from '../../src/data/catalogInit';
 import { FoodEntry, NutrientsPer100g } from '../../types';
 import {
   rankFoods,
@@ -156,11 +157,24 @@ function toFoodItem(f: NormalizedFood): FoodItem {
     id: f.id,
     name: f.name,
     brand: f.brand ?? null,
+    source: f.providerId ?? null,
     calories: f.per100g?.calories,
     protein: f.per100g?.protein_g,
     carbs: f.per100g?.carbs_g,
     fat: f.per100g?.fat_g,
   };
+}
+
+/** Rank a list of NormalizedFood[] and return them sorted by relevance. */
+async function rankAndReorder(
+  foods: NormalizedFood[],
+  query: string
+): Promise<NormalizedFood[]> {
+  const items = foods.map(toFoodItem);
+  const statsMap = await getFoodStatsMap();
+  const ranked = rankFoods(items, query, statsMap);
+  const byId = new Map(foods.map((f) => [f.id, f]));
+  return ranked.map((r) => byId.get(r.id)!).filter(Boolean);
 }
 
 async function getFoodStatsMap(): Promise<Record<string, FoodStats>> {
@@ -207,7 +221,10 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
 
   const q = query.trim();
 
-  // Always fetch local (SQLite) foods for search — available offline
+  // Ensure catalogs (UK CoFID etc.) are imported before first search
+  try { await ensureFoodCatalogReady(); } catch { /* non-fatal */ }
+
+  // ── 1. Local-first: search SQLite (saved, manual, CoFID, cached USDA, OFF) ──
   let localResults: NormalizedFood[] = [];
   try {
     const localFoods = await foodsRepo.searchLocalFoods(q);
@@ -216,31 +233,21 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
     // SQLite may not be ready
   }
 
+  // ── 2. If USDA API key is missing, return local-only results ──
   if (!getUsdaApiKey()) {
     if (localResults.length > 0) {
-      const items = localResults.map(toFoodItem);
-      const statsMap = await getFoodStatsMap();
-      const ranked = rankFoods(items, q, statsMap);
-      const byId = new Map(localResults.map((f) => [f.id, f]));
-      const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
-      return { status: 'ok', results: reordered };
+      return { status: 'ok', results: await rankAndReorder(localResults, q) };
     }
     return { status: 'error', errorCode: 'USDA_API_KEY_MISSING' };
   }
 
+  // ── 3. Try USDA as enrichment (cache-first, then network) ──
   try {
     const cached = await foodRepo.getCachedSearch(query);
     if (cached && !cached.expired) {
-      const results = cached.results ?? [];
-      const merged = mergeAndDedupe(localResults, results);
+      const merged = mergeAndDedupe(localResults, (cached.results ?? []).map(withKnownDensity));
       if (merged.length > 0) {
-        const densityApplied = merged.map(withKnownDensity);
-        const items = densityApplied.map(toFoodItem);
-        const statsMap = await getFoodStatsMap();
-        const ranked = rankFoods(items, q, statsMap);
-        const byId = new Map(densityApplied.map((f) => [f.id, f]));
-        const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
-        return { status: 'ok', results: reordered };
+        return { status: 'ok', results: await rankAndReorder(merged, q) };
       }
       return { status: 'empty', results: [] };
     }
@@ -249,45 +256,32 @@ export async function searchSuggestions(query: string): Promise<SearchResult> {
     const normalized = (response.foods ?? []).map(normalizeSearchResult).map(withKnownDensity);
     await foodRepo.setCachedSearch(query, normalized);
 
+    // Hydrate USDA results into SQLite so future local searches find them
+    foodsRepo.hydrateUsdaResults(normalized.slice(0, 25)).catch(() => {});
+
     if (cached?.expired) {
       refreshSearchInBackground(query);
     }
 
     const merged = mergeAndDedupe(localResults, normalized);
     if (merged.length > 0) {
-      const densityApplied = merged.map(withKnownDensity);
-      const items = densityApplied.map(toFoodItem);
-      const statsMap = await getFoodStatsMap();
-      const ranked = rankFoods(items, q, statsMap);
-      const byId = new Map(densityApplied.map((f) => [f.id, f]));
-      const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
-      return { status: 'ok', results: reordered };
+      return { status: 'ok', results: await rankAndReorder(merged, q) };
     }
     return { status: 'empty', results: [] };
   } catch (err) {
+    // ── 4. Graceful degradation: if USDA fails, return whatever we have locally ──
     const usdaErr = err instanceof usdaClient.USDARequestError ? err : null;
-    const errorCode = usdaErr?.code;
-    const errorDetail = usdaErr?.usdaMessage;
+    if (localResults.length > 0) {
+      return { status: 'ok', results: await rankAndReorder(localResults, q) };
+    }
     if (usdaErr?.isRateLimit) {
-      if (localResults.length > 0) {
-        const items = localResults.map(toFoodItem);
-        const statsMap = await getFoodStatsMap();
-        const ranked = rankFoods(items, q, statsMap);
-        const byId = new Map(localResults.map((f) => [f.id, f]));
-        const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
-        return { status: 'ok', results: reordered };
-      }
       return { status: 'rate_limited' };
     }
-    if (localResults.length > 0) {
-      const items = localResults.map(toFoodItem);
-      const statsMap = await getFoodStatsMap();
-      const ranked = rankFoods(items, q, statsMap);
-      const byId = new Map(localResults.map((f) => [f.id, f]));
-      const reordered = ranked.map((r) => byId.get(r.id)!).filter(Boolean);
-      return { status: 'ok', results: reordered };
-    }
-    return { status: 'error', errorCode: errorCode ?? 'UNKNOWN', errorDetail };
+    return {
+      status: 'error',
+      errorCode: usdaErr?.code ?? 'UNKNOWN',
+      errorDetail: usdaErr?.usdaMessage,
+    };
   }
 }
 

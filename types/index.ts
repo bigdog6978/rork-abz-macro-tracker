@@ -126,7 +126,7 @@ export interface FoodEntry {
   fat_g: number;
   calories: number;
   timestamp: string;
-  providerId?: 'usda' | 'manual' | 'openfoodfacts';
+  providerId?: 'usda' | 'manual' | 'openfoodfacts' | 'cofid_uk';
   externalId?: string;
   servingGrams?: number;
   source?: 'mealPlan' | 'manual';

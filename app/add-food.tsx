@@ -41,39 +41,21 @@ import {
   detectUnitFromName,
   pluralizeUnit,
 } from '../features/food/servingDefaults';
-import { parseMealVoiceTranscript, type ParsedMealVoiceItem } from '../features/food/mealVoiceParser';
+import { parseMealVoiceTranscript } from '../features/food/mealVoiceParser';
+import {
+  resolveVoiceItems,
+  type VoiceResolvedItem,
+  type VoiceUnresolvedItem,
+} from '../features/food/voiceResolver';
 import { Radius } from '../theme/tokens';
 
 const DEBOUNCE_MS = 300;
 const HEADER_BUTTON_SIZE = 44;
 
-type VoiceMealResolvedItem = {
-  id: string;
-  label: string;
-  displayName: string;
-  quantity: number;
-  displayUnit: string;
-  unitKind: UnitKind;
-  unitId: UnitId;
-  grams: number;
-  food: NormalizedFood;
-  macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number };
-  entryOpts:
-    | { measureMode: 'qty'; quantity: number; servingWeightG: number }
-    | { measureMode: 'ounces'; quantity: number }
-    | { measureMode: 'grams'; quantity: number };
-};
-
-type VoiceMealUnresolvedItem = {
-  id: string;
-  label: string;
-  reason: string;
-};
-
 type VoiceMealDraft = {
   transcript: string;
-  items: VoiceMealResolvedItem[];
-  unresolved: VoiceMealUnresolvedItem[];
+  items: VoiceResolvedItem[];
+  unresolved: VoiceUnresolvedItem[];
   totals: { calories: number; protein_g: number; carbs_g: number; fat_g: number };
 };
 
@@ -117,47 +99,6 @@ function getSearchErrorMessage(
   return 'No results found';
 }
 
-function generateVoiceId(): string {
-  return `voice_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function singularizeQuery(query: string): string {
-  if (query.endsWith('ies')) return `${query.slice(0, -3)}y`;
-  if (query.endsWith('s') && !query.endsWith('ss')) return query.slice(0, -1);
-  return query;
-}
-
-function isLikelyLiquid(food: NormalizedFood, parsedItem: ParsedMealVoiceItem): boolean {
-  if (typeof food.density_g_per_ml === 'number' && food.density_g_per_ml > 0) {
-    return true;
-  }
-
-  const combined = `${food.name} ${parsedItem.query}`.toLowerCase();
-  return /(juice|milk|water|wine|beer|broth|stock|coffee|tea|soda|smoothie|shake|drink)/.test(combined);
-}
-
-function formatVoiceReason(reason: 'NEEDS_DENSITY' | 'UNSUPPORTED_SERVING' | 'NEEDS_SERVING_INFO'): string {
-  switch (reason) {
-    case 'NEEDS_DENSITY':
-      return 'Needs liquid density to calculate macros.';
-    case 'UNSUPPORTED_SERVING':
-      return 'Serving size could not be determined.';
-    case 'NEEDS_SERVING_INFO':
-      return 'Serving details are missing.';
-    default:
-      return 'Could not calculate macros for this item.';
-  }
-}
-
-function formatVoiceUnit(quantity: number, unitId: UnitId, unitLabel?: string): string {
-  if (unitId === 'piece') {
-    return unitLabel ? pluralizeUnit(quantity, unitLabel) : quantity === 1 ? 'item' : 'items';
-  }
-  if (unitId === 'fl_oz') {
-    return quantity === 1 ? 'fl oz' : 'fl oz';
-  }
-  return unitId;
-}
 
 function canUseVoiceMealCapture(): boolean {
   if (Constants.appOwnership === 'expo') {
@@ -210,6 +151,7 @@ export default function AddFoodScreen() {
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const [voiceMealDraft, setVoiceMealDraft] = useState<VoiceMealDraft | null>(null);
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
+  const [dismissedUnresolvedIds, setDismissedUnresolvedIds] = useState<string[]>([]);
 
   const [recentFoods, setRecentFoods] = useState<
     { food: NormalizedFood; lastServingGrams: number }[]
@@ -229,164 +171,59 @@ export default function AddFoodScreen() {
   const apiAvailable = useMemo(() => foodService.isApiAvailable(), []);
   const voiceMealAvailable = useMemo(() => canUseVoiceMealCapture(), []);
 
-  const resolveVoiceMealItem = useCallback(
-    async (parsedItem: ParsedMealVoiceItem): Promise<VoiceMealResolvedItem | VoiceMealUnresolvedItem> => {
-      const queries = Array.from(
-        new Set([parsedItem.query, singularizeQuery(parsedItem.query)].filter(Boolean))
+  const buildVoiceMealDraft = useCallback(async (transcript: string) => {
+    const parsedItems = parseMealVoiceTranscript(transcript);
+    if (parsedItems.length === 0) {
+      Alert.alert(
+        'No meal detected',
+        'Try speaking a full meal like "2 eggs, 1 avocado, 6 oz orange juice."'
+      );
+      return;
+    }
+
+    const requestId = Date.now();
+    voiceRequestIdRef.current = requestId;
+    setIsVoiceProcessing(true);
+
+    try {
+      // All items resolved through the same unified resolver used by typed search
+      const results = await resolveVoiceItems(parsedItems);
+      if (voiceRequestIdRef.current !== requestId) return;
+
+      const items: VoiceResolvedItem[] = [];
+      const unresolved: VoiceUnresolvedItem[] = [];
+      for (const r of results) {
+        if (r.status === 'resolved') items.push(r.item);
+        else unresolved.push(r.item);
+      }
+
+      const totals = items.reduce(
+        (acc, item) => ({
+          calories: acc.calories + item.macros.calories,
+          protein_g: Math.round((acc.protein_g + item.macros.protein_g) * 10) / 10,
+          carbs_g: Math.round((acc.carbs_g + item.macros.carbs_g) * 10) / 10,
+          fat_g: Math.round((acc.fat_g + item.macros.fat_g) * 10) / 10,
+        }),
+        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
       );
 
-      let resolvedFood: NormalizedFood | null = null;
-      for (const candidate of queries) {
-        const result = await foodService.searchSuggestions(candidate);
-        if (result.status === 'ok' && result.results.length > 0) {
-          const top = result.results[0];
-          resolvedFood =
-            top.providerId === 'usda' && top.externalId
-              ? (await foodService.getFood(top.externalId)) ?? top
-              : top;
-          break;
-        }
-      }
+      setVoiceMealDraft({ transcript, items, unresolved, totals });
+      setDismissedUnresolvedIds([]);
+      setVoiceModalVisible(true);
 
-      if (!resolvedFood) {
-        return {
-          id: generateVoiceId(),
-          label: parsedItem.label,
-          reason: 'No matching food was found.',
-        };
-      }
-
-      let workingFood = resolvedFood;
-      let unitKind = parsedItem.unitKind;
-      let unitId = parsedItem.unitId;
-
-      if (parsedItem.ambiguousOunces && isLikelyLiquid(resolvedFood, parsedItem)) {
-        unitKind = 'volume';
-        unitId = 'fl_oz';
-      }
-
-      let scaling: foodService.ScalingResult;
-      let entryOpts: VoiceMealResolvedItem['entryOpts'];
-      let displayUnit: string;
-
-      if (unitKind === 'serving') {
-        const detected = detectUnitFromName(resolvedFood.name) ?? detectUnitFromName(parsedItem.query);
-        if (detected) {
-          workingFood = {
-            ...resolvedFood,
-            servingWeightGrams: resolvedFood.servingWeightGrams ?? detected.servingWeightG,
-          };
-        }
-
-        scaling = foodService.scaleMacrosFromQuantity(workingFood, parsedItem.quantity, 'piece', 'serving');
-        if (!scaling.ok) {
-          return {
-            id: generateVoiceId(),
-            label: parsedItem.label,
-            reason: formatVoiceReason(scaling.reason),
-          };
-        }
-
-        const servingWeightG = workingFood.servingWeightGrams ?? detectUnitFromName(workingFood.name)?.servingWeightG;
-        if (!servingWeightG) {
-          return {
-            id: generateVoiceId(),
-            label: parsedItem.label,
-            reason: 'Serving size could not be determined.',
-          };
-        }
-
-        const unitLabel =
-          detectUnitFromName(workingFood.name)?.unitLabel ??
-          detectUnitFromName(parsedItem.query)?.unitLabel ??
-          'serving';
-        entryOpts = { measureMode: 'qty', quantity: parsedItem.quantity, servingWeightG };
-        displayUnit = formatVoiceUnit(parsedItem.quantity, 'piece', unitLabel);
-      } else {
-        scaling = foodService.scaleMacrosFromQuantity(workingFood, parsedItem.quantity, unitId, unitKind);
-        if (!scaling.ok) {
-          return {
-            id: generateVoiceId(),
-            label: parsedItem.label,
-            reason: formatVoiceReason(scaling.reason),
-          };
-        }
-
-        entryOpts =
-          unitId === 'oz'
-            ? { measureMode: 'ounces', quantity: parsedItem.quantity }
-            : { measureMode: 'grams', quantity: scaling.gramsUsedForScaling };
-        displayUnit = formatVoiceUnit(parsedItem.quantity, unitId);
-      }
-
-      return {
-        id: generateVoiceId(),
-        label: parsedItem.label,
-        displayName: workingFood.name,
-        quantity: parsedItem.quantity,
-        displayUnit,
-        unitKind,
-        unitId,
-        grams: scaling.gramsUsedForScaling,
-        food: workingFood,
-        macros: scaling.macros,
-        entryOpts,
-      };
-    },
-    []
-  );
-
-  const buildVoiceMealDraft = useCallback(
-    async (transcript: string) => {
-      const parsedItems = parseMealVoiceTranscript(transcript);
-      if (parsedItems.length === 0) {
-        Alert.alert('No meal detected', 'Try speaking a full meal like "2 eggs, 1 avocado, 6 oz orange juice."');
-        return;
-      }
-
-      const requestId = Date.now();
-      voiceRequestIdRef.current = requestId;
-      setIsVoiceProcessing(true);
-
-      try {
-        const results = await Promise.all(parsedItems.map((item) => resolveVoiceMealItem(item)));
-        if (voiceRequestIdRef.current !== requestId) return;
-
-        const items = results.filter(
-          (result): result is VoiceMealResolvedItem => 'food' in result
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(
+          unresolved.length === 0
+            ? Haptics.NotificationFeedbackType.Success
+            : Haptics.NotificationFeedbackType.Warning
         );
-        const unresolved = results.filter(
-          (result): result is VoiceMealUnresolvedItem => !('food' in result)
-        );
-
-        const totals = items.reduce(
-          (acc, item) => ({
-            calories: acc.calories + item.macros.calories,
-            protein_g: Math.round((acc.protein_g + item.macros.protein_g) * 10) / 10,
-            carbs_g: Math.round((acc.carbs_g + item.macros.carbs_g) * 10) / 10,
-            fat_g: Math.round((acc.fat_g + item.macros.fat_g) * 10) / 10,
-          }),
-          { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-        );
-
-        setVoiceMealDraft({ transcript, items, unresolved, totals });
-        setVoiceModalVisible(true);
-
-        if (Platform.OS !== 'web') {
-          Haptics.notificationAsync(
-            unresolved.length === 0
-              ? Haptics.NotificationFeedbackType.Success
-              : Haptics.NotificationFeedbackType.Warning
-          );
-        }
-      } finally {
-        if (voiceRequestIdRef.current === requestId) {
-          setIsVoiceProcessing(false);
-        }
       }
-    },
-    [resolveVoiceMealItem]
-  );
+    } finally {
+      if (voiceRequestIdRef.current === requestId) {
+        setIsVoiceProcessing(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     foodService
@@ -586,6 +423,7 @@ export default function AddFoodScreen() {
       setVoiceModalVisible(false);
       setVoiceTranscript('');
       setIsVoiceProcessing(false);
+      setDismissedUnresolvedIds([]);
 
       if (scannerOpen) {
         animateScanner(0, () => setScannerOpen(false));
@@ -616,9 +454,7 @@ export default function AddFoodScreen() {
   }, [animateScanner, isListening, scannerOpen, voiceMealAvailable]);
 
   const handleConfirmVoiceMeal = useCallback(async () => {
-    if (!voiceMealDraft || voiceMealDraft.items.length === 0 || voiceMealDraft.unresolved.length > 0) {
-      return;
-    }
+    if (!voiceMealDraft || voiceMealDraft.items.length === 0) return;
 
     setIsSaving(true);
     try {
@@ -634,7 +470,9 @@ export default function AddFoodScreen() {
       );
 
       addEntries(entries, dateKeyParam);
-      await Promise.all(voiceMealDraft.items.map((item) => foodService.addToRecent(item.food, item.grams)));
+      await Promise.all(
+        voiceMealDraft.items.map((item) => foodService.addToRecent(item.food, item.grams))
+      );
 
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1742,82 +1580,132 @@ export default function AddFoodScreen() {
       >
         <Pressable style={styles.voiceModalOverlay} onPress={() => setVoiceModalVisible(false)}>
           <Pressable style={styles.voiceModalSheet} onPress={() => {}}>
-            <Text style={styles.voiceModalTitle}>Confirm Spoken Meal</Text>
+            <Text style={styles.voiceModalTitle}>Review Spoken Meal</Text>
             <Text style={styles.voiceModalSubtitle}>
-              Review the foods and macros before adding them to your log.
+              Check the items and macros before adding to your log.
             </Text>
 
-            {voiceMealDraft && (
-              <>
-                <View style={styles.voiceTranscriptCard}>
-                  <Text style={styles.voiceTranscriptLabel}>Transcript</Text>
-                  <Text style={styles.voiceTranscriptModalText}>{voiceMealDraft.transcript}</Text>
-                </View>
+            {voiceMealDraft && (() => {
+              const activeUnresolved = voiceMealDraft.unresolved.filter(
+                (u) => !dismissedUnresolvedIds.includes(u.id)
+              );
+              const hasResolved = voiceMealDraft.items.length > 0;
+              const confirmLabel = hasResolved && activeUnresolved.length > 0
+                ? `Add ${voiceMealDraft.items.length} item${voiceMealDraft.items.length !== 1 ? 's' : ''} to Log`
+                : 'Confirm and Add';
 
-                <ScrollView
-                  style={styles.voiceItemsScroll}
-                  contentContainerStyle={styles.voiceItemsContent}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {voiceMealDraft.items.map((item) => (
-                    <View key={item.id} style={styles.voiceItemCard}>
-                      <View style={styles.voiceItemHeader}>
-                        <Text style={styles.voiceItemName} numberOfLines={2}>
-                          {item.quantity} {item.displayUnit} {item.displayName}
+              return (
+                <>
+                  <View style={styles.voiceTranscriptCard}>
+                    <Text style={styles.voiceTranscriptLabel}>Transcript</Text>
+                    <Text style={styles.voiceTranscriptModalText}>{voiceMealDraft.transcript}</Text>
+                  </View>
+
+                  <ScrollView
+                    style={styles.voiceItemsScroll}
+                    contentContainerStyle={styles.voiceItemsContent}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {voiceMealDraft.items.map((item) => (
+                      <View key={item.id} style={styles.voiceItemCard}>
+                        <View style={styles.voiceItemHeader}>
+                          <View style={styles.voiceItemNameRow}>
+                            <Text style={styles.voiceItemName} numberOfLines={2}>
+                              {item.quantity} {item.displayUnit} {item.displayName}
+                            </Text>
+                            {item.confidence !== 'high' && (
+                              <View
+                                style={[
+                                  styles.voiceConfidenceBadge,
+                                  item.confidence === 'medium'
+                                    ? styles.voiceConfidenceMedium
+                                    : styles.voiceConfidenceLow,
+                                ]}
+                              >
+                                <Text style={styles.voiceConfidenceText}>
+                                  {item.confidence === 'medium' ? '~match' : '?match'}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.voiceItemCalories}>
+                            {formatNumber(item.macros.calories)} cal
+                          </Text>
+                        </View>
+                        <Text style={styles.voiceItemMacros}>
+                          {formatNumber(item.macros.protein_g)}p · {formatNumber(item.macros.carbs_g)}c · {formatNumber(item.macros.fat_g)}f
                         </Text>
-                        <Text style={styles.voiceItemCalories}>{formatNumber(item.macros.calories)} cal</Text>
+                        {item.confidence !== 'high' && item.alternatives.length > 0 && (
+                          <Text style={styles.voiceAlternativesHint}>
+                            {item.alternatives.length} alternative{item.alternatives.length > 1 ? 's' : ''} available — retake to refine
+                          </Text>
+                        )}
                       </View>
-                      <Text style={styles.voiceItemMacros}>
-                        {formatNumber(item.macros.protein_g)}p · {formatNumber(item.macros.carbs_g)}c · {formatNumber(item.macros.fat_g)}f
-                      </Text>
-                    </View>
-                  ))}
+                    ))}
 
-                  {voiceMealDraft.unresolved.length > 0 && (
-                    <View style={styles.voiceUnresolvedCard}>
-                      <Text style={styles.voiceUnresolvedTitle}>Needs attention</Text>
-                      {voiceMealDraft.unresolved.map((item) => (
-                        <Text key={item.id} style={styles.voiceUnresolvedItem}>
-                          {item.label}: {item.reason}
-                        </Text>
-                      ))}
-                    </View>
-                  )}
-                </ScrollView>
-
-                <View style={styles.voiceTotalsCard}>
-                  <Text style={styles.voiceTotalsTitle}>Meal totals</Text>
-                  <Text style={styles.voiceTotalsValue}>
-                    {formatNumber(voiceMealDraft.totals.calories)} cal · {formatNumber(voiceMealDraft.totals.protein_g)}p · {formatNumber(voiceMealDraft.totals.carbs_g)}c · {formatNumber(voiceMealDraft.totals.fat_g)}f
-                  </Text>
-                </View>
-
-                <View style={styles.voiceModalActions}>
-                  <TouchableOpacity
-                    style={styles.voiceSecondaryButton}
-                    onPress={() => setVoiceModalVisible(false)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.voiceSecondaryButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.voicePrimaryButton,
-                      (voiceMealDraft.unresolved.length > 0 || isSaving) && styles.voicePrimaryButtonDisabled,
-                    ]}
-                    onPress={handleConfirmVoiceMeal}
-                    activeOpacity={0.8}
-                    disabled={voiceMealDraft.unresolved.length > 0 || isSaving}
-                  >
-                    {isSaving ? (
-                      <ActivityIndicator size="small" color={colors.onPrimary} />
-                    ) : (
-                      <Text style={styles.voicePrimaryButtonText}>Confirm and Add</Text>
+                    {activeUnresolved.length > 0 && (
+                      <View style={styles.voiceUnresolvedCard}>
+                        <Text style={styles.voiceUnresolvedTitle}>Could not resolve</Text>
+                        {activeUnresolved.map((item) => (
+                          <View key={item.id} style={styles.voiceUnresolvedRow}>
+                            <View style={styles.voiceUnresolvedInfo}>
+                              <Text style={styles.voiceUnresolvedLabel}>{item.label}</Text>
+                              <Text style={styles.voiceUnresolvedReason}>{item.reason}</Text>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() =>
+                                setDismissedUnresolvedIds((prev) => [...prev, item.id])
+                              }
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                              accessibilityLabel={`Dismiss ${item.label}`}
+                            >
+                              <X size={16} color={Colors.textTertiary} />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                        {hasResolved && (
+                          <Text style={styles.voiceUnresolvedDismissHint}>
+                            Tap × to dismiss and add the rest
+                          </Text>
+                        )}
+                      </View>
                     )}
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+                  </ScrollView>
+
+                  <View style={styles.voiceTotalsCard}>
+                    <Text style={styles.voiceTotalsTitle}>Meal totals</Text>
+                    <Text style={styles.voiceTotalsValue}>
+                      {formatNumber(voiceMealDraft.totals.calories)} cal · {formatNumber(voiceMealDraft.totals.protein_g)}p · {formatNumber(voiceMealDraft.totals.carbs_g)}c · {formatNumber(voiceMealDraft.totals.fat_g)}f
+                    </Text>
+                  </View>
+
+                  <View style={styles.voiceModalActions}>
+                    <TouchableOpacity
+                      style={styles.voiceSecondaryButton}
+                      onPress={() => setVoiceModalVisible(false)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.voiceSecondaryButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.voicePrimaryButton,
+                        (!hasResolved || isSaving) && styles.voicePrimaryButtonDisabled,
+                      ]}
+                      onPress={handleConfirmVoiceMeal}
+                      activeOpacity={0.8}
+                      disabled={!hasResolved || isSaving}
+                    >
+                      {isSaving ? (
+                        <ActivityIndicator size="small" color={colors.onPrimary} />
+                      ) : (
+                        <Text style={styles.voicePrimaryButtonText}>{confirmLabel}</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })()}
           </Pressable>
         </Pressable>
       </Modal>
@@ -2032,11 +1920,40 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 10,
     alignItems: 'flex-start',
   },
-  voiceItemName: {
+  voiceItemNameRow: {
     flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  voiceItemName: {
     color: Colors.text,
     fontSize: 15,
     fontWeight: '700' as const,
+    flexShrink: 1,
+  },
+  voiceConfidenceBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  voiceConfidenceMedium: {
+    backgroundColor: Colors.warningMuted,
+  },
+  voiceConfidenceLow: {
+    backgroundColor: Colors.dangerMuted,
+  },
+  voiceConfidenceText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+  },
+  voiceAlternativesHint: {
+    color: Colors.textTertiary,
+    fontSize: 11,
+    fontWeight: '500' as const,
+    marginTop: 6,
   },
   voiceItemCalories: {
     color: Colors.calories,
@@ -2058,13 +1975,32 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: Colors.danger,
     fontSize: 13,
     fontWeight: '700' as const,
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  voiceUnresolvedItem: {
+  voiceUnresolvedRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 6,
+  },
+  voiceUnresolvedInfo: {
+    flex: 1,
+  },
+  voiceUnresolvedLabel: {
     color: Colors.text,
     fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
+    fontWeight: '600' as const,
+  },
+  voiceUnresolvedReason: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  voiceUnresolvedDismissHint: {
+    color: Colors.textTertiary,
+    fontSize: 11,
+    fontWeight: '500' as const,
+    marginTop: 10,
   },
   voiceTotalsCard: {
     backgroundColor: Colors.caloriesMuted,
