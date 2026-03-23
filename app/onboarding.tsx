@@ -48,22 +48,31 @@ import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 const TOTAL_STEPS = 8;
 
 const PROTEIN_FOOD_IDS = [
-  'bacon', 'beef_jerky', 'beef_liver', 'chicken_breast', 'cod', 'cottage_cheese',
-  'eggs', 'ground_beef_80', 'ground_beef_90', 'greek_yogurt', 'hard_boiled_eggs',
-  'lamb_chop', 'lentils', 'pork_loin', 'pork_rinds', 'ribeye', 'salmon', 'sea_bass',
-  'shrimp', 'tempeh', 'tofu', 'tuna_canned', 'turkey_breast', 'whey_protein', 'plant_protein',
+  'bacon', 'beef_jerky', 'beef_liver', 'black_beans', 'bone_broth',
+  'chicken_breast', 'chickpeas', 'cod', 'cottage_cheese', 'edamame',
+  'eggs', 'greek_yogurt', 'ground_beef_80', 'ground_beef_90',
+  'hard_boiled_eggs', 'lamb_chop', 'lentils', 'plant_protein',
+  'pork_loin', 'pork_rinds', 'ribeye', 'salmon', 'sea_bass',
+  'shrimp', 'tempeh', 'tofu', 'tuna_canned', 'turkey_breast',
+  'whey_protein',
 ].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
 
 const CARB_FOOD_IDS = [
-  'apple', 'banana', 'berries', 'brown_rice', 'corn_tortilla', 'couscous',
-  'dates', 'oats_dry', 'pita', 'potato', 'quinoa', 'rice_cake',
-  'sweet_potato', 'tabbouleh', 'tortilla', 'white_rice', 'ww_bread', 'ww_pasta',
+  'apple', 'asparagus', 'banana', 'bell_pepper', 'berries',
+  'broccoli', 'brown_rice', 'cauliflower', 'corn_tortilla',
+  'couscous', 'cucumber', 'dates', 'green_beans', 'mixed_greens',
+  'oats_dry', 'pita', 'potato', 'quinoa', 'rice_cake',
+  'roasted_veggies', 'sauerkraut', 'spinach_cooked', 'sweet_potato',
+  'tabbouleh', 'tomato', 'tortilla', 'white_rice', 'ww_bread',
+  'ww_pasta', 'zucchini',
 ].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
 
-const VEGGIE_FOOD_IDS = [
-  'asparagus', 'bell_pepper', 'broccoli', 'cauliflower', 'cucumber',
-  'green_beans', 'mixed_greens', 'roasted_veggies', 'sauerkraut',
-  'spinach_cooked', 'tomato', 'zucchini',
+const FAT_FOOD_IDS = [
+  'almond_butter', 'almonds', 'avocado', 'butter', 'cheddar',
+  'coconut_oil', 'cream_cheese', 'dark_chocolate', 'feta',
+  'hummus', 'macadamia', 'mixed_nuts', 'mozzarella', 'olive_oil',
+  'olives', 'peanut_butter', 'string_cheese', 'tahini',
+  'trail_mix', 'walnuts',
 ].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
 
 export default function OnboardingScreen() {
@@ -502,22 +511,22 @@ export default function OnboardingScreen() {
   const renderProteinDislikesStep = () =>
     renderFoodDislikeGrid(
       'Proteins You Dislike',
-      "We'll swap these out of your meal plan automatically.",
+      "We'll avoid these when building your protein sources.",
       PROTEIN_FOOD_IDS
     );
 
   const renderCarbDislikesStep = () =>
     renderFoodDislikeGrid(
-      'Carbs & Fruits You Dislike',
+      'Carbs You Dislike',
       "We'll avoid these when building your carb sources.",
       CARB_FOOD_IDS
     );
 
-  const renderVeggieDislikesStep = () =>
+  const renderFatDislikesStep = () =>
     renderFoodDislikeGrid(
-      'Vegetables You Dislike',
-      "We'll leave these out of your meals.",
-      VEGGIE_FOOD_IDS
+      'Fats You Dislike',
+      "We'll avoid these when building your fat sources.",
+      FAT_FOOD_IDS
     );
 
   const renderRestrictionStep = () => (
@@ -576,7 +585,7 @@ export default function OnboardingScreen() {
     renderEatingStyleStep,
     renderProteinDislikesStep,
     renderCarbDislikesStep,
-    renderVeggieDislikesStep,
+    renderFatDislikesStep,
     renderRestrictionStep,
   ];
 
