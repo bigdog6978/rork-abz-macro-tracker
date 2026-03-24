@@ -4,12 +4,13 @@
  * Schema versions:
  *   0 – original: foods + food_stats tables
  *   1 – unified catalog: search_name column, catalog_meta table, composite index
+ *   2 – saved_at column: distinguishes explicitly user-saved foods from auto-cached entries
  */
 
 import * as SQLite from 'expo-sqlite';
 
 const DB_NAME = 'abz_foods.db';
-const CURRENT_SCHEMA = 1;
+const CURRENT_SCHEMA = 2;
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -107,6 +108,18 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     `);
 
     await setSchemaVersion(database, 1);
+  }
+
+  if (version < 2) {
+    try {
+      await database.execAsync(`ALTER TABLE foods ADD COLUMN saved_at INTEGER`);
+    } catch {
+      // Column may already exist
+    }
+    await database.execAsync(
+      `CREATE INDEX IF NOT EXISTS idx_foods_saved_at ON foods(saved_at)`
+    );
+    await setSchemaVersion(database, 2);
   }
 }
 

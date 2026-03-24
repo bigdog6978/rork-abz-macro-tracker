@@ -1085,7 +1085,7 @@ export default function AddFoodScreen() {
                       : 'Enter food name...'
                   }
                   placeholderTextColor={Colors.textTertiary}
-                  autoFocus={!scannerOpen}
+                  autoFocus={false}
                   editable={!scannerOpen}
                   testID="food-search-input"
                 />
@@ -1487,7 +1487,7 @@ export default function AddFoodScreen() {
                     if (Platform.OS !== 'web') {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     }
-                    const updated = await foodsRepo.getSavedFoods();
+                    const updated = await foodsRepo.getUserSavedFoods();
                     setSavedFoods(updated.map(foodsRepo.localFoodToNormalizedFood));
                   }}
                   activeOpacity={0.7}

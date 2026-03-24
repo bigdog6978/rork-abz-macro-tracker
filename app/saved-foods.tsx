@@ -30,7 +30,7 @@ export default function SavedFoodsScreen() {
   const loadFoods = useCallback(async () => {
     setLoading(true);
     try {
-      const all = await foodsRepo.getSavedFoods();
+      const all = await foodsRepo.getUserSavedFoods();
       setFoods(all);
     } catch (err) {
       console.log('[SavedFoods] Load error:', err);

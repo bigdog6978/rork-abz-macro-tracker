@@ -42,6 +42,7 @@ interface FoodRow {
   search_name: string | null;
   created_at: number;
   updated_at: number;
+  saved_at: number | null;
 }
 
 function parseUnitMeta(servingSize: string | null): {
@@ -233,10 +234,35 @@ export async function getSavedFoods(
   return rows.map(mapRow);
 }
 
+/**
+ * Returns only foods the user explicitly saved:
+ *   - source = 'manual'        (entered manually or via Save toggle)
+ *   - source = 'openfoodfacts' (scanned via barcode)
+ *   - source = 'usda' with saved_at set (explicitly bookmarked via "Save to Saved Foods")
+ * Excludes auto-cached USDA search results and CoFID bulk-import entries.
+ */
+export async function getUserSavedFoods(): Promise<LocalFood[]> {
+  const db = await openDb();
+  const rows = await db.getAllAsync<FoodRow>(
+    `SELECT * FROM foods
+     WHERE source IN ('manual', 'openfoodfacts')
+        OR saved_at IS NOT NULL
+     ORDER BY updated_at DESC`
+  );
+  return rows.map(mapRow);
+}
+
 export async function deleteSavedFood(id: string): Promise<void> {
   const db = await openDb();
-  await db.runAsync('DELETE FROM foods WHERE id = ?', [id]);
-  await db.runAsync('DELETE FROM food_stats WHERE food_id = ?', [id]);
+  const row = await db.getFirstAsync<{ source: string }>('SELECT source FROM foods WHERE id = ?', [id]);
+  if (row?.source === 'usda') {
+    // Soft-delete: clear saved_at so the row stays in the search cache but
+    // is no longer shown in Saved Foods.
+    await db.runAsync('UPDATE foods SET saved_at = NULL WHERE id = ?', [id]);
+  } else {
+    await db.runAsync('DELETE FROM foods WHERE id = ?', [id]);
+    await db.runAsync('DELETE FROM food_stats WHERE food_id = ?', [id]);
+  }
 }
 
 export async function addManualFood(data: {
@@ -352,7 +378,7 @@ export async function addUsdaFood(
     await db.runAsync(
       `UPDATE foods SET
         name = ?, brand = ?, calories = ?, protein = ?, carbs = ?, fat = ?,
-        serving_size = ?, search_name = ?, updated_at = ?
+        serving_size = ?, search_name = ?, updated_at = ?, saved_at = ?
       WHERE id = ?`,
       [
         data.name.trim(),
@@ -364,6 +390,7 @@ export async function addUsdaFood(
         servingSizeEnc,
         usdaSearchName,
         now,
+        now,
         id,
       ]
     );
@@ -373,8 +400,8 @@ export async function addUsdaFood(
   }
 
   await db.runAsync(
-    `INSERT INTO foods (id, name, brand, barcode, source, calories, protein, carbs, fat, serving_size, search_name, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'usda', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO foods (id, name, brand, barcode, source, calories, protein, carbs, fat, serving_size, search_name, created_at, updated_at, saved_at)
+     VALUES (?, ?, ?, ?, 'usda', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.name.trim(),
@@ -386,6 +413,7 @@ export async function addUsdaFood(
       data.fat,
       servingSizeEnc,
       usdaSearchName,
+      now,
       now,
       now,
     ]
