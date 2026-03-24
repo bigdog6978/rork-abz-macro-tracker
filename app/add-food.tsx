@@ -44,8 +44,10 @@ import {
   pluralizeUnit,
 } from '../features/food/servingDefaults';
 import { parseMealVoiceTranscript } from '../features/food/mealVoiceParser';
+import { parseTextInput } from '../features/food/inputParser';
 import {
   resolveVoiceItems,
+  scoreConfidence,
   type VoiceResolvedItem,
   type VoiceUnresolvedItem,
 } from '../features/food/voiceResolver';
@@ -161,6 +163,12 @@ export default function AddFoodScreen() {
   const [savedFoods, setSavedFoods] = useState<NormalizedFood[]>([]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const parsedInputRef = useRef<{
+    quantity: number;
+    unitId: UnitId;
+    unitKind: UnitKind;
+    foodQuery: string;
+  } | null>(null);
   const scannerAnim = useRef(new Animated.Value(0)).current;
   const voiceRequestIdRef = useRef(0);
   const computedMacrosRef = useRef<{
@@ -513,6 +521,7 @@ export default function AddFoodScreen() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
       if (!text.trim()) {
+        parsedInputRef.current = null;
         setSuggestions([]);
         setSearchStatus('idle');
         setIsSearching(false);
@@ -521,9 +530,15 @@ export default function AddFoodScreen() {
 
       setIsSearching(true);
       setSearchStatus('loading');
+      const parsed = parseTextInput(text);
+      parsedInputRef.current =
+        parsed.quantity != null && parsed.unitId != null && parsed.unitKind != null
+          ? { quantity: parsed.quantity, unitId: parsed.unitId, unitKind: parsed.unitKind, foodQuery: parsed.foodQuery }
+          : null;
+      const searchQuery = parsed.foodQuery || text.trim();
       debounceRef.current = setTimeout(async () => {
         try {
-          const result = await foodService.searchSuggestions(text);
+          const result = await foodService.searchSuggestions(searchQuery);
           if (result.status === 'ok') {
             setSuggestions(result.results);
             setSearchStatus('idle');
@@ -572,11 +587,56 @@ export default function AddFoodScreen() {
       setQuery(resolvedFood.name);
       setIsCustomized(false);
 
+      const parsed = parsedInputRef.current;
+      parsedInputRef.current = null;
+
       const detected = detectUnitFromName(resolvedFood.name);
       const foodWithServing = detected
-        ? { ...resolvedFood, servingWeightGrams: detected.servingWeightG }
+        ? { ...resolvedFood, servingWeightGrams: resolvedFood.servingWeightGrams ?? detected.servingWeightG }
         : resolvedFood;
-      if (detected) {
+
+      if (parsed) {
+        setUnitKind(parsed.unitKind);
+        setUnitId(parsed.unitId);
+        setQuantityInput(String(parsed.quantity));
+        if (parsed.unitKind === 'serving') {
+          const sw = detected?.servingWeightG ?? 100;
+          setUnitLabel(detected?.unitLabel ?? 'serving');
+          setServingWeightG(sw);
+          const foodForServing = { ...foodWithServing, servingWeightGrams: sw };
+          const result = foodService.scaleMacrosFromQuantity(
+            foodForServing,
+            parsed.quantity,
+            parsed.unitId,
+            parsed.unitKind
+          );
+          if (result.ok) {
+            computedMacrosRef.current = result.macros;
+            setProtein(String(result.macros.protein_g));
+            setCarbs(String(result.macros.carbs_g));
+            setFat(String(result.macros.fat_g));
+            setScalingReason(null);
+          } else {
+            setScalingReason(result.reason);
+          }
+        } else {
+          const result = foodService.scaleMacrosFromQuantity(
+            foodWithServing,
+            parsed.quantity,
+            parsed.unitId,
+            parsed.unitKind
+          );
+          if (result.ok) {
+            computedMacrosRef.current = result.macros;
+            setProtein(String(result.macros.protein_g));
+            setCarbs(String(result.macros.carbs_g));
+            setFat(String(result.macros.fat_g));
+            setScalingReason(null);
+          } else {
+            setScalingReason(result.reason);
+          }
+        }
+      } else if (detected) {
         setUnitKind('serving');
         setUnitId('piece');
         setUnitLabel(detected.unitLabel);
@@ -613,6 +673,73 @@ export default function AddFoodScreen() {
       }
     },
     []
+  );
+
+  const handleQuickAdd = useCallback(
+    async (food: NormalizedFood) => {
+      const parsed = parsedInputRef.current;
+      if (!parsed) return;
+
+      const resolvedFood =
+        food.providerId === 'usda' && food.externalId
+          ? (await foodService.getFood(food.externalId)) ?? food
+          : food;
+
+      const detected = detectUnitFromName(resolvedFood.name);
+      const foodWithServing = detected
+        ? { ...resolvedFood, servingWeightGrams: resolvedFood.servingWeightGrams ?? detected.servingWeightG }
+        : resolvedFood;
+
+      const scaling =
+        parsed.unitKind === 'serving'
+          ? foodService.scaleMacrosFromQuantity(
+              { ...foodWithServing, servingWeightGrams: detected?.servingWeightG ?? 100 },
+              parsed.quantity,
+              parsed.unitId,
+              parsed.unitKind
+            )
+          : foodService.scaleMacrosFromQuantity(
+              foodWithServing,
+              parsed.quantity,
+              parsed.unitId,
+              parsed.unitKind
+            );
+
+      if (!scaling.ok) return;
+
+      const entryOpts =
+        parsed.unitKind === 'serving' && detected
+          ? { measureMode: 'qty' as const, quantity: parsed.quantity, servingWeightG: detected.servingWeightG }
+          : parsed.unitId === 'oz'
+            ? { measureMode: 'ounces' as const, quantity: parsed.quantity }
+            : { measureMode: 'grams' as const, quantity: scaling.gramsUsedForScaling };
+
+      const entry = foodService.createFoodEntry(
+        resolvedFood,
+        resolvedFood.name,
+        scaling.gramsUsedForScaling,
+        scaling.macros,
+        false,
+        entryOpts
+      );
+
+      setIsSaving(true);
+      try {
+        addEntry(entry, dateKeyParam);
+        await foodService.addToRecent(resolvedFood, scaling.gramsUsedForScaling);
+        parsedInputRef.current = null;
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        router.back();
+      } catch (err) {
+        console.log('[AddFood] Quick add error:', err);
+        Alert.alert('Error', 'Failed to add food. Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [addEntry, dateKeyParam]
   );
 
   const handleQuantityChange = useCallback(
@@ -1183,8 +1310,62 @@ export default function AddFoodScreen() {
             </View>
           </View>
 
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && suggestions.length > 0 && (() => {
+            const parsed = parsedInputRef.current;
+            const topFood = suggestions[0];
+            const isHighConfidence = parsed && scoreConfidence(topFood, parsed.foodQuery) === 'high';
+            const detected = parsed?.unitKind === 'serving' ? detectUnitFromName(topFood.name) : null;
+            const foodForScaling =
+              detected && parsed?.unitKind === 'serving'
+                ? { ...topFood, servingWeightGrams: topFood.servingWeightGrams ?? detected.servingWeightG }
+                : topFood;
+            const quickScaling =
+              parsed && isHighConfidence
+                ? foodService.scaleMacrosFromQuantity(
+                    foodForScaling,
+                    parsed.quantity,
+                    parsed.unitId,
+                    parsed.unitKind
+                  )
+                : null;
+            const showQuickAdd =
+              parsed &&
+              isHighConfidence &&
+              quickScaling?.ok &&
+              !isSaving;
+            const quickUnitLabel =
+              parsed?.unitId === 'fl_oz'
+                ? 'fl oz'
+                : parsed?.unitKind === 'serving' && detected
+                  ? detected.unitLabel
+                  : parsed?.unitId ?? '';
+
+            return (
             <View style={styles.suggestionsSection}>
+              {showQuickAdd && parsed && (
+                <TouchableOpacity
+                  style={[styles.suggestionCard, styles.quickAddCard]}
+                  onPress={() => handleQuickAdd(topFood)}
+                  activeOpacity={0.7}
+                  disabled={isSaving}
+                  testID="quick-add-card"
+                >
+                  <View style={styles.quickAddContent}>
+                    <Text style={styles.quickAddTitle} numberOfLines={1}>
+                      {parsed.quantity} {quickUnitLabel} {topFood.name}
+                    </Text>
+                    <Text style={styles.quickAddMacros}>
+                      {quickScaling && formatNumber(quickScaling.macros.calories)} cal ·{' '}
+                      {quickScaling && formatNumber(quickScaling.macros.protein_g)}p ·{' '}
+                      {quickScaling && formatNumber(quickScaling.macros.carbs_g)}c ·{' '}
+                      {quickScaling && formatNumber(quickScaling.macros.fat_g)}f
+                    </Text>
+                  </View>
+                  <View style={[styles.quickAddButton, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.quickAddButtonText}>+ Add</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
               {suggestions.map((food) => (
                 <TouchableOpacity
                   key={food.id}
@@ -1222,7 +1403,8 @@ export default function AddFoodScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          )}
+            );
+          })()}
 
           {showSuggestions &&
             !isSearching &&
@@ -2081,6 +2263,36 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 11,
     fontWeight: '500' as const,
     marginTop: 3,
+  },
+  quickAddCard: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    marginBottom: 10,
+  },
+  quickAddContent: {
+    flex: 1,
+  },
+  quickAddTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  quickAddMacros: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    marginTop: 4,
+  },
+  quickAddButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginLeft: 10,
+  },
+  quickAddButtonText: {
+    color: colors.onPrimary,
+    fontSize: 14,
+    fontWeight: '700' as const,
   },
   manualFallback: {
     flexDirection: 'row',

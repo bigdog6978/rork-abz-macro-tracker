@@ -148,6 +148,10 @@ export interface FoodEntry {
   nutrientsPer100g?: NutrientsPer100g;
   /** True if user manually overrode macros; use stored values directly */
   isCustomMacros?: boolean;
+  /** Extended unit kind ('mass' | 'volume' | 'serving') — set on entries edited after v1.3 */
+  unitKind?: string;
+  /** Extended unit id ('g' | 'oz' | 'lb' | 'ml' | 'fl_oz' | 'cup' | 'tbsp' | 'tsp' | 'piece' | 'serving') */
+  unitId?: string;
   customization?: {
     isCustomized: boolean;
     reason?: 'user_edit';

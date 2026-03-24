@@ -72,8 +72,8 @@ export const VOLUME_WEIGHT_DEFAULTS: Array<{
   { keywords: ['honey'], gramsPerCup: 340, gramsPerTbsp: 21 },
   { keywords: ['peanut butter'], gramsPerCup: 258, gramsPerTbsp: 16 },
   { keywords: ['almond butter'], gramsPerCup: 258, gramsPerTbsp: 16 },
-  { keywords: ['yogurt', 'greek yogurt'], gramsPerCup: 245 },
-  { keywords: ['cottage cheese'], gramsPerCup: 226 },
+  { keywords: ['greek yogurt', 'yogurt'], gramsPerCup: 245, gramsPerTbsp: 15 },
+  { keywords: ['cottage cheese'], gramsPerCup: 226, gramsPerTbsp: 14 },
   { keywords: ['lentil', 'lentils'], gramsPerCup: 198 },
   { keywords: ['chickpea', 'chickpeas', 'garbanzo'], gramsPerCup: 164 },
   { keywords: ['black bean', 'black beans'], gramsPerCup: 172 },
@@ -94,6 +94,36 @@ export const VOLUME_WEIGHT_DEFAULTS: Array<{
   { keywords: ['avocado'], gramsPerCup: 150 },
   { keywords: ['hummus'], gramsPerCup: 246, gramsPerTbsp: 15 },
   { keywords: ['cream cheese'], gramsPerCup: 232, gramsPerTbsp: 14.5 },
+  // Fats & condiments
+  { keywords: ['butter'], gramsPerCup: 227, gramsPerTbsp: 14.2 },
+  { keywords: ['ghee'], gramsPerCup: 205, gramsPerTbsp: 12.8 },
+  { keywords: ['mayonnaise', 'mayo'], gramsPerCup: 220, gramsPerTbsp: 13.8 },
+  { keywords: ['sour cream'], gramsPerCup: 230, gramsPerTbsp: 14.4 },
+  { keywords: ['salsa'], gramsPerCup: 240, gramsPerTbsp: 15 },
+  { keywords: ['ketchup'], gramsPerCup: 240, gramsPerTbsp: 15 },
+  { keywords: ['mustard'], gramsPerCup: 250, gramsPerTbsp: 15.6 },
+  { keywords: ['hot sauce', 'sriracha', 'tabasco'], gramsPerCup: 240, gramsPerTbsp: 15 },
+  { keywords: ['soy sauce', 'tamari'], gramsPerCup: 256, gramsPerTbsp: 16 },
+  { keywords: ['worcestershire'], gramsPerCup: 260, gramsPerTbsp: 16 },
+  { keywords: ['maple syrup', 'syrup'], gramsPerCup: 322, gramsPerTbsp: 20 },
+  { keywords: ['tahini'], gramsPerCup: 240, gramsPerTbsp: 15 },
+  { keywords: ['nutella', 'hazelnut spread'], gramsPerCup: 275, gramsPerTbsp: 17 },
+  // Dairy
+  { keywords: ['ricotta'], gramsPerCup: 246, gramsPerTbsp: 15 },
+  // Powders & dry goods
+  { keywords: ['protein powder', 'whey protein', 'casein'], gramsPerCup: 120, gramsPerTbsp: 7.5 },
+  { keywords: ['cocoa powder', 'cacao powder'], gramsPerCup: 86, gramsPerTbsp: 5.4 },
+  { keywords: ['nutritional yeast'], gramsPerCup: 60, gramsPerTbsp: 3.8 },
+  { keywords: ['baking soda'], gramsPerCup: 230, gramsPerTbsp: 14 },
+  { keywords: ['baking powder'], gramsPerCup: 220, gramsPerTbsp: 13.8 },
+  { keywords: ['cornstarch', 'corn starch'], gramsPerCup: 128, gramsPerTbsp: 8 },
+  // Seeds
+  { keywords: ['chia seed', 'chia seeds'], gramsPerCup: 160, gramsPerTbsp: 10 },
+  { keywords: ['flax seed', 'flaxseed', 'flax'], gramsPerCup: 149, gramsPerTbsp: 9.3 },
+  { keywords: ['hemp seed', 'hemp hearts'], gramsPerCup: 160, gramsPerTbsp: 10 },
+  { keywords: ['sesame seed', 'sesame seeds'], gramsPerCup: 144, gramsPerTbsp: 9 },
+  { keywords: ['sunflower seed', 'sunflower seeds'], gramsPerCup: 140, gramsPerTbsp: 8.8 },
+  { keywords: ['pumpkin seed', 'pumpkin seeds', 'pepitas'], gramsPerCup: 130, gramsPerTbsp: 8 },
 ];
 
 /**

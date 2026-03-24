@@ -18,47 +18,83 @@ import { Check, X, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native
 import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
-import SegmentedToggle from '../components/SegmentedToggle';
-import {
-  MeasureMode,
-  getPreferredServingUnit,
-  setPreferredServingUnit,
-} from '../storage/userSettingsRepo';
-import { pluralizeUnit, detectUnitFromName } from '../features/food/servingDefaults';
+import QuantityPillsCompact from '../components/ui/QuantityPillsCompact';
+import type { UnitId, UnitKind } from '../src/lib/units';
+import { toGrams, toMilliliters, mlToGrams } from '../src/lib/units';
+import { getVolumeWeightGrams, detectUnitFromName } from '../features/food/servingDefaults';
+import { inferDensityFromName } from '../features/food/liquidDensity';
 import * as foodService from '../features/food/foodService';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
-const OZ_TO_GRAMS = 28.349523125;
+// ─── Unit conversion helpers ──────────────────────────────────────────────────
 
-const MEASURE_OPTIONS: { label: string; value: MeasureMode }[] = [
-  { label: 'Qty', value: 'qty' },
-  { label: 'gm', value: 'grams' },
-  { label: 'oz', value: 'ounces' },
-];
+/**
+ * Convert a display quantity to total grams, using density (for liquids) or
+ * volume-weight lookup (for semi-solids like butter, peanut butter) as needed.
+ */
+function getTotalGrams(
+  qty: number,
+  kind: UnitKind,
+  unit: UnitId,
+  foodName: string,
+  density?: number | null,
+  swg?: number
+): number {
+  if (qty <= 0) return 0;
+  if (kind === 'serving') return qty * (swg ?? 100);
+  if (kind === 'mass') return toGrams(qty, unit);
+  // volume
+  if (typeof density === 'number' && density > 0) {
+    return mlToGrams(toMilliliters(qty, unit), density);
+  }
+  const vg = getVolumeWeightGrams(foodName, '', unit);
+  if (typeof vg === 'number' && vg > 0) return qty * vg;
+  // last resort: treat quantity as grams
+  return qty;
+}
 
-function gramsToDisplay(grams: number, measureMode: MeasureMode, servingWeightG?: number): string {
-  if (measureMode === 'ounces') {
-    return String(Math.round((grams / OZ_TO_GRAMS) * 10) / 10);
+/**
+ * Back-convert stored grams to a display quantity string for the given unit.
+ * Used when loading an entry or switching units.
+ */
+function gramsToDisplayQty(
+  grams: number,
+  kind: UnitKind,
+  unit: UnitId,
+  foodName: string,
+  density?: number | null,
+  swg?: number
+): string {
+  if (grams <= 0) return '0';
+  if (kind === 'serving' && swg && swg > 0) {
+    const qty = grams / swg;
+    return String(Math.round(qty * 10) / 10);
   }
-  if (measureMode === 'qty' && servingWeightG && servingWeightG > 0) {
-    const qty = grams / servingWeightG;
-    return qty % 1 === 0 ? String(Math.round(qty)) : String(Math.round(qty * 10) / 10);
+  if (kind === 'mass') {
+    if (unit === 'oz') return String(Math.round((grams / 28.349523125) * 10) / 10);
+    if (unit === 'lb') return String(Math.round((grams / 453.59237) * 100) / 100);
+    return String(Math.round(grams));
   }
+  if (kind === 'volume') {
+    if (typeof density === 'number' && density > 0) {
+      const ml = grams / density;
+      if (unit === 'ml') return String(Math.round(ml));
+      if (unit === 'l') return String(Math.round((ml / 1000) * 100) / 100);
+      if (unit === 'fl_oz') return String(Math.round((ml / 29.5735295625) * 10) / 10);
+      if (unit === 'cup') return String(Math.round((ml / 236.5882365) * 10) / 10);
+      if (unit === 'tbsp') return String(Math.round((ml / 14.78676478125) * 10) / 10);
+      if (unit === 'tsp') return String(Math.round((ml / 4.92892159375) * 10) / 10);
+    }
+    const vg = getVolumeWeightGrams(foodName, '', unit);
+    if (typeof vg === 'number' && vg > 0) {
+      return String(Math.round((grams / vg) * 10) / 10);
+    }
+  }
+  // Fallback: show in grams (user can adjust)
   return String(Math.round(grams));
 }
 
-function displayToTotalGrams(
-  input: string,
-  measureMode: MeasureMode,
-  servingWeightG?: number
-): number {
-  const value = parseFloat(input) || 0;
-  if (measureMode === 'ounces') return value * OZ_TO_GRAMS;
-  if (measureMode === 'qty' && servingWeightG && servingWeightG > 0) {
-    return value * servingWeightG;
-  }
-  return value;
-}
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function EditLogEntryScreen() {
   const colors = useThemeColors();
@@ -72,7 +108,8 @@ export default function EditLogEntryScreen() {
   const entry = entries.find((e) => e.id === entryId);
 
   const [name, setName] = useState('');
-  const [measureMode, setMeasureMode] = useState<MeasureMode>('grams');
+  const [unitKind, setUnitKind] = useState<UnitKind>('mass');
+  const [unitId, setUnitId] = useState<UnitId>('g');
   const [quantityInput, setQuantityInput] = useState('100');
   const [unitLabel, setUnitLabel] = useState('serving');
   const [servingWeightG, setServingWeightG] = useState(100);
@@ -84,11 +121,18 @@ export default function EditLogEntryScreen() {
   const [isCustomMacros, setIsCustomMacros] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const totalGramsForRecalc = displayToTotalGrams(quantityInput, measureMode, servingWeightG) || 100;
+  // Density inferred from food name — used for volume ↔ gram conversions
+  const foodDensity = useMemo(() => inferDensityFromName(entry?.name), [entry?.name]);
+
+  const qtyVal = parseFloat(quantityInput) || 0;
+  const totalGramsForRecalc =
+    getTotalGrams(qtyVal, unitKind, unitId, entry?.name ?? '', foodDensity, servingWeightG) || 100;
+
   const computedMacrosFromQty = entry?.nutrientsPer100g
     ? foodService.computeMacrosFromNutrients(entry.nutrientsPer100g, totalGramsForRecalc)
     : null;
 
+  // Load entry state on mount
   useEffect(() => {
     if (!entry) return;
     setName(entry.name);
@@ -99,32 +143,43 @@ export default function EditLogEntryScreen() {
     setIsCustomMacros(!!entry.isCustomMacros);
 
     const grams = entry.servingGrams ?? 100;
+    const density = inferDensityFromName(entry.name);
+
+    // New format: entry already has unitKind/unitId stored
+    if (entry.unitKind && entry.unitId) {
+      const kind = entry.unitKind as UnitKind;
+      const unit = entry.unitId as UnitId;
+      setUnitKind(kind);
+      setUnitId(unit);
+      const sw = entry.servingWeightG ?? 100;
+      setServingWeightG(sw);
+      setQuantityInput(gramsToDisplayQty(grams, kind, unit, entry.name, density, sw));
+      return;
+    }
+
+    // Legacy: map measureMode → unitKind/unitId
     const mode = (entry.measureMode === 'units' ? 'qty' : entry.measureMode) ?? 'grams';
     const detected = detectUnitFromName(entry.name);
 
     if (mode === 'qty' || detected) {
-      setMeasureMode('qty');
+      setUnitKind('serving');
+      setUnitId('piece');
       setUnitLabel(detected?.unitLabel ?? 'serving');
-      setServingWeightG(entry.servingWeightG ?? detected?.servingWeightG ?? 100);
-      setQuantityInput(gramsToDisplay(grams, 'qty', entry.servingWeightG ?? detected?.servingWeightG ?? 100));
+      const sw = entry.servingWeightG ?? detected?.servingWeightG ?? 100;
+      setServingWeightG(sw);
+      setQuantityInput(gramsToDisplayQty(grams, 'serving', 'piece', entry.name, density, sw));
     } else if (mode === 'ounces') {
-      setMeasureMode('ounces');
-      setQuantityInput(gramsToDisplay(grams, 'ounces'));
+      setUnitKind('mass');
+      setUnitId('oz');
+      setQuantityInput(gramsToDisplayQty(grams, 'mass', 'oz', entry.name, density));
     } else {
-      setMeasureMode('grams');
+      setUnitKind('mass');
+      setUnitId('g');
       setQuantityInput(String(Math.round(grams)));
     }
-
-    getPreferredServingUnit()
-      .then((unit) => {
-        if (unit === 'oz' && !detected && mode !== 'qty') {
-          setMeasureMode('ounces');
-          setQuantityInput(gramsToDisplay(grams, 'ounces'));
-        }
-      })
-      .catch(() => {});
   }, [entry]);
 
+  // Auto-recalc macros when quantity/unit changes (unless user has overridden)
   useEffect(() => {
     if (!isCustomMacros && computedMacrosFromQty) {
       setProtein(String(computedMacrosFromQty.protein_g));
@@ -132,16 +187,24 @@ export default function EditLogEntryScreen() {
       setFat(String(computedMacrosFromQty.fat_g));
       setCalories(String(computedMacrosFromQty.calories));
     }
-  }, [isCustomMacros, computedMacrosFromQty?.calories, computedMacrosFromQty?.protein_g, computedMacrosFromQty?.carbs_g, computedMacrosFromQty?.fat_g]);
+  }, [
+    isCustomMacros,
+    computedMacrosFromQty?.calories,
+    computedMacrosFromQty?.protein_g,
+    computedMacrosFromQty?.carbs_g,
+    computedMacrosFromQty?.fat_g,
+  ]);
 
   const totalGrams = totalGramsForRecalc;
   const canRecalc = entry?.nutrientsPer100g && !isCustomMacros;
   const computedMacros = canRecalc
     ? foodService.computeMacrosFromNutrients(entry!.nutrientsPer100g!, totalGrams)
     : null;
+
   const displayCalories = isCustomMacros
     ? parseFloat(calories) || 0
     : (parseFloat(protein) || 0) * 4 + (parseFloat(carbs) || 0) * 4 + (parseFloat(fat) || 0) * 9;
+
   const effectiveMacros = isCustomMacros
     ? {
         calories: Math.round(parseFloat(calories) || 0),
@@ -160,35 +223,60 @@ export default function EditLogEntryScreen() {
     setQuantityInput(text);
   }, []);
 
-  const handleServingWeightChange = useCallback((text: string) => {
-    const val = parseFloat(text) || 0;
-    setServingWeightG(val > 0 ? val : 100);
-  }, []);
+  // When unit changes, convert the displayed quantity to preserve the same gram amount
+  const handleUnitChange = useCallback(
+    (newUnit: UnitId) => {
+      const currentQty = parseFloat(quantityInput) || 0;
+      const currentGrams = getTotalGrams(
+        currentQty, unitKind, unitId, entry?.name ?? '', foodDensity, servingWeightG
+      );
+      setUnitId(newUnit);
+      setQuantityInput(
+        gramsToDisplayQty(currentGrams, unitKind, newUnit, entry?.name ?? '', foodDensity, servingWeightG)
+      );
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [quantityInput, unitKind, unitId, entry?.name, foodDensity, servingWeightG]
+  );
 
-  const handleMeasureModeChange = useCallback(
-    (newMode: MeasureMode) => {
-      const currentGrams = displayToTotalGrams(quantityInput, measureMode, servingWeightG);
-      let newServingWeightG = servingWeightG;
-      if (newMode === 'qty') {
-        const detected = detectUnitFromName(name);
+  // When kind changes, switch to the default unit for that kind and convert
+  const handleKindChange = useCallback(
+    (newKind: UnitKind) => {
+      const currentQty = parseFloat(quantityInput) || 0;
+      const currentGrams = getTotalGrams(
+        currentQty, unitKind, unitId, entry?.name ?? '', foodDensity, servingWeightG
+      );
+
+      let newUnit: UnitId;
+      let newSwg = servingWeightG;
+
+      if (newKind === 'mass') {
+        newUnit = 'g';
+      } else if (newKind === 'volume') {
+        newUnit = 'ml';
+      } else {
+        newUnit = 'piece';
+        const detected = detectUnitFromName(entry?.name ?? '');
         if (detected) {
           setUnitLabel(detected.unitLabel);
           setServingWeightG(detected.servingWeightG);
-          newServingWeightG = detected.servingWeightG;
-        } else {
-          setUnitLabel('serving');
-          setServingWeightG(100);
-          newServingWeightG = 100;
+          newSwg = detected.servingWeightG;
         }
       }
-      setMeasureMode(newMode);
-      setQuantityInput(gramsToDisplay(currentGrams, newMode, newServingWeightG));
-      if (newMode === 'grams') setPreferredServingUnit('g').catch(() => {});
-      else if (newMode === 'ounces') setPreferredServingUnit('oz').catch(() => {});
+
+      setUnitKind(newKind);
+      setUnitId(newUnit);
+      setQuantityInput(
+        gramsToDisplayQty(currentGrams, newKind, newUnit, entry?.name ?? '', foodDensity, newSwg)
+      );
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [quantityInput, measureMode, servingWeightG, name]
+    [quantityInput, unitKind, unitId, entry?.name, foodDensity, servingWeightG]
   );
+
+  const handleServingWeightChange = useCallback((val: number) => {
+    setServingWeightG(val > 0 ? val : 100);
+  }, []);
 
   const handleResetToCalculated = useCallback(() => {
     if (!computedMacros) return;
@@ -229,16 +317,30 @@ export default function EditLogEntryScreen() {
 
     setIsSaving(true);
     try {
-      const qtyVal = parseFloat(quantityInput) || 0;
+      const qty = parseFloat(quantityInput) || 0;
+
+      // Map unitKind/unitId to legacy measureMode for backwards compat with ensureEntryMacros
+      const legacyMeasureMode: 'qty' | 'grams' | 'ounces' =
+        unitKind === 'serving' ? 'qty' :
+        (unitKind === 'mass' && unitId === 'oz') ? 'ounces' : 'grams';
+
+      // For non-serving/non-oz, store totalGrams as quantity so ensureEntryMacros computes correctly
+      const storedQuantity =
+        unitKind === 'serving' ? qty :
+        (unitKind === 'mass' && unitId === 'oz') ? qty :
+        totalGrams;
+
       updateEntry(
         entryId,
         {
           name: foodName,
           ...macros,
           servingGrams: totalGrams,
-          measureMode,
-          quantity: measureMode === 'qty' ? qtyVal : measureMode === 'ounces' ? qtyVal : totalGrams,
-          servingWeightG: measureMode === 'qty' ? servingWeightG : undefined,
+          measureMode: legacyMeasureMode,
+          unitKind,
+          unitId,
+          quantity: storedQuantity,
+          servingWeightG: unitKind === 'serving' ? servingWeightG : undefined,
           isCustomMacros: isCustomMacros || undefined,
         },
         dateKey ?? undefined
@@ -261,7 +363,8 @@ export default function EditLogEntryScreen() {
     fat,
     calories,
     quantityInput,
-    measureMode,
+    unitKind,
+    unitId,
     servingWeightG,
     totalGrams,
     entryId,
@@ -341,49 +444,19 @@ export default function EditLogEntryScreen() {
             </View>
 
             <View style={styles.servingSection}>
-              <Text style={styles.inputLabel}>
-                {measureMode === 'qty'
-                  ? `Qty (${pluralizeUnit(parseFloat(quantityInput) || 1, unitLabel)})`
-                  : measureMode === 'grams'
-                    ? 'Amount (gm)'
-                    : 'Amount (oz)'}
-              </Text>
-              <View style={styles.servingControlRow}>
-                <TextInput
-                  style={styles.servingTextInput}
-                  value={quantityInput}
-                  onChangeText={handleQuantityChange}
-                  keyboardType="decimal-pad"
-                  placeholder={
-                    measureMode === 'qty' ? '1' : measureMode === 'ounces' ? '3.5' : '100'
-                  }
-                  placeholderTextColor={Colors.textTertiary}
-                />
-                <SegmentedToggle
-                  options={MEASURE_OPTIONS}
-                  value={measureMode}
-                  onChange={handleMeasureModeChange}
-                  accessibilityLabel={`Measure mode: ${measureMode}`}
-                  style={styles.servingToggle}
-                />
-              </View>
-              {measureMode === 'qty' && (
-                <View style={styles.perItemRow}>
-                  <Text style={styles.perItemLabel}>1 {unitLabel} =</Text>
-                  <TextInput
-                    style={styles.perItemInput}
-                    value={String(servingWeightG)}
-                    onChangeText={handleServingWeightChange}
-                    keyboardType="decimal-pad"
-                    placeholder="50"
-                    placeholderTextColor={Colors.textTertiary}
-                  />
-                  <Text style={styles.perItemUnit}>gm</Text>
-                </View>
-              )}
-              {measureMode === 'qty' && (
-                <Text style={styles.servingHelper}>Used to calculate macros.</Text>
-              )}
+              <Text style={styles.inputLabel}>Amount</Text>
+              <QuantityPillsCompact
+                value={quantityInput}
+                unit={unitId}
+                kind={unitKind}
+                onValueChange={handleQuantityChange}
+                onUnitChange={handleUnitChange}
+                onKindChange={handleKindChange}
+                servingWeightG={servingWeightG}
+                onServingWeightChange={handleServingWeightChange}
+                showPerItemRow={unitKind === 'serving'}
+                unitLabel={unitLabel}
+              />
             </View>
 
             <View style={styles.macroPreview}>
@@ -538,63 +611,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   servingSection: {
     marginBottom: 16,
-  },
-  servingControlRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  servingToggle: {
-    flex: 3,
-  },
-  servingTextInput: {
-    flex: 2,
-    minWidth: 80,
-    backgroundColor: Colors.inputBg,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '600' as const,
-    textAlign: 'center' as const,
-  },
-  perItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-  },
-  perItemLabel: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  perItemInput: {
-    width: 70,
-    backgroundColor: Colors.inputBg,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '600' as const,
-    textAlign: 'center' as const,
-  },
-  perItemUnit: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  servingHelper: {
-    color: Colors.textTertiary,
-    fontSize: 12,
-    fontWeight: '500' as const,
-    marginTop: 6,
   },
   macroPreview: {
     flexDirection: 'row',
