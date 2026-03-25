@@ -12,6 +12,13 @@ const PREFIX_MANUAL = 'manual:';
 const PREFIX_USDA = 'usda:';
 
 /**
+ * Restaurant chain names that should never appear in search results.
+ * These are branded chain foods that pollute local SQLite cache.
+ */
+const RESTAURANT_CHAIN_PATTERN =
+  /\b(denny'?s|dennys|cracker barrel|mcdonald'?s|mcdonalds|burger king|wendy'?s|wendys|subway|chipotle|applebee'?s|applebees|olive garden|chili'?s|chilis|ihop|taco bell|kfc|domino'?s|dominos|pizza hut|panera|sonic|dairy queen|jack in the box|five guys|shake shack|in-n-out)\b/i;
+
+/**
  * Normalize a food name for search indexing.
  * Strips punctuation, collapses whitespace, lowercases.
  */
@@ -443,7 +450,7 @@ export async function searchLocalFoods(query: string): Promise<LocalFood[]> {
      LIMIT 80`,
     [normalizedTerm, rawTerm, rawTerm]
   );
-  return rows.map(mapRow);
+  return rows.map(mapRow).filter((f) => !RESTAURANT_CHAIN_PATTERN.test(f.name));
 }
 
 export function localFoodToNormalizedFood(f: LocalFood): NormalizedFood {
@@ -609,6 +616,7 @@ export async function hydrateUsdaResults(
   await db.execAsync('BEGIN TRANSACTION');
   try {
     for (const f of foods) {
+      if (RESTAURANT_CHAIN_PATTERN.test(f.name)) continue;
       const id = f.id;
       const searchName = generateSearchName(f.name);
       await db.runAsync(

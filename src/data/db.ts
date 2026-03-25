@@ -5,12 +5,13 @@
  *   0 – original: foods + food_stats tables
  *   1 – unified catalog: search_name column, catalog_meta table, composite index
  *   2 – saved_at column: distinguishes explicitly user-saved foods from auto-cached entries
+ *   3 – purge cached restaurant chain foods from the local USDA cache
  */
 
 import * as SQLite from 'expo-sqlite';
 
 const DB_NAME = 'abz_foods.db';
-const CURRENT_SCHEMA = 2;
+const CURRENT_SCHEMA = 3;
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -120,6 +121,33 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
       `CREATE INDEX IF NOT EXISTS idx_foods_saved_at ON foods(saved_at)`
     );
     await setSchemaVersion(database, 2);
+  }
+
+  if (version < 3) {
+    // One-time purge of restaurant chain foods that were incorrectly cached
+    // Only removes auto-cached USDA entries; never touches user-saved foods
+    await database.execAsync(`
+      DELETE FROM foods
+      WHERE source = 'usda'
+        AND (saved_at IS NULL)
+        AND (
+          LOWER(name) LIKE '%denny%'
+          OR LOWER(name) LIKE '%cracker barrel%'
+          OR LOWER(name) LIKE '%mcdonald%'
+          OR LOWER(name) LIKE '%burger king%'
+          OR LOWER(name) LIKE '%wendy%'
+          OR LOWER(name) LIKE '%chipotle%'
+          OR LOWER(name) LIKE '%applebee%'
+          OR LOWER(name) LIKE '%olive garden%'
+          OR LOWER(name) LIKE '%taco bell%'
+          OR LOWER(name) LIKE '%pizza hut%'
+          OR LOWER(name) LIKE '%panera%'
+          OR LOWER(name) LIKE '%sonic%'
+          OR LOWER(name) LIKE '%domino%'
+          OR LOWER(name) LIKE '%ihop%'
+        )
+    `);
+    await setSchemaVersion(database, 3);
   }
 }
 

@@ -46,6 +46,7 @@ import {
 import { parseMealVoiceTranscript } from '../features/food/mealVoiceParser';
 import { parseTextInput } from '../features/food/inputParser';
 import {
+  resolveVoiceItem,
   resolveVoiceItems,
   scoreConfidence,
   type VoiceResolvedItem,
@@ -162,13 +163,15 @@ export default function AddFoodScreen() {
   >([]);
   const [savedFoods, setSavedFoods] = useState<NormalizedFood[]>([]);
 
+  type ParsedInput = { quantity: number; unitId: UnitId; unitKind: UnitKind; foodQuery: string };
+  const [parsedInput, setParsedInput] = useState<ParsedInput | null>(null);
+  const [textResolvedItem, setTextResolvedItem] = useState<VoiceResolvedItem | null>(null);
+  const [isResolvingText, setIsResolvingText] = useState(false);
+  const [showOtherResults, setShowOtherResults] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const parsedInputRef = useRef<{
-    quantity: number;
-    unitId: UnitId;
-    unitKind: UnitKind;
-    foodQuery: string;
-  } | null>(null);
+  const resolveRequestIdRef = useRef(0);
+  // Ref mirrors parsedInput state for synchronous reads inside callbacks
+  const parsedInputRef = useRef<ParsedInput | null>(null);
   const scannerAnim = useRef(new Animated.Value(0)).current;
   const voiceRequestIdRef = useRef(0);
   const computedMacrosRef = useRef<{
@@ -522,6 +525,10 @@ export default function AddFoodScreen() {
 
       if (!text.trim()) {
         parsedInputRef.current = null;
+        setParsedInput(null);
+        setTextResolvedItem(null);
+        setIsResolvingText(false);
+        setShowOtherResults(false);
         setSuggestions([]);
         setSearchStatus('idle');
         setIsSearching(false);
@@ -531,10 +538,45 @@ export default function AddFoodScreen() {
       setIsSearching(true);
       setSearchStatus('loading');
       const parsed = parseTextInput(text);
-      parsedInputRef.current =
+      const nextParsed =
         parsed.quantity != null && parsed.unitId != null && parsed.unitKind != null
           ? { quantity: parsed.quantity, unitId: parsed.unitId, unitKind: parsed.unitKind, foodQuery: parsed.foodQuery }
           : null;
+      parsedInputRef.current = nextParsed;
+      setParsedInput(nextParsed);
+
+      // When a quantity+unit is parsed, run the voice resolver in parallel for a clean top pick
+      if (nextParsed) {
+        const requestId = ++resolveRequestIdRef.current;
+        setTextResolvedItem(null);
+        setIsResolvingText(true);
+        setShowOtherResults(false);
+        resolveVoiceItem({
+          label: text.trim(),
+          query: nextParsed.foodQuery,
+          quantity: nextParsed.quantity,
+          unitId: nextParsed.unitId,
+          unitKind: nextParsed.unitKind,
+          ambiguousOunces: false,
+        }).then((result) => {
+          if (resolveRequestIdRef.current !== requestId) return;
+          setIsResolvingText(false);
+          if (result.status === 'resolved') {
+            setTextResolvedItem(result.item);
+          } else {
+            setTextResolvedItem(null);
+          }
+        }).catch(() => {
+          if (resolveRequestIdRef.current !== requestId) return;
+          setIsResolvingText(false);
+          setTextResolvedItem(null);
+        });
+      } else {
+        setTextResolvedItem(null);
+        setIsResolvingText(false);
+        setShowOtherResults(true);
+      }
+
       const searchQuery = parsed.foodQuery || text.trim();
       debounceRef.current = setTimeout(async () => {
         try {
@@ -589,6 +631,10 @@ export default function AddFoodScreen() {
 
       const parsed = parsedInputRef.current;
       parsedInputRef.current = null;
+      setParsedInput(null);
+      setTextResolvedItem(null);
+      setIsResolvingText(false);
+      resolveRequestIdRef.current++;
 
       const detected = detectUnitFromName(resolvedFood.name);
       const foodWithServing = detected
@@ -728,6 +774,8 @@ export default function AddFoodScreen() {
         addEntry(entry, dateKeyParam);
         await foodService.addToRecent(resolvedFood, scaling.gramsUsedForScaling);
         parsedInputRef.current = null;
+        setParsedInput(null);
+        setTextResolvedItem(null);
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
@@ -741,6 +789,35 @@ export default function AddFoodScreen() {
     },
     [addEntry, dateKeyParam]
   );
+
+  const handleConfirmTextResolved = useCallback(async () => {
+    if (!textResolvedItem) return;
+    setIsSaving(true);
+    try {
+      const entry = foodService.createFoodEntry(
+        textResolvedItem.food,
+        textResolvedItem.displayName,
+        textResolvedItem.grams,
+        textResolvedItem.macros,
+        false,
+        textResolvedItem.entryOpts
+      );
+      addEntry(entry, dateKeyParam);
+      await foodService.addToRecent(textResolvedItem.food, textResolvedItem.grams);
+      setTextResolvedItem(null);
+      setParsedInput(null);
+      parsedInputRef.current = null;
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      router.back();
+    } catch (err) {
+      console.log('[AddFood] Text resolve confirm error:', err);
+      Alert.alert('Error', 'Failed to add food. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [textResolvedItem, addEntry, dateKeyParam]);
 
   const handleQuantityChange = useCallback(
     (text: string) => {
@@ -1064,14 +1141,30 @@ export default function AddFoodScreen() {
   const handleKindChange = useCallback(
     (k: UnitKind) => {
       setUnitKind(k);
-      if (k === 'mass') setUnitId('g');
-      else if (k === 'volume') setUnitId('ml');
-      else setUnitId('serving');
+      if (k === 'mass') {
+        setUnitId('g');
+      } else if (k === 'volume') {
+        setUnitId('ml');
+      } else {
+        setUnitId('serving');
+        // Update serving label/weight from the current food name (Bug B fix)
+        const detected = detectUnitFromName(name || query);
+        if (detected) {
+          setUnitLabel(detected.unitLabel);
+          setServingWeightG(detected.servingWeightG);
+        }
+      }
+      // Don't recalculate if user has manually edited macros (Bug C fix)
+      if (isCustomized) return;
       const value = parseFloat(quantityInput) || 0;
       const newUnit = k === 'mass' ? 'g' : k === 'volume' ? 'ml' : 'serving';
+      const effectiveSwg =
+        k === 'serving'
+          ? (detectUnitFromName(name || query)?.servingWeightG ?? servingWeightG)
+          : servingWeightG;
       const foodWithServing: NormalizedFood | null =
         k === 'serving' && selectedFood
-          ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? servingWeightG }
+          ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? effectiveSwg }
           : selectedFood;
       if (foodWithServing && value > 0) {
         const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, newUnit, k);
@@ -1086,12 +1179,14 @@ export default function AddFoodScreen() {
         }
       }
     },
-    [quantityInput, selectedFood, servingWeightG]
+    [quantityInput, selectedFood, servingWeightG, isCustomized, name, query]
   );
 
   const handleUnitChange = useCallback(
     (u: UnitId) => {
       setUnitId(u);
+      // Don't recalculate if user has manually edited macros (Bug C fix)
+      if (isCustomized) return;
       const value = parseFloat(quantityInput) || 0;
       const foodWithServing: NormalizedFood | null =
         unitKind === 'serving' && selectedFood
@@ -1110,7 +1205,7 @@ export default function AddFoodScreen() {
         }
       }
     },
-    [quantityInput, unitKind, selectedFood, servingWeightG]
+    [quantityInput, unitKind, selectedFood, servingWeightG, isCustomized]
   );
 
   const searchShellStyle = {
@@ -1310,87 +1405,129 @@ export default function AddFoodScreen() {
             </View>
           </View>
 
-          {showSuggestions && suggestions.length > 0 && (() => {
-            const parsed = parsedInputRef.current;
-            const topFood = suggestions[0];
-            const isHighConfidence = parsed && scoreConfidence(topFood, parsed.foodQuery) === 'high';
-            const detected = parsed?.unitKind === 'serving' ? detectUnitFromName(topFood.name) : null;
-            const foodForScaling =
-              detected && parsed?.unitKind === 'serving'
-                ? { ...topFood, servingWeightGrams: topFood.servingWeightGrams ?? detected.servingWeightG }
-                : topFood;
-            const quickScaling =
-              parsed && isHighConfidence
-                ? foodService.scaleMacrosFromQuantity(
-                    foodForScaling,
-                    parsed.quantity,
-                    parsed.unitId,
-                    parsed.unitKind
-                  )
-                : null;
-            const showQuickAdd =
-              parsed &&
-              isHighConfidence &&
-              quickScaling?.ok &&
-              !isSaving;
-            const quickUnitLabel =
+          {showSuggestions && (textResolvedItem || isResolvingText || suggestions.length > 0) && (() => {
+            const parsed = parsedInput;
+            // Derive unit label for "other results" scaled macros (no resolver)
+            const otherUnitLabel =
               parsed?.unitId === 'fl_oz'
                 ? 'fl oz'
-                : parsed?.unitKind === 'serving' && detected
-                  ? detected.unitLabel
-                  : parsed?.unitId ?? '';
+                : parsed?.unitId ?? '';
+
+            // Resolved quantity and unit for the best-match card header
+            const resolvedQtyDisplay = textResolvedItem?.quantity ?? 0;
+            const resolvedUnitLabel = textResolvedItem?.displayUnit ?? '';
 
             return (
             <View style={styles.suggestionsSection}>
-              {showQuickAdd && parsed && (
-                <TouchableOpacity
-                  style={[styles.suggestionCard, styles.quickAddCard]}
-                  onPress={() => handleQuickAdd(topFood)}
-                  activeOpacity={0.7}
-                  disabled={isSaving}
-                  testID="quick-add-card"
-                >
-                  <View style={styles.quickAddContent}>
-                    <Text style={styles.quickAddTitle} numberOfLines={1}>
-                      {parsed.quantity} {quickUnitLabel} {topFood.name}
-                    </Text>
-                    <Text style={styles.quickAddMacros}>
-                      {quickScaling && formatNumber(quickScaling.macros.calories)} cal ·{' '}
-                      {quickScaling && formatNumber(quickScaling.macros.protein_g)}p ·{' '}
-                      {quickScaling && formatNumber(quickScaling.macros.carbs_g)}c ·{' '}
-                      {quickScaling && formatNumber(quickScaling.macros.fat_g)}f
-                    </Text>
-                  </View>
-                  <View style={[styles.quickAddButton, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.quickAddButtonText}>+ Add</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-              {suggestions.map((food) => (
-                <TouchableOpacity
-                  key={food.id}
-                  style={styles.suggestionCard}
-                  onPress={() => handleSelectSuggestion(food)}
-                  activeOpacity={0.7}
-                  testID={`suggestion-${food.id}`}
-                >
-                  <View style={styles.suggestionInfo}>
-                    <Text style={styles.suggestionName} numberOfLines={1}>
-                      {food.name}
-                    </Text>
-                    {food.brand ? (
-                      <Text style={styles.suggestionBrand} numberOfLines={1}>
-                        {food.brand}
+              {/* ── Best Match Card (voice-resolver result) ── */}
+              {(isResolvingText || textResolvedItem) && (
+                <View style={styles.quickAddSection}>
+                  {isResolvingText ? (
+                    <View style={styles.resolvingRow}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.resolvingText}>Finding best match…</Text>
+                    </View>
+                  ) : textResolvedItem ? (
+                    <>
+                      <Text style={styles.quickAddHeader}>
+                        BEST MATCH
                       </Text>
-                    ) : null}
-                    <Text style={styles.suggestionMacros}>
-                      {formatNumber(food.per100g.calories)} cal · {formatNumber(food.per100g.protein_g)}p ·{' '}
-                      {formatNumber(food.per100g.carbs_g)}c · {formatNumber(food.per100g.fat_g)}f per 100g
-                    </Text>
-                  </View>
-                  <ChevronRight size={16} color={Colors.textTertiary} />
-                </TouchableOpacity>
-              ))}
+                      <TouchableOpacity
+                        style={styles.quickAddCard}
+                        onPress={handleConfirmTextResolved}
+                        activeOpacity={0.7}
+                        disabled={isSaving}
+                        testID="quick-add-card"
+                      >
+                        <View style={styles.quickAddContent}>
+                          <Text style={styles.quickAddAmountLabel}>
+                            {resolvedQtyDisplay} {resolvedUnitLabel}
+                          </Text>
+                          <Text style={styles.quickAddTitle} numberOfLines={2}>
+                            {textResolvedItem.displayName}
+                          </Text>
+                          <Text style={styles.quickAddMacros}>
+                            {formatNumber(textResolvedItem.macros.calories)} cal ·{' '}
+                            {formatNumber(textResolvedItem.macros.protein_g)}p ·{' '}
+                            {formatNumber(textResolvedItem.macros.carbs_g)}c ·{' '}
+                            {formatNumber(textResolvedItem.macros.fat_g)}f
+                          </Text>
+                        </View>
+                        <View style={[styles.quickAddButton, { backgroundColor: colors.primary }]}>
+                          <Text style={styles.quickAddButtonText}>+ Add</Text>
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* ── Other Results toggle ── */}
+                      {suggestions.length > 0 && (
+                        <TouchableOpacity
+                          style={styles.otherResultsToggle}
+                          onPress={() => setShowOtherResults(v => !v)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.otherResultsToggleText}>
+                            {showOtherResults ? 'Hide other results ▲' : 'Other results ▼'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  ) : null}
+                </View>
+              )}
+
+              {/* ── Suggestion list (always shown when no resolver is active; toggled otherwise) ── */}
+              {(!textResolvedItem && !isResolvingText) || showOtherResults ? (
+                suggestions.map((food) => {
+                  const cardDetected = parsed?.unitKind === 'serving' ? detectUnitFromName(food.name) : null;
+                  const cardFood =
+                    cardDetected && parsed?.unitKind === 'serving'
+                      ? { ...food, servingWeightGrams: food.servingWeightGrams ?? cardDetected.servingWeightG }
+                      : food;
+                  const cardScaling = parsed
+                    ? foodService.scaleMacrosFromQuantity(cardFood, parsed.quantity, parsed.unitId, parsed.unitKind)
+                    : null;
+                  const showScaled = cardScaling?.ok;
+
+                  return (
+                    <TouchableOpacity
+                      key={food.id}
+                      style={styles.suggestionCard}
+                      onPress={() => handleSelectSuggestion(food)}
+                      activeOpacity={0.7}
+                      testID={`suggestion-${food.id}`}
+                    >
+                      <View style={styles.suggestionInfo}>
+                        <Text style={styles.suggestionName} numberOfLines={1}>
+                          {food.name}
+                        </Text>
+                        {food.brand ? (
+                          <Text style={styles.suggestionBrand} numberOfLines={1}>
+                            {food.brand}
+                          </Text>
+                        ) : null}
+                        {showScaled && cardScaling ? (
+                          <Text style={styles.suggestionMacros}>
+                            {formatNumber(cardScaling.macros.calories)} cal ·{' '}
+                            {formatNumber(cardScaling.macros.protein_g)}p ·{' '}
+                            {formatNumber(cardScaling.macros.carbs_g)}c ·{' '}
+                            {formatNumber(cardScaling.macros.fat_g)}f
+                            {'  '}
+                            <Text style={styles.suggestionMacrosFor}>
+                              for {parsed?.quantity} {otherUnitLabel}
+                            </Text>
+                          </Text>
+                        ) : (
+                          <Text style={styles.suggestionMacros}>
+                            {formatNumber(food.per100g.calories)} cal · {formatNumber(food.per100g.protein_g)}p ·{' '}
+                            {formatNumber(food.per100g.carbs_g)}c · {formatNumber(food.per100g.fat_g)}f per 100g
+                          </Text>
+                        )}
+                      </View>
+                      <ChevronRight size={16} color={Colors.textTertiary} />
+                    </TouchableOpacity>
+                  );
+                })
+              ) : null}
 
               <TouchableOpacity
                 style={styles.manualFallback}
@@ -2264,35 +2401,86 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '500' as const,
     marginTop: 3,
   },
+  quickAddSection: {
+    marginBottom: 12,
+  },
+  quickAddHeader: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    paddingHorizontal: 2,
+  },
   quickAddCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: colors.primaryMuted,
     borderColor: colors.primary,
     borderWidth: 2,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: 14,
   },
   quickAddContent: {
     flex: 1,
   },
   quickAddTitle: {
     color: Colors.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700' as const,
   },
   quickAddMacros: {
     color: colors.primary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600' as const,
     marginTop: 4,
   },
+  quickAddForLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
   quickAddButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginLeft: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginLeft: 12,
   },
   quickAddButtonText: {
     color: colors.onPrimary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700' as const,
+  },
+  quickAddAmountLabel: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    marginBottom: 2,
+  },
+  resolvingRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    paddingVertical: 12,
+  },
+  resolvingText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+  },
+  otherResultsToggle: {
+    paddingVertical: 10,
+    alignItems: 'center' as const,
+  },
+  otherResultsToggleText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  suggestionMacrosFor: {
+    color: Colors.textTertiary,
+    fontSize: 11,
+    fontWeight: '500' as const,
   },
   manualFallback: {
     flexDirection: 'row',

@@ -140,6 +140,17 @@ const COMMON_FORMS = new Set([
   'shank',
   'leg',
   'legs',
+  // Beef cut additions
+  'tips',
+  'tip',
+  'skirt',
+  'hanger',
+  'chuck',
+  'rump',
+  'picanha',
+  'tritip',
+  'cube',
+  'cubed',
 ]);
 
 const NON_INGREDIENT_TERMS = new Set([

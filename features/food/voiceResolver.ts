@@ -66,9 +66,14 @@ function singularize(query: string): string {
   return query;
 }
 
+const SOLID_FOOD_PATTERN =
+  /\b(steak|beef|chicken|pork|meat|fish|bacon|turkey|lamb|salmon|tuna|burger|egg|bread|rice|pasta|potato|vegetable|salad|cheese|tofu|tempeh|shrimp|prawn|crab|lobster|scallop|clam|mussel|oyster)\b/i;
+
 function isLikelyLiquid(food: NormalizedFood, query: string): boolean {
-  if (typeof food.density_g_per_ml === 'number' && food.density_g_per_ml > 0) return true;
   const combined = `${food.name} ${query}`.toLowerCase();
+  // Solid foods are never liquids regardless of any density value on the record
+  if (SOLID_FOOD_PATTERN.test(combined)) return false;
+  if (typeof food.density_g_per_ml === 'number' && food.density_g_per_ml > 0) return true;
   return /(juice|milk|water|wine|beer|broth|stock|coffee|tea|soda|smoothie|shake|drink)/.test(combined);
 }
 
