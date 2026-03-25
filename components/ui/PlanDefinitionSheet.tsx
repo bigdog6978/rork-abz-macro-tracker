@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   Modal,
-  Pressable,
+  TouchableWithoutFeedback,
   ScrollView,
   TouchableOpacity,
   Platform,
@@ -54,8 +54,11 @@ export default function PlanDefinitionSheet({
       accessibilityViewIsModal
       accessibilityLabel={`Learn more about ${title}`}
     >
-      <Pressable style={styles.overlay} onPress={handleClose}>
-        <Pressable onPress={() => {}} style={styles.sheet}>
+      <View style={styles.overlay}>
+        <TouchableWithoutFeedback onPress={handleClose} accessibilityRole="button">
+          <View style={styles.backdrop} />
+        </TouchableWithoutFeedback>
+        <View style={styles.sheet}>
           <View style={styles.header}>
             <View style={styles.handle} />
             <View style={styles.titleRow}>
@@ -79,6 +82,7 @@ export default function PlanDefinitionSheet({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
           >
             {sections.map((section, idx) => (
               <View key={idx} style={styles.section}>
@@ -91,76 +95,81 @@ export default function PlanDefinitionSheet({
               </View>
             ))}
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
 
-const createStyles = (colors: AppColors) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: Colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: Colors.cardBorder,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.textTertiary,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 12,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    color: Colors.text,
-    fontSize: 20,
-    fontWeight: '700' as const,
-    flex: 1,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  scroll: {
-    flexGrow: 0,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 34,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionHeading: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  sectionBody: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-});
+const createStyles = (colors: AppColors) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: Colors.overlay,
+      justifyContent: 'flex-end',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    sheet: {
+      backgroundColor: Colors.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      maxHeight: '85%',
+      flex: 1,
+      borderWidth: 1,
+      borderBottomWidth: 0,
+      borderColor: Colors.cardBorder,
+    },
+    header: {
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Colors.textTertiary,
+      alignSelf: 'center',
+      marginTop: 10,
+      marginBottom: 12,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    title: {
+      color: Colors.text,
+      fontSize: 20,
+      fontWeight: '700' as const,
+      flex: 1,
+    },
+    closeBtn: {
+      padding: 4,
+    },
+    scroll: {
+      flexGrow: 1,
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 34,
+    },
+    section: {
+      marginBottom: 20,
+    },
+    sectionHeading: {
+      color: colors.primary,
+      fontSize: 13,
+      fontWeight: '700' as const,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 6,
+    },
+    sectionBody: {
+      color: Colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      marginBottom: 4,
+    },
+  });

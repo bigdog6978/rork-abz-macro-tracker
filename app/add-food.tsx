@@ -311,7 +311,27 @@ export default function AddFoodScreen() {
       let unit: UnitId = 'g';
       let kind: UnitKind = 'mass';
 
-      if (useUnits && unitConfig) {
+      if (savedUnit && (savedUnit.unitLabel === 'oz' || savedUnit.unitLabel === 'lb')) {
+        const isOz = savedUnit.unitLabel === 'oz';
+        const perUnitG = isOz ? 28.3495 : 453.592;
+        setUnitKind('mass');
+        setUnitId(isOz ? 'oz' : 'lb');
+        const recents = await foodService.getRecentFoodsList();
+        const target = norm.name.trim().toLowerCase();
+        const match =
+          recents.find((r) => r.food.id === norm.id) ??
+          recents.find((r) => r.food.name.trim().toLowerCase() === target);
+        const lastGrams = match?.lastServingGrams;
+        const rawQty = lastGrams != null && lastGrams > 0 ? lastGrams / perUnitG : 1;
+        const qtyStr =
+          rawQty === Math.round(rawQty)
+            ? String(Math.round(rawQty))
+            : String(Math.round(rawQty * 10) / 10);
+        setQuantityInput(qtyStr);
+        value = parseFloat(qtyStr) || rawQty;
+        unit = isOz ? 'oz' : 'lb';
+        kind = 'mass';
+      } else if (useUnits && unitConfig) {
         setUnitKind('serving');
         setUnitId('piece');
         setUnitLabel(unitConfig.unitLabel);
@@ -476,6 +496,58 @@ export default function AddFoodScreen() {
     setIsVoiceProcessing(false);
   }, []);
 
+  const saveManualToLibrary = useCallback(
+    async (
+      foodName: string,
+      grams: number,
+      macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number },
+      opts?: { unitLabel?: string; servingWeightG?: number; density_g_per_ml?: number }
+    ) => {
+      const scale = grams > 0 ? 100 / grams : 1;
+      const per100g = {
+        calories: Math.round(macros.calories * scale),
+        protein: macros.protein_g * scale,
+        carbs: macros.carbs_g * scale,
+        fat: macros.fat_g * scale,
+      };
+      const addOpts =
+        opts?.unitLabel && opts?.servingWeightG
+          ? { unitLabel: opts.unitLabel, servingWeightG: opts.servingWeightG, density_g_per_ml: opts.density_g_per_ml }
+          : opts?.density_g_per_ml
+            ? { density_g_per_ml: opts.density_g_per_ml, servingSize: `${grams}g` }
+            : { servingSize: `${grams}g` };
+      const existing = await foodsRepo.getSavedFoods('manual');
+      const dup = existing.find((f) => f.name.toLowerCase() === foodName.trim().toLowerCase());
+      if (dup) {
+        return new Promise<void>((resolve) => {
+          Alert.alert(
+            'Replace existing saved food?',
+            'A saved food with this name already exists.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve() },
+              {
+                text: 'Replace',
+                onPress: async () => {
+                  await foodsRepo.addManualFood({ name: foodName.trim(), calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
+                  resolve();
+                },
+              },
+              {
+                text: 'Keep both',
+                onPress: async () => {
+                  await foodsRepo.addManualFood({ name: `${foodName.trim()} (2)`, calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
+                  resolve();
+                },
+              },
+            ]
+          );
+        });
+      }
+      await foodsRepo.addManualFood({ name: foodName.trim(), calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
+    },
+    []
+  );
+
   const handleConfirmVoiceMeal = useCallback(async () => {
     if (!voiceMealDraft || voiceMealDraft.items.length === 0) return;
 
@@ -497,6 +569,25 @@ export default function AddFoodScreen() {
         voiceMealDraft.items.map((item) => foodService.addToRecent(item.food, item.grams))
       );
 
+      if (saveToLibrary) {
+        await Promise.all(
+          voiceMealDraft.items.map((item) => {
+            const voiceSaveOpts =
+              item.entryOpts?.measureMode === 'qty' && item.entryOpts.servingWeightG
+                ? {
+                    unitLabel: detectUnitFromName(item.food.name)?.unitLabel ?? 'serving',
+                    servingWeightG: item.entryOpts.servingWeightG,
+                  }
+                : item.entryOpts?.measureMode === 'ounces'
+                  ? { unitLabel: 'oz', servingWeightG: 28.3495 }
+                  : item.entryOpts?.measureMode === 'grams'
+                    ? { servingSize: `${Math.round(item.grams)}g` }
+                    : undefined;
+            return saveManualToLibrary(item.displayName, item.grams, item.macros, voiceSaveOpts);
+          })
+        );
+      }
+
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -509,7 +600,7 @@ export default function AddFoodScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [addEntries, dateKeyParam, voiceMealDraft]);
+  }, [addEntries, dateKeyParam, voiceMealDraft, saveToLibrary, saveManualToLibrary]);
 
   const computedCalories =
     (parseFloat(protein) || 0) * 4 +
@@ -622,6 +713,17 @@ export default function AddFoodScreen() {
           ? (await foodService.getFood(food.externalId)) ?? food
           : food;
 
+      const lastGramsFromRecent = (f: NormalizedFood): number | undefined => {
+        const byId = recentFoods.find((r) => r.food.id === f.id);
+        if (byId != null && byId.lastServingGrams > 0) return byId.lastServingGrams;
+        const target = f.name.trim().toLowerCase();
+        const byName = recentFoods.find(
+          (r) => r.food.name.trim().toLowerCase() === target
+        );
+        if (byName != null && byName.lastServingGrams > 0) return byName.lastServingGrams;
+        return undefined;
+      };
+
       console.log('[AddFood] Selected suggestion:', resolvedFood.name);
       setSelectedFood(resolvedFood);
       setName(resolvedFood.name);
@@ -698,6 +800,72 @@ export default function AddFoodScreen() {
         } else {
           setScalingReason(result.reason);
         }
+      } else if (resolvedFood.unitLabel === 'oz' && resolvedFood.servingWeightGrams) {
+        const ozPerG = resolvedFood.servingWeightGrams;
+        setUnitKind('mass');
+        setUnitId('oz');
+        const lastGrams = lastGramsFromRecent(resolvedFood);
+        const rawOz = lastGrams != null ? lastGrams / 28.3495 : 1;
+        const ozStr =
+          rawOz === Math.round(rawOz)
+            ? String(Math.round(rawOz))
+            : String(Math.round(rawOz * 10) / 10);
+        setQuantityInput(ozStr);
+        const ozValue = parseFloat(ozStr) || rawOz;
+        const result = foodService.scaleMacrosFromQuantity(
+          resolvedFood,
+          ozValue,
+          'oz',
+          'mass'
+        );
+        if (result.ok) {
+          computedMacrosRef.current = result.macros;
+          setProtein(String(result.macros.protein_g));
+          setCarbs(String(result.macros.carbs_g));
+          setFat(String(result.macros.fat_g));
+          setScalingReason(null);
+        } else {
+          const gramsForFallback = lastGrams ?? ozPerG;
+          const macros = foodService.computeMacrosForServing(resolvedFood, gramsForFallback);
+          computedMacrosRef.current = macros;
+          setProtein(String(macros.protein_g));
+          setCarbs(String(macros.carbs_g));
+          setFat(String(macros.fat_g));
+          setScalingReason(null);
+        }
+      } else if (resolvedFood.unitLabel === 'lb' && resolvedFood.servingWeightGrams) {
+        const lbPerG = resolvedFood.servingWeightGrams;
+        setUnitKind('mass');
+        setUnitId('lb');
+        const lastGrams = lastGramsFromRecent(resolvedFood);
+        const rawLb = lastGrams != null ? lastGrams / 453.592 : 1;
+        const lbStr =
+          rawLb === Math.round(rawLb)
+            ? String(Math.round(rawLb))
+            : String(Math.round(rawLb * 10) / 10);
+        setQuantityInput(lbStr);
+        const lbValue = parseFloat(lbStr) || rawLb;
+        const result = foodService.scaleMacrosFromQuantity(
+          resolvedFood,
+          lbValue,
+          'lb',
+          'mass'
+        );
+        if (result.ok) {
+          computedMacrosRef.current = result.macros;
+          setProtein(String(result.macros.protein_g));
+          setCarbs(String(result.macros.carbs_g));
+          setFat(String(result.macros.fat_g));
+          setScalingReason(null);
+        } else {
+          const gramsForFallback = lastGrams ?? lbPerG;
+          const macros = foodService.computeMacrosForServing(resolvedFood, gramsForFallback);
+          computedMacrosRef.current = macros;
+          setProtein(String(macros.protein_g));
+          setCarbs(String(macros.carbs_g));
+          setFat(String(macros.fat_g));
+          setScalingReason(null);
+        }
       } else {
         setUnitKind('mass');
         setUnitId('g');
@@ -718,7 +886,7 @@ export default function AddFoodScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    []
+    [recentFoods]
   );
 
   const handleQuickAdd = useCallback(
@@ -804,6 +972,21 @@ export default function AddFoodScreen() {
       );
       addEntry(entry, dateKeyParam);
       await foodService.addToRecent(textResolvedItem.food, textResolvedItem.grams);
+      if (saveToLibrary) {
+        const _item = textResolvedItem;
+        const _saveOpts =
+          _item.entryOpts?.measureMode === 'qty' && _item.entryOpts.servingWeightG
+            ? {
+                unitLabel: detectUnitFromName(_item.food.name)?.unitLabel ?? 'serving',
+                servingWeightG: _item.entryOpts.servingWeightG,
+              }
+            : _item.entryOpts?.measureMode === 'ounces'
+              ? { unitLabel: 'oz', servingWeightG: 28.3495 }
+              : _item.entryOpts?.measureMode === 'grams'
+                ? { servingSize: `${Math.round(_item.grams)}g` }
+                : undefined;
+        await saveManualToLibrary(_item.displayName, _item.grams, _item.macros, _saveOpts);
+      }
       setTextResolvedItem(null);
       setParsedInput(null);
       parsedInputRef.current = null;
@@ -817,7 +1000,7 @@ export default function AddFoodScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [textResolvedItem, addEntry, dateKeyParam]);
+  }, [textResolvedItem, addEntry, dateKeyParam, saveToLibrary, saveManualToLibrary]);
 
   const handleQuantityChange = useCallback(
     (text: string) => {
@@ -876,58 +1059,6 @@ export default function AddFoodScreen() {
       }
     },
     [selectedFood]
-  );
-
-  const saveManualToLibrary = useCallback(
-    async (
-      foodName: string,
-      grams: number,
-      macros: { calories: number; protein_g: number; carbs_g: number; fat_g: number },
-      opts?: { unitLabel?: string; servingWeightG?: number; density_g_per_ml?: number }
-    ) => {
-      const scale = grams > 0 ? 100 / grams : 1;
-      const per100g = {
-        calories: Math.round(macros.calories * scale),
-        protein: macros.protein_g * scale,
-        carbs: macros.carbs_g * scale,
-        fat: macros.fat_g * scale,
-      };
-      const addOpts =
-        opts?.unitLabel && opts?.servingWeightG
-          ? { unitLabel: opts.unitLabel, servingWeightG: opts.servingWeightG, density_g_per_ml: opts.density_g_per_ml }
-          : opts?.density_g_per_ml
-            ? { density_g_per_ml: opts.density_g_per_ml, servingSize: `${grams}g` }
-            : { servingSize: `${grams}g` };
-      const existing = await foodsRepo.getSavedFoods('manual');
-      const dup = existing.find((f) => f.name.toLowerCase() === foodName.trim().toLowerCase());
-      if (dup) {
-        return new Promise<void>((resolve) => {
-          Alert.alert(
-            'Replace existing saved food?',
-            'A saved food with this name already exists.',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve() },
-              {
-                text: 'Replace',
-                onPress: async () => {
-                  await foodsRepo.addManualFood({ name: foodName.trim(), calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
-                  resolve();
-                },
-              },
-              {
-                text: 'Keep both',
-                onPress: async () => {
-                  await foodsRepo.addManualFood({ name: `${foodName.trim()} (2)`, calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
-                  resolve();
-                },
-              },
-            ]
-          );
-        });
-      }
-      await foodsRepo.addManualFood({ name: foodName.trim(), calories: per100g.calories, protein: per100g.protein, carbs: per100g.carbs, fat: per100g.fat, ...addOpts });
-    },
-    []
   );
 
   const handleSave = useCallback(async () => {
@@ -1106,6 +1237,25 @@ export default function AddFoodScreen() {
         value = parseFloat(qtyStr) || qty;
         unit = 'piece';
         kind = 'serving';
+      } else if (food.unitLabel === 'oz' && food.servingWeightGrams) {
+        // Food was saved with oz unit — reconstruct oz quantity from last serving grams
+        const ozQty = grams / 28.3495;
+        const ozStr = ozQty === Math.round(ozQty) ? String(Math.round(ozQty)) : String(Math.round(ozQty * 10) / 10);
+        setUnitKind('mass');
+        setUnitId('oz');
+        setQuantityInput(ozStr);
+        value = parseFloat(ozStr) || ozQty;
+        unit = 'oz';
+        kind = 'mass';
+      } else if (food.unitLabel === 'lb' && food.servingWeightGrams) {
+        const lbQty = grams / 453.592;
+        const lbStr = lbQty === Math.round(lbQty) ? String(Math.round(lbQty)) : String(Math.round(lbQty * 10) / 10);
+        setUnitKind('mass');
+        setUnitId('lb');
+        setQuantityInput(lbStr);
+        value = parseFloat(lbStr) || lbQty;
+        unit = 'lb';
+        kind = 'mass';
       } else if (typeof food.density_g_per_ml === 'number' && food.density_g_per_ml > 0) {
         const ml = grams / food.density_g_per_ml;
         const mlRounded = Math.max(1, Math.round(ml));
@@ -2010,6 +2160,38 @@ export default function AddFoodScreen() {
                       {formatNumber(voiceMealDraft.totals.calories)} cal · {formatNumber(voiceMealDraft.totals.protein_g)}p · {formatNumber(voiceMealDraft.totals.carbs_g)}c · {formatNumber(voiceMealDraft.totals.fat_g)}f
                     </Text>
                   </View>
+
+                  <TouchableOpacity
+                    style={styles.saveToLibraryRow}
+                    onPress={() => setSaveToLibrary((v) => !v)}
+                    activeOpacity={0.7}
+                  >
+                    <Bookmark
+                      size={18}
+                      color={saveToLibrary ? colors.primary : Colors.textTertiary}
+                    />
+                    <Text
+                      style={[
+                        styles.saveToLibraryText,
+                        saveToLibrary && styles.saveToLibraryTextActive,
+                      ]}
+                    >
+                      Save to Saved Foods
+                    </Text>
+                    <View
+                      style={[
+                        styles.toggleTrack,
+                        saveToLibrary && styles.toggleTrackActive,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.toggleThumb,
+                          saveToLibrary && styles.toggleThumbActive,
+                        ]}
+                      />
+                    </View>
+                  </TouchableOpacity>
 
                   <View style={styles.voiceModalActions}>
                     <TouchableOpacity

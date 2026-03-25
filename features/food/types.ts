@@ -17,6 +17,8 @@ export interface NormalizedFood {
   servingVolumeMl?: number;
   /** Density (g/ml) for volume→grams conversion */
   density_g_per_ml?: number | null;
+  /** Unit label stored when food was saved (e.g. 'oz', 'g', 'lb', 'egg', 'strip') */
+  unitLabel?: string;
   updatedAt: string;
 }
 

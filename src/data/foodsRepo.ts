@@ -477,6 +477,7 @@ export function localFoodToNormalizedFood(f: LocalFood): NormalizedFood {
   if (typeof f.servingWeightG === 'number') norm.servingWeightGrams = f.servingWeightG;
   if (typeof f.servingVolumeMl === 'number') norm.servingVolumeMl = f.servingVolumeMl;
   if (typeof f.density_g_per_ml === 'number') norm.density_g_per_ml = f.density_g_per_ml;
+  if (typeof f.unitLabel === 'string' && f.unitLabel) norm.unitLabel = f.unitLabel;
   return applyKnownLiquidDensity(norm);
 }
 

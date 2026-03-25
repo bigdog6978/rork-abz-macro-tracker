@@ -51,7 +51,7 @@ describe('macroEngine', () => {
 
     expect(macros.calculationDetails).toBeDefined();
     expect(macros.calculationDetails?.bmrFormula).toBe('Mifflin-St Jeor');
-    expect(macros.calculationDetails?.activityLevelLabel).toBe('Moderate Training');
+    expect(macros.calculationDetails?.activityLevelLabel).toBe('Cardio / Group Fitness');
     expect(macros.calculationDetails?.proteinTargetGrams).toBe(macros.protein_g);
     expect(macros.calculationDetails?.carbTargetGrams).toBe(macros.carbs_g);
     expect(macros.calculationDetails?.fatTargetGrams).toBe(macros.fat_g);

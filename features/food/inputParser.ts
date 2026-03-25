@@ -33,7 +33,7 @@ function hasLeadingQuantity(raw: string): boolean {
  * Parse a raw user string like "1 tbs butter" or "200g chicken" or "2 cups rice"
  * into quantity, unit, and food query. Handles:
  * - Leading numbers (decimal, fraction, or number words like "two")
- * - Unit tokens with or without space (e.g. "1 tbs", "200g")
+ * - Unit tokens with or without space (e.g. "1 tbs", "200g", "6oz" → normalized to "6 oz")
  * - Returns the remainder as the food query for search
  * - Plain "butter" (no quantity) returns quantity/unit as null
  */
@@ -43,13 +43,16 @@ export function parseTextInput(raw: string): ParsedFoodInput {
     return { foodQuery: '', quantity: null, unitId: null, unitKind: null };
   }
 
-  // Plain food name with no leading quantity — search as-is
-  if (!hasLeadingQuantity(trimmed)) {
+  // Normalize "6oz" → "6 oz", "200g" → "200 g" so \b after digits works in mealVoiceParser
+  const normalized = trimmed.replace(/^(\d+(?:\.\d+)?)\s*([a-zA-Z])/, '$1 $2');
+
+  // Plain food name with no leading quantity — search as-is (preserve original casing for display)
+  if (!hasLeadingQuantity(normalized)) {
     return { foodQuery: trimmed, quantity: null, unitId: null, unitKind: null };
   }
 
   // Reuse the voice parser for single-item input (handles "1 tbs butter", "200g chicken", etc.)
-  const items = parseMealVoiceTranscript(trimmed);
+  const items = parseMealVoiceTranscript(normalized);
 
   if (items.length === 0) {
     return { foodQuery: trimmed, quantity: null, unitId: null, unitKind: null };

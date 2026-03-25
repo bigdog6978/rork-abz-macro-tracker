@@ -95,51 +95,63 @@ export const ACTIVITY_LEVEL_DEFINITIONS: Record<ActivityLevel, ActivityLevelDefi
     learnMore: [
       {
         heading: 'Definition',
-        body: 'Little or no structured exercise. Typical of desk jobs or low daily movement.',
+        body: 'Little or no structured exercise. Typical of desk jobs with minimal daily movement.',
       },
     ],
   },
   light_activity: {
     id: 'light_activity',
     title: 'Light Activity',
-    shortDescription: 'Light exercise or physical activity 1-3 days per week.',
+    shortDescription: 'Walking, yoga, pilates, or casual movement.',
     learnMore: [
       {
         heading: 'Definition',
-        body: 'Light exercise or physical activity 1-3 days per week.',
+        body: 'Low-intensity activity with no structured training program. Includes daily walking, yoga, pilates, casual cycling, or light recreational movement. Calorie burn returns to baseline quickly after activity.',
       },
     ],
   },
   moderate_training: {
     id: 'moderate_training',
-    title: 'Moderate Training',
-    shortDescription: 'Moderate exercise or training 3-5 days per week.',
+    title: 'Cardio / Group Fitness',
+    shortDescription: 'Running, cycling, classes, or sport 3-5×/week.',
     learnMore: [
       {
         heading: 'Definition',
-        body: 'Moderate exercise or training 3-5 days per week.',
+        body: 'Cardio-based training 3-5 days per week. Includes running, cycling, swimming, group fitness classes, HIIT, or recreational team sports. Calorie demands are primarily during the session with a shorter post-exercise recovery window.',
+      },
+      {
+        heading: 'Protein target',
+        body: 'Moderate protein (0.9 g/lb) to support endurance performance and general recovery.',
       },
     ],
   },
   strength_training: {
     id: 'strength_training',
-    title: 'Very Active',
-    shortDescription: 'Hard training or physical activity 6-7 days per week.',
+    title: 'Strength Training',
+    shortDescription: 'Weight training or resistance work 3-5×/week.',
     learnMore: [
       {
         heading: 'Definition',
-        body: 'Hard training or physical activity 6-7 days per week.',
+        body: 'Structured resistance or weight training 3-5 days per week. Includes powerlifting, bodybuilding, Olympic lifting, CrossFit, or any program centered on progressive overload. Heavy compound lifting elevates your metabolism for 24-72 hours after each session as muscles repair and rebuild — meaning your calorie and protein needs are higher even on rest days.',
+      },
+      {
+        heading: 'Protein target',
+        body: 'Highest protein allocation (1.0 g/lb) to fuel muscle protein synthesis and recovery between sessions.',
       },
     ],
   },
   endurance_training: {
     id: 'endurance_training',
-    title: 'Athlete',
-    shortDescription: 'Intense training, sports participation, or physically demanding occupation.',
+    title: 'Very Active / Athlete',
+    shortDescription: '6-7 days/week, high-volume endurance, or physical job.',
     learnMore: [
       {
         heading: 'Definition',
-        body: 'Intense training, sports participation, or physically demanding occupation.',
+        body: 'High-frequency training 6-7 days per week, competitive endurance athletics (marathon, triathlon, cycling), two-a-day training sessions, or a physically demanding occupation such as construction, farming, or military service.',
+      },
+      {
+        heading: 'Protein target',
+        body: 'High protein (0.9 g/lb) with a significantly elevated calorie target to sustain high daily energy output.',
       },
     ],
   },

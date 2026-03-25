@@ -199,17 +199,17 @@ export interface DayPlan {
 export const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
   sedentary: 'Sedentary',
   light_activity: 'Light Activity',
-  moderate_training: 'Moderate Training',
+  moderate_training: 'Cardio / Group Fitness',
   strength_training: 'Strength Training',
-  endurance_training: 'Endurance Training',
+  endurance_training: 'Very Active / Athlete',
 };
 
 export const ACTIVITY_DESCRIPTIONS: Record<ActivityLevel, string> = {
-  sedentary: 'Little structured exercise',
-  light_activity: 'Walking, yoga, or light movement',
-  moderate_training: '3-4 workouts per week',
-  strength_training: '4-6 lifting sessions per week',
-  endurance_training: 'Frequent running, cycling, or similar endurance work',
+  sedentary: 'Desk job, little or no exercise',
+  light_activity: 'Walking, yoga, pilates, or casual movement',
+  moderate_training: 'Running, cycling, classes, or sport 3-5×/week',
+  strength_training: 'Weight training or resistance work 3-5×/week',
+  endurance_training: '6-7 days/week, high-volume endurance, or physical job',
 };
 
 export const GOAL_LABELS: Record<Goal, string> = {

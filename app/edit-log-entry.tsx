@@ -616,7 +616,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.caloriesMuted,
+    backgroundColor: colors.primaryMuted,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
@@ -627,7 +627,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '600' as const,
   },
   macroPreviewValue: {
-    color: Colors.calories,
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '700' as const,
   },
