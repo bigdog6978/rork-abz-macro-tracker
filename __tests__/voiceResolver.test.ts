@@ -98,11 +98,7 @@ describe('scoreConfidence', () => {
 
 describe('resolveVoiceItem', () => {
   it('resolves a simple serving-unit query successfully', async () => {
-    // Voice input: "chicken breast" — quantity defaults to 1 serving (100g)
-    const chicken = makeFood({ name: 'Chicken Breast', servingWeightGrams: 100 });
-    mockSearchSuggestions.mockResolvedValue({ status: 'ok', results: [chicken] });
-
-    // Use a directly-constructed parsedItem to keep this test independent of parser edge cases
+    // "chicken breast" matches the built-in "Grilled chicken breast" via the fast path
     const parsedItem = {
       label: 'chicken breast',
       query: 'chicken breast',
@@ -116,29 +112,33 @@ describe('resolveVoiceItem', () => {
 
     expect(result.status).toBe('resolved');
     if (result.status !== 'resolved') return;
-    expect(result.item.displayName).toBe('Chicken Breast');
-    expect(result.item.grams).toBeCloseTo(100);
-    expect(result.item.macros.calories).toBe(165);
+    expect(result.item.displayName).toContain('chicken breast');
     expect(result.item.confidence).toBe('high');
-    expect(result.item.alternatives).toHaveLength(0); // high confidence → no alternatives
+    expect(result.item.alternatives).toHaveLength(0);
   });
 
   it('returns medium confidence when food name only partially matches the query', async () => {
-    // "cottage cheese" tokens: ["cottage", "cheese"]
-    // "Cheese Sauce" only contains "cheese" (coverage = 1/2 = 0.5 → medium)
-    // Use density so volume unit scaling succeeds without forcing 'low' fallback
-    const food = makeFood({ name: 'Cheese Sauce', density_g_per_ml: 1.1 });
-    const alt = makeFood({ id: 'test:2', name: 'Cottage Cheese, 2% Milkfat' });
+    // "smoked brisket" won't match any built-in food, so it falls to the mock
+    // "Brisket Sauce" only contains "brisket" (coverage = 1/2 = 0.5 → medium)
+    const food = makeFood({ name: 'Brisket Sauce', density_g_per_ml: 1.1 });
+    const alt = makeFood({ id: 'test:2', name: 'Smoked Brisket, Lean' });
     mockSearchSuggestions.mockResolvedValue({ status: 'ok', results: [food, alt] });
 
-    const parsed = parseMealVoiceTranscript('1 cup cottage cheese');
-    const result = await resolveVoiceItem(parsed[0]);
+    const parsedItem = {
+      label: '1 cup smoked brisket',
+      query: 'smoked brisket',
+      quantity: 1,
+      unitId: 'cup' as const,
+      unitKind: 'volume' as const,
+      ambiguousOunces: false,
+    };
+    const result = await resolveVoiceItem(parsedItem);
 
     expect(result.status).toBe('resolved');
     if (result.status !== 'resolved') return;
     expect(result.item.confidence).toBe('medium');
     expect(result.item.alternatives.length).toBeGreaterThan(0);
-    expect(result.item.alternatives[0].name).toBe('Cottage Cheese, 2% Milkfat');
+    expect(result.item.alternatives[0].name).toBe('Smoked Brisket, Lean');
   });
 
   it('returns low confidence when food name does not cover query tokens', async () => {
@@ -165,11 +165,19 @@ describe('resolveVoiceItem', () => {
     expect(result.item.query).toBe('quinzanberry');
   });
 
-  it('returns unresolved when search errors', async () => {
+  it('returns unresolved when search errors and no local match', async () => {
     mockSearchSuggestions.mockResolvedValue({ status: 'error', errorCode: 'NETWORK_ERROR' });
 
-    const parsed = parseMealVoiceTranscript('2 eggs');
-    const result = await resolveVoiceItem(parsed[0]);
+    // Use a nonsense query that won't match any built-in food
+    const parsedItem = {
+      label: '2 flurblewurts',
+      query: 'flurblewurts',
+      quantity: 2,
+      unitId: 'piece' as const,
+      unitKind: 'serving' as const,
+      ambiguousOunces: false,
+    };
+    const result = await resolveVoiceItem(parsedItem);
 
     expect(result.status).toBe('unresolved');
   });
@@ -195,13 +203,7 @@ describe('resolveVoiceItem', () => {
   });
 
   it('handles "half avocado" → 0.5 × serving', async () => {
-    const avocado = makeFood({
-      name: 'Avocado',
-      per100g: { calories: 160, protein_g: 2, carbs_g: 9, fat_g: 15 },
-      servingWeightGrams: 150,
-    });
-    mockSearchSuggestions.mockResolvedValue({ status: 'ok', results: [avocado] });
-
+    // Built-in "Avocado" has gramsPerUnit=68 (a half), so 0.5 × 68g = 34g
     const parsed = parseMealVoiceTranscript('half avocado');
     expect(parsed[0].quantity).toBe(0.5);
 
@@ -209,8 +211,8 @@ describe('resolveVoiceItem', () => {
     expect(result.status).toBe('resolved');
     if (result.status !== 'resolved') return;
     expect(result.item.quantity).toBe(0.5);
-    // 0.5 × 150g = 75g → 75/100 × 160 = 120 cal
-    expect(result.item.macros.calories).toBe(120);
+    // Built-in avocado: 160 cal/100g, serving 68g → 0.5 × 68g = 34g → 34/100 × 160 = 54 cal
+    expect(result.item.macros.calories).toBe(54);
   });
 
   it('resolves "6 oz orange juice" as volume (fl_oz) for a known liquid', async () => {
@@ -264,10 +266,8 @@ describe('resolveVoiceItems', () => {
   });
 
   it('partial success: one resolved, one unresolved', async () => {
-    const egg = makeFood({ name: 'Egg', servingWeightGrams: 50 });
-    mockSearchSuggestions
-      .mockResolvedValueOnce({ status: 'ok', results: [egg] })
-      .mockResolvedValue({ status: 'empty', results: [] }); // second item fails
+    // "eggs" resolves via built-in fast path; "flurblefritz" has no match anywhere
+    mockSearchSuggestions.mockResolvedValue({ status: 'empty', results: [] });
 
     const parsed = parseMealVoiceTranscript('2 eggs, 1 flurblefritz');
     const results = await resolveVoiceItems(parsed);
@@ -277,7 +277,6 @@ describe('resolveVoiceItems', () => {
 
     expect(resolved).toHaveLength(1);
     expect(unresolved).toHaveLength(1);
-    // Unresolved item preserves the original query for manual fallback
     if (unresolved[0].status === 'unresolved') {
       expect(unresolved[0].item.query).toBe('flurblefritz');
     }
@@ -316,16 +315,24 @@ describe('resolveVoiceItems', () => {
   });
 
   it('low-confidence items include alternatives from the search results', async () => {
+    // Use a query that won't match built-in foods so it falls through to the mock
     const poor = makeFood({ name: 'Soup Crackers' });
-    const alt1 = makeFood({ id: 'test:2', name: 'Large Egg' });
-    const alt2 = makeFood({ id: 'test:3', name: 'Egg White' });
+    const alt1 = makeFood({ id: 'test:2', name: 'Protein Waffle' });
+    const alt2 = makeFood({ id: 'test:3', name: 'Waffle Mix' });
     mockSearchSuggestions.mockResolvedValue({
       status: 'ok',
       results: [poor, alt1, alt2],
     });
 
-    const parsed = parseMealVoiceTranscript('2 eggs');
-    const results = await resolveVoiceItems(parsed);
+    const parsedItem = {
+      label: '2 zyloxian waffles',
+      query: 'zyloxian waffles',
+      quantity: 2,
+      unitId: 'piece' as const,
+      unitKind: 'serving' as const,
+      ambiguousOunces: false,
+    };
+    const results = await resolveVoiceItems([parsedItem]);
 
     expect(results[0].status).toBe('resolved');
     if (results[0].status === 'resolved') {

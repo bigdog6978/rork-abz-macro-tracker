@@ -484,6 +484,18 @@ export function createFoodEntry(
     entry.measureMode = 'grams';
   }
 
+  const mode = entry.measureMode ?? 'grams';
+  if (mode === 'ounces') {
+    entry.unitKind = 'mass';
+    entry.unitId = 'oz';
+  } else if (mode === 'qty') {
+    entry.unitKind = 'serving';
+    entry.unitId = 'piece';
+  } else {
+    entry.unitKind = 'mass';
+    entry.unitId = 'g';
+  }
+
   if (food) {
     entry.nutrientsPer100g = {
       calories: food.per100g.calories,

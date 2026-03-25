@@ -76,7 +76,7 @@ describe('usdaNormalizer', () => {
       const result = normalizeSearchResult(food);
 
       expect(result.per100g.protein_g).toBe(10);
-      expect(result.per100g.calories).toBe(0);
+      expect(result.per100g.calories).toBe(40); // 10g protein × 4 kcal/g fallback
       expect(result.per100g.carbs_g).toBe(0);
       expect(result.per100g.fat_g).toBe(0);
     });

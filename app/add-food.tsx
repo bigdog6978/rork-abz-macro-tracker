@@ -1714,29 +1714,21 @@ export default function AddFoodScreen() {
 
           {(!showSuggestions || query.length === 0) && (
             <View style={styles.entrySection}>
-              {selectedFood && (
-                <View style={styles.selectedBanner}>
-                  <View style={styles.selectedBannerLeft}>
-                    <View style={styles.providerBadge}>
-                      <Text style={styles.providerBadgeText}>
-                        {selectedFood.providerId.toUpperCase()}
-                      </Text>
-                    </View>
-                    <Text style={styles.selectedName} numberOfLines={1}>
-                      {selectedFood.name}
+              <View style={styles.inputContainer}>
+                <View style={styles.inputLabelRow}>
+                  <Text style={styles.inputLabel}>Food Name</Text>
+                  {selectedFood && (
+                    <Text style={styles.inputLabelMeta}>
+                      {selectedFood.providerId.toUpperCase()}
                     </Text>
-                  </View>
+                  )}
                   {isCustomized && (
-                    <View style={styles.editedBadge}>
+                    <View style={styles.inputLabelEdited}>
                       <Pencil size={10} color={Colors.warning} />
-                      <Text style={styles.editedBadgeText}>Edited</Text>
+                      <Text style={styles.inputLabelEditedText}>Edited</Text>
                     </View>
                   )}
                 </View>
-              )}
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Food Name</Text>
                 <TextInput
                   style={styles.textInput}
                   value={name || query}
@@ -2689,65 +2681,38 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   entrySection: {
     marginTop: 4,
   },
-  selectedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  selectedBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 8,
-  },
-  providerBadge: {
-    backgroundColor: colors.primaryMuted,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  providerBadgeText: {
-    color: colors.primary,
-    fontSize: 9,
-    fontWeight: '800' as const,
-    letterSpacing: 0.5,
-  },
-  selectedName: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '600' as const,
-    flex: 1,
-  },
-  editedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.warningMuted,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  editedBadgeText: {
-    color: Colors.warning,
-    fontSize: 11,
-    fontWeight: '700' as const,
-  },
   inputContainer: {
     marginBottom: 16,
+  },
+  inputLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: 'wrap',
   },
   inputLabel: {
     color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: '700' as const,
-    marginBottom: 8,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
+  },
+  inputLabelMeta: {
+    color: Colors.textTertiary,
+    fontSize: 11,
+    fontWeight: '600' as const,
+    letterSpacing: 0.4,
+  },
+  inputLabelEdited: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  inputLabelEditedText: {
+    color: Colors.warning,
+    fontSize: 11,
+    fontWeight: '700' as const,
   },
   textInput: {
     backgroundColor: Colors.inputBg,

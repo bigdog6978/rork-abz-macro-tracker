@@ -103,6 +103,12 @@ function formatDisplayUnit(quantity: number, unitId: UnitId, unitLabel?: string)
   return unitId;
 }
 
+/** Log entry title for mass/volume items — includes quantity so edit screen matches user intent. */
+function massVolumeDisplayName(quantity: number, unitId: UnitId, foodName: string): string {
+  const du = formatDisplayUnit(quantity, unitId);
+  return `${quantity} ${du} ${foodName}`;
+}
+
 function makeUnresolved(parsedItem: ParsedMealVoiceItem, reason: string): VoiceResolutionResult {
   return {
     status: 'unresolved',
@@ -208,7 +214,11 @@ function buildResolvedResult(
             item: {
               id: generateId(),
               label: parsedItem.label,
-              displayName: effectiveFood.name,
+              displayName: massVolumeDisplayName(
+                parsedItem.quantity,
+                unitId,
+                effectiveFood.name
+              ),
               quantity: parsedItem.quantity,
               displayUnit: formatDisplayUnit(parsedItem.quantity, unitId),
               unitKind: 'mass',
@@ -236,7 +246,11 @@ function buildResolvedResult(
           item: {
             id: generateId(),
             label: parsedItem.label,
-            displayName: effectiveFood.name,
+            displayName: massVolumeDisplayName(
+              parsedItem.quantity,
+              'g',
+              effectiveFood.name
+            ),
             quantity: parsedItem.quantity,
             displayUnit: 'g',
             unitKind: 'mass',
@@ -266,7 +280,11 @@ function buildResolvedResult(
     item: {
       id: generateId(),
       label: parsedItem.label,
-      displayName: effectiveFood.name,
+      displayName: massVolumeDisplayName(
+        parsedItem.quantity,
+        unitId,
+        effectiveFood.name
+      ),
       quantity: parsedItem.quantity,
       displayUnit,
       unitKind,
@@ -299,7 +317,7 @@ export async function resolveVoiceItem(
 
   // ── Fast path: local-only, no network ────────────────────────────────────────
   for (const candidate of candidates) {
-    const localResults = await foodService.searchLocalOnly(candidate);
+    const localResults = await foodService.searchLocalOnly(candidate) ?? [];
     if (localResults.length > 0) {
       const topLocal = localResults[0];
       const localConfidence = scoreConfidence(topLocal, parsedItem.query);

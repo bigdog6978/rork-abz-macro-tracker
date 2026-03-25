@@ -161,17 +161,19 @@ export default function EditLogEntryScreen() {
     const mode = (entry.measureMode === 'units' ? 'qty' : entry.measureMode) ?? 'grams';
     const detected = detectUnitFromName(entry.name);
 
-    if (mode === 'qty' || detected) {
+    // Ounces must win over detectUnitFromName (e.g. "chicken breast" in the name
+    // would otherwise force serving mode and hide the logged oz quantity).
+    if (mode === 'ounces') {
+      setUnitKind('mass');
+      setUnitId('oz');
+      setQuantityInput(gramsToDisplayQty(grams, 'mass', 'oz', entry.name, density));
+    } else if (mode === 'qty' || detected) {
       setUnitKind('serving');
       setUnitId('piece');
       setUnitLabel(detected?.unitLabel ?? 'serving');
       const sw = entry.servingWeightG ?? detected?.servingWeightG ?? 100;
       setServingWeightG(sw);
       setQuantityInput(gramsToDisplayQty(grams, 'serving', 'piece', entry.name, density, sw));
-    } else if (mode === 'ounces') {
-      setUnitKind('mass');
-      setUnitId('oz');
-      setQuantityInput(gramsToDisplayQty(grams, 'mass', 'oz', entry.name, density));
     } else {
       setUnitKind('mass');
       setUnitId('g');
