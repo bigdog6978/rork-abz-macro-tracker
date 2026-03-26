@@ -43,11 +43,11 @@ export async function getAccentTheme(): Promise<AccentThemeId> {
       case 'orange':
         return value;
       default:
-        return 'orange';
+        return 'chartreuse';
     }
   } catch (err) {
     console.log('[userSettingsRepo] Error reading accent theme:', err);
-    return 'orange';
+    return 'chartreuse';
   }
 }
 

@@ -11,7 +11,7 @@ export type AccentThemeId =
 export const ACCENT_THEMES: Record<AccentThemeId, { label: string; primary: string }> = {
   orange: { label: 'Orange', primary: '#FF5F1F' },
   red: { label: 'Red', primary: '#EF4444' },
-  chartreuse: { label: 'Chartreuse', primary: '#E5FE53' },
+  chartreuse: { label: 'Chartreuse', primary: '#DEFF00' },
   blue: { label: 'Neon Blue', primary: '#38BDF8' },
   violet: { label: 'Neon Violet', primary: '#8B5CF6' },
   pink: { label: 'Neon Pink', primary: '#FF4FD8' },

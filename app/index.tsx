@@ -1,27 +1,20 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  Animated,
-  Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, Animated, Pressable, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
-import MaskedView from '@react-native-masked-view/masked-view';
 import { useUser } from '../providers/UserProvider';
 import { useDailyLog } from '../providers/DailyLogProvider';
-import Colors from '../constants/colors';
+import { useThemeColors } from '../providers/ThemeProvider';
 import { Gradients } from '../theme/tokens';
+import SplashBrandSvg from '../components/ui/SplashBrandSvg';
 
-const LOGO_SIZE = 112;
-const WORDMARK_SIZE = 36;
-const SUBTITLE_SIZE = 15;
+const SPLASH_BRAND_MAX = 300;
+const SPLASH_BRAND_HORIZONTAL_INSET = 32;
+const SPLASH_BRAND_SCALE = 0.8;
+const ASPECT_SPLASH = 602.13 / 601.26;
 const VERSION_SIZE = 12;
-const GRADIENT_COLORS = ['#FFC44D', '#FF6A1A', '#D84315'] as const;
 
 function navigateFromProfile(router: ReturnType<typeof useRouter>, profile: { onboardingComplete?: boolean; firstName?: string } | null) {
   try {
@@ -39,7 +32,9 @@ function navigateFromProfile(router: ReturnType<typeof useRouter>, profile: { on
 
 export default function SplashScreen() {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const router = useRouter();
+  const colors = useThemeColors();
   const { profile, isLoading: userLoading } = useUser();
   const { isLoading: logsLoading } = useDailyLog();
   const hasNavigatedRef = useRef(false);
@@ -49,6 +44,14 @@ export default function SplashScreen() {
 
   const isHydrated = !userLoading && !logsLoading;
   const version = Constants.expoConfig?.version;
+
+  const brandSide =
+    Math.min(
+      SPLASH_BRAND_MAX,
+      Math.max(0, windowWidth - SPLASH_BRAND_HORIZONTAL_INSET),
+    ) * SPLASH_BRAND_SCALE;
+  const brandW = brandSide;
+  const brandH = brandSide * ASPECT_SPLASH;
 
   const startExitAndNavigate = useCallback(() => {
     if (hasNavigatedRef.current) return;
@@ -102,31 +105,7 @@ export default function SplashScreen() {
         end={{ x: 0.5, y: 1 }}
       />
       <Animated.View style={[styles.centerStack, { opacity: fadeAnim }]}>
-        <Image
-          source={require('../assets/images/splash_icon.png')}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityLabel="Physiq logo"
-        />
-        <View style={styles.wordmarkWrap}>
-          <MaskedView
-            maskElement={
-              <Text style={[styles.wordmark, { backgroundColor: 'transparent', color: 'black' }]}>
-                Physiq
-              </Text>
-            }
-          >
-            <LinearGradient
-              colors={[...GRADIENT_COLORS]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.gradientFill}
-            >
-              <Text style={[styles.wordmark, styles.wordmarkInvisible]}>Physiq</Text>
-            </LinearGradient>
-          </MaskedView>
-        </View>
-        <Text style={styles.subtitle}>Macro Tracker</Text>
+        <SplashBrandSvg width={brandW} height={brandH} color={colors.primary} />
       </Animated.View>
 
       <Animated.View style={[styles.bottomArea, { bottom: insets.bottom + 16, opacity: fadeAnim }]}>
@@ -152,30 +131,6 @@ const styles = StyleSheet.create({
   centerStack: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  logo: {
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
-  },
-  wordmarkWrap: {
-    marginTop: 16,
-  },
-  wordmark: {
-    fontSize: WORDMARK_SIZE,
-    fontWeight: '700' as const,
-    letterSpacing: 0.8,
-  },
-  wordmarkInvisible: {
-    opacity: 0,
-  },
-  gradientFill: {
-    paddingVertical: 2,
-  },
-  subtitle: {
-    marginTop: 10,
-    fontSize: SUBTITLE_SIZE,
-    fontWeight: '500' as const,
-    color: 'rgba(255, 255, 255, 0.6)',
   },
   bottomArea: {
     position: 'absolute',

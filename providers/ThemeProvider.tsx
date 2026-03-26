@@ -16,7 +16,7 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [accentTheme, setAccentThemeState] = useState<AccentThemeId>('orange');
+  const [accentTheme, setAccentThemeState] = useState<AccentThemeId>('chartreuse');
 
   useEffect(() => {
     getAccentTheme()
