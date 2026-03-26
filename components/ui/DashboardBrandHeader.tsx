@@ -7,10 +7,18 @@ import DashBrandSvg from './DashBrandSvg';
 
 const ASPECT = 26.14 / 506.66;
 
-export default function DashboardBrandHeader() {
+export type DashboardBrandHeaderProps = {
+  /**
+   * `default` — tuned for the home tab (no stack header, matches status bar spacing).
+   * `belowNav` — tab stacks with a visible navigation bar; avoids negative overlap with the title area.
+   */
+  variant?: 'default' | 'belowNav';
+};
+
+export default function DashboardBrandHeader({ variant = 'default' }: DashboardBrandHeaderProps) {
   const colors = useThemeColors();
   const { width: screenWidth } = useWindowDimensions();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, variant), [colors, variant]);
 
   const contentWidth = Math.max(0, screenWidth - 2 * Spacing.lg);
   const svgWidth = contentWidth * 0.7;
@@ -26,10 +34,11 @@ export default function DashboardBrandHeader() {
   );
 }
 
-const createStyles = (colors: AppColors) =>
+const createStyles = (colors: AppColors, variant: 'default' | 'belowNav') =>
   StyleSheet.create({
     container: {
-      marginTop: -7,
+      marginTop: variant === 'belowNav' ? 0 : -7,
+      marginBottom: variant === 'belowNav' ? Spacing.md : 0,
       paddingBottom: 6,
       backgroundColor: 'transparent',
     },

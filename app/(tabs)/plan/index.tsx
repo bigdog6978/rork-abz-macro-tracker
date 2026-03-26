@@ -13,6 +13,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sunrise, Sun, Moon, Cookie, ArrowLeftRight, X, Check, Save, Bookmark, ShoppingCart, Copy, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -112,6 +113,8 @@ import { GroceryList, GroceryChecklist, GroceryCategoryGroup } from '../../../ut
 import { loadData, saveData, STORAGE_KEYS } from '../../../services/storage';
 import { getQuantityInfo, scaleMacros, formatQuantityDisplay } from '../../../utils/quantityUtils';
 import EditQuantitySheet from '../../../components/ui/EditQuantitySheet';
+import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
+import TabScreenTitle from '../../../components/ui/TabScreenTitle';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -905,6 +908,7 @@ function createFoodEntryFromPlanItem(food: MealSuggestion): FoodEntry {
 }
 
 export default function PlanScreen() {
+  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const { profile, macros } = useUser();
   const { todayEntries, addEntry, removeEntry, updateEntry } = useDailyLog();
@@ -1346,7 +1350,7 @@ export default function PlanScreen() {
 
   if (!profile.onboardingComplete) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Complete onboarding first</Text>
         </View>
@@ -1355,11 +1359,13 @@ export default function PlanScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <DashboardBrandHeader />
+        <TabScreenTitle title="Meal Plan" />
         <View style={styles.headerCard}>
           <View style={styles.headerTopRow}>
             <View style={styles.headerTitleArea}>

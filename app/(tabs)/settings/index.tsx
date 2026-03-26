@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -17,6 +18,8 @@ import Colors from '../../../constants/colors';
 import { Radius, Shadows, Spacing } from '../../../theme/tokens';
 import { useTheme, useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 import { ACCENT_THEMES, type AccentThemeId } from '../../../theme/accentThemes';
+import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
+import TabScreenTitle from '../../../components/ui/TabScreenTitle';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { getAllergies } from '../../../storage/allergiesRepo';
@@ -40,6 +43,7 @@ import {
 type EditMode = 'none' | 'profile' | 'nutrition';
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { profile, macros, updateProfile, resetProfile } = useUser();
   const { clearAll } = useDailyLog();
@@ -175,7 +179,7 @@ export default function SettingsScreen() {
 
   if (!profile.onboardingComplete) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Complete onboarding first</Text>
         </View>
@@ -201,8 +205,10 @@ export default function SettingsScreen() {
       : `${lbToKg(profile.weightLb)} kg`;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <DashboardBrandHeader />
+        <TabScreenTitle title="Settings" />
         <View style={styles.macroSummary}>
           <Text style={styles.sectionTitle}>Current Targets</Text>
           <View style={styles.macroRow}>

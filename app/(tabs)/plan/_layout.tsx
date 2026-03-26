@@ -14,7 +14,7 @@ export default function PlanLayout() {
     >
       <Stack.Screen
         name="index"
-        options={{ title: "Meal Plan" }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="saved-plans"

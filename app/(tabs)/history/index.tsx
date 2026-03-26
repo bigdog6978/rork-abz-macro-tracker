@@ -12,6 +12,7 @@ import {
   Pressable,
   Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
@@ -35,6 +36,8 @@ import {
 } from '../../../features/progress/progressScoring';
 import { fromDateKey } from '../../../utils/dateKey';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
+import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
+import TabScreenTitle from '../../../components/ui/TabScreenTitle';
 
 type ViewMode = 'progress' | 'history';
 type TimeRange = 7 | 14 | 30;
@@ -319,6 +322,7 @@ function DayRow({
 }
 
 export default function HistoryScreen() {
+  const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const queryClient = useQueryClient();
   const { profile, macros } = useUser();
@@ -458,7 +462,7 @@ export default function HistoryScreen() {
 
   if (!profile.onboardingComplete) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Complete onboarding first</Text>
         </View>
@@ -469,11 +473,13 @@ export default function HistoryScreen() {
   const rangeOptions: TimeRange[] = [7, 14, 30];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <DashboardBrandHeader />
+        <TabScreenTitle title="Progress" />
         <View style={styles.modeToggle}>
           <TouchableOpacity
             style={[styles.modeTab, viewMode === 'progress' && [styles.modeTabActive, { backgroundColor: colors.primaryMuted }]]}
