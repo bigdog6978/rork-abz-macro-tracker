@@ -5,15 +5,15 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.2.6',
+  version: '1.2.7',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
+  // Native splash cannot use SVG or theme colors. Brand + accent come from
+  // assets/splash_brand.svg via SplashBrandSvg in app/index.tsx (useThemeColors().primary).
   splash: {
-    image: './assets/images/splash_icon.png',
-    resizeMode: 'contain',
     backgroundColor: '#0D0D0D',
   },
   ios: {

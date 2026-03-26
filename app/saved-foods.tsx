@@ -59,7 +59,7 @@ export default function SavedFoodsScreen() {
       const norm = foodsRepo.localFoodToNormalizedFood(food);
       router.replace({
         pathname: '/add-food',
-        params: { fromBarcode: norm.id },
+        params: { fromBarcode: norm.id, sourceContext: 'saved-foods' },
       });
     },
     []

@@ -123,8 +123,13 @@ export default function AddFoodScreen() {
   const { addEntry, addEntries } = useDailyLog();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const params = useLocalSearchParams<{ fromBarcode?: string; dateKey?: string }>();
+  const params = useLocalSearchParams<{
+    fromBarcode?: string;
+    dateKey?: string;
+    sourceContext?: string;
+  }>();
   const dateKeyParam = typeof params.dateKey === 'string' ? params.dateKey : undefined;
+  const isFromSavedFoods = params.sourceContext === 'saved-foods';
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<NormalizedFood[]>([]);
@@ -244,6 +249,12 @@ export default function AddFoodScreen() {
       .then(setRecentFoods)
       .catch((err) => console.log('[AddFood] Error loading recents:', err));
   }, []);
+
+  useEffect(() => {
+    if (isFromSavedFoods) {
+      setSaveToLibrary(false);
+    }
+  }, [isFromSavedFoods]);
 
   useEffect(() => {
     foodsRepo
@@ -569,7 +580,7 @@ export default function AddFoodScreen() {
         voiceMealDraft.items.map((item) => foodService.addToRecent(item.food, item.grams))
       );
 
-      if (saveToLibrary) {
+      if (saveToLibrary && !isFromSavedFoods) {
         await Promise.all(
           voiceMealDraft.items.map((item) => {
             const voiceSaveOpts =
@@ -600,7 +611,7 @@ export default function AddFoodScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [addEntries, dateKeyParam, voiceMealDraft, saveToLibrary, saveManualToLibrary]);
+  }, [addEntries, dateKeyParam, voiceMealDraft, saveToLibrary, saveManualToLibrary, isFromSavedFoods]);
 
   const computedCalories =
     (parseFloat(protein) || 0) * 4 +
@@ -972,7 +983,7 @@ export default function AddFoodScreen() {
       );
       addEntry(entry, dateKeyParam);
       await foodService.addToRecent(textResolvedItem.food, textResolvedItem.grams);
-      if (saveToLibrary) {
+      if (saveToLibrary && !isFromSavedFoods) {
         const _item = textResolvedItem;
         const _saveOpts =
           _item.entryOpts?.measureMode === 'qty' && _item.entryOpts.servingWeightG
@@ -1000,7 +1011,7 @@ export default function AddFoodScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [textResolvedItem, addEntry, dateKeyParam, saveToLibrary, saveManualToLibrary]);
+  }, [textResolvedItem, addEntry, dateKeyParam, saveToLibrary, saveManualToLibrary, isFromSavedFoods]);
 
   const handleQuantityChange = useCallback(
     (text: string) => {
@@ -1131,7 +1142,7 @@ export default function AddFoodScreen() {
       }
 
       const isManual = !selectedFood || selectedFood.providerId === 'manual';
-      if (saveToLibrary && isManual) {
+      if (saveToLibrary && isManual && !isFromSavedFoods) {
         const density = typeof selectedFood?.density_g_per_ml === 'number' ? selectedFood.density_g_per_ml : undefined;
         const unitOpts =
           unitKind === 'serving' && unitLabel && servingWeightG
@@ -1169,6 +1180,7 @@ export default function AddFoodScreen() {
     saveManualToLibrary,
     addEntry,
     dateKeyParam,
+    isFromSavedFoods,
   ]);
 
   const handleManualMode = useCallback(() => {
@@ -1889,39 +1901,40 @@ export default function AddFoodScreen() {
                 </Text>
               </View>
 
-              {(!selectedFood || selectedFood.providerId === 'manual') && (
-                <TouchableOpacity
-                  style={styles.saveToLibraryRow}
-                  onPress={() => setSaveToLibrary((v) => !v)}
-                  activeOpacity={0.7}
-                >
-                  <Bookmark
-                    size={18}
-                    color={saveToLibrary ? colors.primary : Colors.textTertiary}
-                  />
-                  <Text
-                    style={[
-                      styles.saveToLibraryText,
-                      saveToLibrary && styles.saveToLibraryTextActive,
-                    ]}
+              {!isFromSavedFoods &&
+                (!selectedFood || selectedFood.providerId === 'manual') && (
+                  <TouchableOpacity
+                    style={styles.saveToLibraryRow}
+                    onPress={() => setSaveToLibrary((v) => !v)}
+                    activeOpacity={0.7}
                   >
-                    Save to Saved Foods
-                  </Text>
-                  <View
-                    style={[
-                      styles.toggleTrack,
-                      saveToLibrary && styles.toggleTrackActive,
-                    ]}
-                  >
+                    <Bookmark
+                      size={18}
+                      color={saveToLibrary ? colors.primary : Colors.textTertiary}
+                    />
+                    <Text
+                      style={[
+                        styles.saveToLibraryText,
+                        saveToLibrary && styles.saveToLibraryTextActive,
+                      ]}
+                    >
+                      Save to Saved Foods
+                    </Text>
                     <View
                       style={[
-                        styles.toggleThumb,
-                        saveToLibrary && styles.toggleThumbActive,
+                        styles.toggleTrack,
+                        saveToLibrary && styles.toggleTrackActive,
                       ]}
-                    />
-                  </View>
-                </TouchableOpacity>
-              )}
+                    >
+                      <View
+                        style={[
+                          styles.toggleThumb,
+                          saveToLibrary && styles.toggleThumbActive,
+                        ]}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                )}
 
               {selectedFood?.providerId === 'usda' && (
                 <TouchableOpacity
@@ -2153,37 +2166,39 @@ export default function AddFoodScreen() {
                     </Text>
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.saveToLibraryRow}
-                    onPress={() => setSaveToLibrary((v) => !v)}
-                    activeOpacity={0.7}
-                  >
-                    <Bookmark
-                      size={18}
-                      color={saveToLibrary ? colors.primary : Colors.textTertiary}
-                    />
-                    <Text
-                      style={[
-                        styles.saveToLibraryText,
-                        saveToLibrary && styles.saveToLibraryTextActive,
-                      ]}
+                  {!isFromSavedFoods && (
+                    <TouchableOpacity
+                      style={styles.saveToLibraryRow}
+                      onPress={() => setSaveToLibrary((v) => !v)}
+                      activeOpacity={0.7}
                     >
-                      Save to Saved Foods
-                    </Text>
-                    <View
-                      style={[
-                        styles.toggleTrack,
-                        saveToLibrary && styles.toggleTrackActive,
-                      ]}
-                    >
+                      <Bookmark
+                        size={18}
+                        color={saveToLibrary ? colors.primary : Colors.textTertiary}
+                      />
+                      <Text
+                        style={[
+                          styles.saveToLibraryText,
+                          saveToLibrary && styles.saveToLibraryTextActive,
+                        ]}
+                      >
+                        Save to Saved Foods
+                      </Text>
                       <View
                         style={[
-                          styles.toggleThumb,
-                          saveToLibrary && styles.toggleThumbActive,
+                          styles.toggleTrack,
+                          saveToLibrary && styles.toggleTrackActive,
                         ]}
-                      />
-                    </View>
-                  </TouchableOpacity>
+                      >
+                        <View
+                          style={[
+                            styles.toggleThumb,
+                            saveToLibrary && styles.toggleThumbActive,
+                          ]}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  )}
 
                   <View style={styles.voiceModalActions}>
                     <TouchableOpacity

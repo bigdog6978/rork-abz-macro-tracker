@@ -1,0 +1,30 @@
+---
+description: Saved Foods flow must not re-save to library or show duplicate replace prompt
+globs: app/add-food.tsx,app/saved-foods.tsx
+---
+
+# Saved Foods Add-To-Log Rule
+
+When a user selects an item from **Saved Foods** and opens `app/add-food.tsx` from that flow, the app must treat the item as **already saved**.
+
+## Requirements
+
+- Adding a food from Saved Foods to the daily log must **not** write that food back into the saved foods library.
+- The add flow must **not** call `saveManualToLibrary()` for items opened from Saved Foods.
+- The duplicate prompt (`"Replace existing saved food?"`) must **never** appear for items opened from Saved Foods.
+- The action should only create the **daily log entry** and **recent-food** entry.
+- Keep normal save behavior for brand-new manual foods, explicit “Save to Saved Foods” actions, and other non–saved-food flows.
+
+## Implementation
+
+- Pass `sourceContext: 'saved-foods'` in router params from `app/saved-foods.tsx` when opening add-food with a saved item.
+- In `app/add-food.tsx`, when `sourceContext === 'saved-foods'`:
+  - Force `saveToLibrary` to `false` (e.g. `useEffect`).
+  - Hide the “Save to Saved Foods” toggles (main form and voice modal).
+  - Guard every path that calls `saveManualToLibrary` with `!isFromSavedFoods`.
+- Do **not** infer this only from `providerId === 'manual'`; use the navigation param so plain manual entry still works.
+
+## Acceptance
+
+- Saved food → Add to log: no replace prompt; saved list unchanged.
+- Manual entry from elsewhere: save-to-library and duplicate handling unchanged where applicable.
