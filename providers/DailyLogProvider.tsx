@@ -1,8 +1,9 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { AppState } from 'react-native';
 import { FoodEntry, MacroTargets } from '../types';
-import { getTodayDateString } from '../utils/macroEngine';
+import { getTodayDateKey, toDateKey } from '../utils/dateKey';
 import { loadData, saveData, removeData, STORAGE_KEYS } from '../services/storage';
 import * as foodService from '../features/food/foodService';
 
@@ -46,7 +47,7 @@ function ensureEntryMacros(entry: FoodEntry): FoodEntry {
 export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
   const queryClient = useQueryClient();
   const [logs, setLogs] = useState<StoredLogs>({});
-  const today = getTodayDateString();
+  const [today, setToday] = useState(getTodayDateKey());
 
   const logsQuery = useQuery({
     queryKey: ['food_logs'],
@@ -74,6 +75,25 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
       setLogs(logsQuery.data);
     }
   }, [logsQuery.data]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setToday(getTodayDateKey());
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const msUntilMidnight = tomorrow.getTime() - now.getTime() + 100;
+    const timer = setTimeout(() => {
+      setToday(getTodayDateKey());
+    }, msUntilMidnight);
+    return () => clearTimeout(timer);
+  }, [today]);
 
   const saveMutation = useMutation({
     mutationFn: async (updated: StoredLogs) => {
@@ -233,7 +253,7 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
     let streak = 0;
     const d = new Date();
     for (let i = 0; i < 365; i++) {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = toDateKey(d);
       const entries = logs[dateStr] ?? [];
       if (entries.length > 0) {
         streak++;

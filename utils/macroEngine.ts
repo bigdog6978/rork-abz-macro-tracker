@@ -9,6 +9,7 @@ import {
   MacroTargets,
   UserProfile,
 } from '../types';
+import { getTodayDateKey } from './dateKey';
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
@@ -263,5 +264,5 @@ export function getAdherencePercent(
 }
 
 export function getTodayDateString(): string {
-  return new Date().toISOString().split('T')[0];
+  return getTodayDateKey();
 }

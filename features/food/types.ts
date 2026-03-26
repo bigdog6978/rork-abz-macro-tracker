@@ -19,6 +19,8 @@ export interface NormalizedFood {
   density_g_per_ml?: number | null;
   /** Unit label stored when food was saved (e.g. 'oz', 'g', 'lb', 'egg', 'strip') */
   unitLabel?: string;
+  /** Original quantity the user entered when saving (e.g. 6 for "6 oz"). */
+  savedQuantity?: number | null;
   updatedAt: string;
 }
 

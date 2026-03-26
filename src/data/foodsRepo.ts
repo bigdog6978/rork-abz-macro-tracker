@@ -57,6 +57,7 @@ function parseUnitMeta(servingSize: string | null): {
   servingWeightG?: number;
   servingVolumeMl?: number;
   density_g_per_ml?: number | null;
+  savedQuantity?: number;
 } {
   if (!servingSize?.trim().startsWith('{')) return {};
   try {
@@ -65,12 +66,14 @@ function parseUnitMeta(servingSize: string | null): {
       servingWeightG?: number;
       servingVolumeMl?: number;
       density_g_per_ml?: number | null;
+      savedQuantity?: number;
     };
     return {
       unitLabel: typeof parsed.unitLabel === 'string' ? parsed.unitLabel : undefined,
       servingWeightG: typeof parsed.servingWeightG === 'number' ? parsed.servingWeightG : undefined,
       servingVolumeMl: typeof parsed.servingVolumeMl === 'number' ? parsed.servingVolumeMl : undefined,
       density_g_per_ml: typeof parsed.density_g_per_ml === 'number' ? parsed.density_g_per_ml : undefined,
+      savedQuantity: typeof parsed.savedQuantity === 'number' ? parsed.savedQuantity : undefined,
     };
   } catch {
     // Legacy format
@@ -84,6 +87,7 @@ function encodeServingSize(opts: {
   servingWeightG?: number | null;
   servingVolumeMl?: number | null;
   density_g_per_ml?: number | null;
+  savedQuantity?: number | null;
 }): string | null {
   const hasMeta =
     (opts.unitLabel && typeof opts.servingWeightG === 'number') ||
@@ -103,6 +107,9 @@ function encodeServingSize(opts: {
     }
     if (typeof opts.density_g_per_ml === 'number') {
       obj.density_g_per_ml = opts.density_g_per_ml;
+    }
+    if (typeof opts.savedQuantity === 'number' && opts.savedQuantity > 0) {
+      obj.savedQuantity = opts.savedQuantity;
     }
     return JSON.stringify(obj);
   }
@@ -126,6 +133,7 @@ function mapRow(r: FoodRow): LocalFood {
     servingWeightG: meta.servingWeightG ?? null,
     servingVolumeMl: meta.servingVolumeMl ?? null,
     density_g_per_ml: meta.density_g_per_ml ?? null,
+    savedQuantity: meta.savedQuantity ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -283,6 +291,7 @@ export async function addManualFood(data: {
   unitLabel?: string | null;
   servingWeightG?: number | null;
   density_g_per_ml?: number | null;
+  savedQuantity?: number | null;
 }): Promise<LocalFood> {
   const db = await openDb();
   const id = `${PREFIX_MANUAL}${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -299,6 +308,7 @@ export async function addManualFood(data: {
     unitLabel: data.unitLabel,
     servingWeightG: data.servingWeightG,
     density_g_per_ml: data.density_g_per_ml,
+    savedQuantity: data.savedQuantity,
   });
 
   const manualSearchName = generateSearchName(data.name);
@@ -478,6 +488,7 @@ export function localFoodToNormalizedFood(f: LocalFood): NormalizedFood {
   if (typeof f.servingVolumeMl === 'number') norm.servingVolumeMl = f.servingVolumeMl;
   if (typeof f.density_g_per_ml === 'number') norm.density_g_per_ml = f.density_g_per_ml;
   if (typeof f.unitLabel === 'string' && f.unitLabel) norm.unitLabel = f.unitLabel;
+  if (typeof f.savedQuantity === 'number' && f.savedQuantity > 0) norm.savedQuantity = f.savedQuantity;
   return applyKnownLiquidDensity(norm);
 }
 
@@ -499,6 +510,7 @@ export async function updateFoodDensity(
     servingWeightG: meta.servingWeightG ?? undefined,
     servingVolumeMl: meta.servingVolumeMl ?? undefined,
     density_g_per_ml,
+    savedQuantity: meta.savedQuantity ?? undefined,
   });
 
   const now = Math.floor(Date.now() / 1000);

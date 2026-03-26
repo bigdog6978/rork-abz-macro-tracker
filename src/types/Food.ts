@@ -23,6 +23,8 @@ export interface LocalFood {
   servingVolumeMl?: number | null;
   /** Density (g/ml) for volume→grams. Parsed from serving_size JSON. */
   density_g_per_ml?: number | null;
+  /** Original quantity the user entered (e.g. 6 for "6 oz"). Parsed from serving_size JSON. */
+  savedQuantity?: number | null;
   createdAt: number;
   updatedAt: number;
 }
