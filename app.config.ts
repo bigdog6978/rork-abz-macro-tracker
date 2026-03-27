@@ -19,7 +19,7 @@ export default (): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'app.rork.abz-macro-tracker',
-    buildNumber: '11',
+    buildNumber: '12',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription:
