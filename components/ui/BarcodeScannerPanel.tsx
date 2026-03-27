@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   Alert,
+  Linking,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
@@ -261,6 +262,10 @@ export default function BarcodeScannerPanel({
     else router.back();
   }, [onCancel]);
 
+  const openCameraSettings = useCallback(() => {
+    Linking.openSettings();
+  }, []);
+
   const handleScanAgain = useCallback(() => {
     setError(null);
     setProduct(null);
@@ -358,12 +363,26 @@ export default function BarcodeScannerPanel({
   }
 
   if (!permission.granted) {
+    const mustUseSettings = !permission.canAskAgain;
     return (
       <View style={[styles.center, compact && styles.centerCompact]}>
-        <Text style={styles.message}>Camera access is needed to scan barcodes.</Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
-          <Text style={styles.primaryBtnText}>Grant Permission</Text>
-        </TouchableOpacity>
+        <Text style={styles.message}>
+          Barcode scanning uses the camera to read product codes.
+        </Text>
+        {mustUseSettings ? (
+          <>
+            <Text style={styles.permissionSubtext}>
+              To scan barcodes, turn on camera access for this app in Settings.
+            </Text>
+            <TouchableOpacity style={styles.primaryBtn} onPress={openCameraSettings}>
+              <Text style={styles.primaryBtnText}>Open Settings</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
+            <Text style={styles.primaryBtnText}>Continue</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.secondaryBtn} onPress={handleCancel}>
           <Text style={styles.secondaryBtnText}>Cancel</Text>
         </TouchableOpacity>
@@ -527,6 +546,14 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 24,
+  },
+  permissionSubtext: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: -12,
+    marginBottom: 20,
+    paddingHorizontal: 8,
   },
   primaryBtn: {
     backgroundColor: colors.primary,
