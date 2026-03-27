@@ -5,7 +5,7 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.2.7',
+  version: '1.2.8',
   orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
