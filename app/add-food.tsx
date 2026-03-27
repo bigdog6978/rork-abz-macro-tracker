@@ -15,6 +15,7 @@ import {
   Keyboard,
   Modal,
   Pressable,
+  Linking,
 } from 'react-native';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -25,6 +26,7 @@ import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
+import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import { NormalizedFood } from '../features/food/types';
 import * as foodService from '../features/food/foodService';
 import * as foodsRepo from '../src/data/foodsRepo';
@@ -477,10 +479,26 @@ export default function AddFoodScreen() {
     try {
       const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(
-          'Microphone access required',
-          'Enable microphone and speech recognition permissions to speak meals into your food log.'
-        );
+        if (!permission.canAskAgain) {
+          Alert.alert(
+            'Microphone access needed',
+            'To speak meals into your food log, turn on microphone and speech recognition access for this app in Settings.',
+            [
+              {
+                text: 'Open Settings',
+                onPress: () => {
+                  Linking.openSettings();
+                },
+              },
+              { text: 'Cancel', style: 'cancel' },
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Microphone access needed',
+            'Microphone and speech recognition permissions are used to speak meals into your food log.'
+          );
+        }
         return;
       }
 
@@ -1481,6 +1499,7 @@ export default function AddFoodScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <ResponsiveContainer>
           <View
             style={styles.searchSection}
             onLayout={(event) => {
@@ -2090,6 +2109,7 @@ export default function AddFoodScreen() {
                 )}
               </View>
             )}
+          </ResponsiveContainer>
         </ScrollView>
       </KeyboardAvoidingView>
 

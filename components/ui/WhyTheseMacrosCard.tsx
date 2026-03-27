@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { Radius } from '../../theme/tokens';
@@ -21,6 +21,8 @@ export default function WhyTheseMacrosCard({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [expanded, setExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
+  const { height: windowHeight } = useWindowDimensions();
+  const expandMaxHeight = Math.min(440, windowHeight * 0.5);
   const details = macros.calculationDetails;
 
   const toggleExpanded = () => {
@@ -37,7 +39,7 @@ export default function WhyTheseMacrosCard({
     () => ({
       maxHeight: expandAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, 440],
+        outputRange: [0, expandMaxHeight],
       }),
       opacity: expandAnim,
       transform: [
@@ -49,7 +51,7 @@ export default function WhyTheseMacrosCard({
         },
       ],
     }),
-    [expandAnim]
+    [expandAnim, expandMaxHeight]
   );
 
   const iconStyle = useMemo(

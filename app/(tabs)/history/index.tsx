@@ -38,6 +38,7 @@ import { fromDateKey } from '../../../utils/dateKey';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import TabScreenTitle from '../../../components/ui/TabScreenTitle';
+import ResponsiveContainer from '../../../components/ui/ResponsiveContainer';
 
 type ViewMode = 'progress' | 'history';
 type TimeRange = 7 | 14 | 30;
@@ -478,6 +479,7 @@ export default function HistoryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <ResponsiveContainer>
         <DashboardBrandHeader />
         <TabScreenTitle title="Progress" />
         <View style={styles.modeToggle}>
@@ -752,6 +754,7 @@ export default function HistoryScreen() {
             </Modal>
           </>
         )}
+        </ResponsiveContainer>
       </ScrollView>
     </View>
   );

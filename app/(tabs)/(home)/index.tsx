@@ -7,14 +7,15 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
-  Dimensions,
   Modal,
   Pressable,
   TextInput,
   KeyboardAvoidingView,
   Keyboard,
+  useWindowDimensions,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
@@ -35,17 +36,17 @@ import { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
 import WhyTheseMacrosCard from '../../../components/ui/WhyTheseMacrosCard';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
+import ResponsiveContainer, { useIsTablet } from '../../../components/ui/ResponsiveContainer';
 
-const { width: screenWidth } = Dimensions.get('window');
 const CARD_HORIZONTAL_PADDING = 18;
 const GAP = 20;
 const STATS_MIN_WIDTH = 165;
-const IS_NARROW = screenWidth < 380;
 
-function getDialSize(cardWidth: number): number {
+function getDialSize(cardWidth: number, screenWidth: number, isTablet: boolean): number {
   const effectiveWidth = cardWidth > 0 ? cardWidth : Math.floor(screenWidth * 0.85);
   const dialMax = effectiveWidth - STATS_MIN_WIDTH - GAP;
-  return Math.min(230, Math.max(120, Math.floor(dialMax)));
+  const maxCap = isTablet ? 320 : 230;
+  return Math.min(maxCap, Math.max(120, Math.floor(dialMax)));
 }
 
 // ─── CustomMacrosModal ───────────────────────────────────────────────────────
@@ -179,8 +180,12 @@ export default function DashboardScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [cardWidth, setCardWidth] = useState(0);
   const [editMacrosVisible, setEditMacrosVisible] = useState(false);
+  const { width: screenWidth } = useWindowDimensions();
+  const isTablet = useIsTablet();
+  const IS_NARROW = screenWidth < 380;
+  const insets = useSafeAreaInsets();
 
-  const dialSize = useMemo(() => getDialSize(cardWidth), [cardWidth]);
+  const dialSize = useMemo(() => getDialSize(cardWidth, screenWidth, isTablet), [cardWidth, screenWidth, isTablet]);
   const dialStrokeWidth = useMemo(() => Math.round(dialSize * 0.078), [dialSize]);
   const dialNumberSize = useMemo(() => Math.round(dialSize * 0.255), [dialSize]);
   const dialNumberLine = useMemo(() => Math.round(dialNumberSize * 1.02), [dialNumberSize]);
@@ -243,12 +248,13 @@ export default function DashboardScreen() {
   })();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <Stack.Screen options={{ title: greeting, headerShown: false }} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <ResponsiveContainer>
         <DashboardBrandHeader />
 
         {/* Greeting */}
@@ -517,6 +523,7 @@ export default function DashboardScreen() {
             <EmptyState />
           )}
         </Animated.View>
+        </ResponsiveContainer>
       </ScrollView>
 
       <Fab onPress={handleAddFood} testID="add-food-button" />
@@ -626,7 +633,6 @@ const createStyles = (colors: AppColors) =>
     container: {
       flex: 1,
       backgroundColor: 'transparent',
-      paddingTop: Platform.OS === 'ios' ? 60 : 40,
     },
     scrollContent: {
       padding: Spacing.lg,

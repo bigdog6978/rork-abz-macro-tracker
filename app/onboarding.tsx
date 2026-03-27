@@ -45,6 +45,7 @@ import {
 } from '../src/content/planDefinitions';
 import { calculateMacros } from '../utils/macroEngine';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
+import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 
 const TOTAL_STEPS = 8;
 
@@ -612,7 +613,9 @@ export default function OnboardingScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <ResponsiveContainer>
           {steps[step]()}
+          </ResponsiveContainer>
         </ScrollView>
       </KeyboardAvoidingView>
 

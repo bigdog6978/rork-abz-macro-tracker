@@ -6,7 +6,7 @@ export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
   version: '1.2.7',
-  orientation: 'portrait',
+  orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
   userInterfaceStyle: 'automatic',
@@ -17,7 +17,7 @@ export default (): ExpoConfig => ({
     backgroundColor: '#0D0D0D',
   },
   ios: {
-    supportsTablet: false,
+    supportsTablet: true,
     bundleIdentifier: 'app.rork.abz-macro-tracker',
     buildNumber: '11',
     infoPlist: {

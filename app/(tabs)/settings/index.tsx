@@ -20,6 +20,7 @@ import { useTheme, useThemeColors, type AppColors } from '../../../providers/The
 import { ACCENT_THEMES, type AccentThemeId } from '../../../theme/accentThemes';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import TabScreenTitle from '../../../components/ui/TabScreenTitle';
+import ResponsiveContainer from '../../../components/ui/ResponsiveContainer';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { getAllergies } from '../../../storage/allergiesRepo';
@@ -207,6 +208,7 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ResponsiveContainer>
         <DashboardBrandHeader />
         <TabScreenTitle title="Settings" />
         <View style={styles.macroSummary}>
@@ -525,6 +527,7 @@ export default function SettingsScreen() {
             </View>
           </TouchableOpacity>
         </View>
+        </ResponsiveContainer>
       </ScrollView>
     </View>
   );

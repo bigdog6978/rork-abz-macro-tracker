@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   Modal,
   Animated,
-  Dimensions,
   Platform,
   Pressable,
   TextInput,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sunrise, Sun, Moon, Cookie, ArrowLeftRight, X, Check, Save, Bookmark, ShoppingCart, Copy, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
@@ -115,9 +115,9 @@ import { getQuantityInfo, scaleMacros, formatQuantityDisplay } from '../../../ut
 import EditQuantitySheet from '../../../components/ui/EditQuantitySheet';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import TabScreenTitle from '../../../components/ui/TabScreenTitle';
+import ResponsiveContainer from '../../../components/ui/ResponsiveContainer';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SHEET_HEIGHT = 420;
 
 function getMealIcon(icon: string, colors: AppColors): React.ReactNode {
@@ -360,6 +360,7 @@ function GrocerySection({
   showToast: (msg: string) => void;
 }) {
   const colors = useThemeColors();
+  const { height: windowHeight } = useWindowDimensions();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [checklist, setChecklist] = useState<GroceryChecklist>({});
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -512,7 +513,7 @@ function GrocerySection({
             <Animated.View
               style={[
                 groceryStyles.sheetContainer,
-                { transform: [{ translateY: slideAnim }] },
+                { transform: [{ translateY: slideAnim }], maxHeight: windowHeight * 0.75 },
               ]}
             >
               <View style={groceryStyles.sheetHandle} />
@@ -530,7 +531,7 @@ function GrocerySection({
               </View>
 
               <ScrollView
-                style={groceryStyles.sheetScroll}
+                style={[groceryStyles.sheetScroll, { maxHeight: windowHeight * 0.5 }]}
                 contentContainerStyle={groceryStyles.sheetScrollContent}
                 showsVerticalScrollIndicator={false}
               >
@@ -716,7 +717,6 @@ const groceryStyles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: SCREEN_HEIGHT * 0.75,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: Colors.cardBorder,
@@ -763,7 +763,7 @@ const groceryStyles = StyleSheet.create({
     marginLeft: 12,
   },
   sheetScroll: {
-    maxHeight: SCREEN_HEIGHT * 0.5,
+    maxHeight: 400,
   },
   sheetScrollContent: {
     padding: 16,
@@ -910,6 +910,7 @@ function createFoodEntryFromPlanItem(food: MealSuggestion): FoodEntry {
 export default function PlanScreen() {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const { profile, macros } = useUser();
   const { todayEntries, addEntry, removeEntry, updateEntry } = useDailyLog();
   const queryClient = useQueryClient();
@@ -1364,6 +1365,7 @@ export default function PlanScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <ResponsiveContainer>
         <DashboardBrandHeader />
         <TabScreenTitle title="Meal Plan" />
         <View style={styles.headerCard}>
@@ -1509,6 +1511,7 @@ export default function PlanScreen() {
             For general fitness guidance only. Portions are approximate. Adjust based on your needs and preferences.
           </Text>
         </View>
+        </ResponsiveContainer>
       </ScrollView>
 
       {/* Edit Quantity Sheet */}
@@ -1549,7 +1552,7 @@ export default function PlanScreen() {
             <Animated.View
               style={[
                 styles.sheetContainer,
-                { transform: [{ translateY: slideAnim }] },
+                { transform: [{ translateY: slideAnim }], maxHeight: SCREEN_HEIGHT * 0.6 },
               ]}
             >
               <View style={styles.sheetHandle} />
@@ -1567,7 +1570,7 @@ export default function PlanScreen() {
               </View>
 
               <ScrollView
-                style={styles.sheetScroll}
+                style={[styles.sheetScroll, { maxHeight: SCREEN_HEIGHT * 0.35 }]}
                 contentContainerStyle={styles.sheetScrollContent}
                 showsVerticalScrollIndicator={false}
               >
@@ -2116,7 +2119,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: SCREEN_HEIGHT * 0.6,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: Colors.cardBorder,
@@ -2171,7 +2173,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   sheetScroll: {
-    maxHeight: SCREEN_HEIGHT * 0.35,
+    maxHeight: 280,
   },
   sheetScrollContent: {
     padding: 16,
