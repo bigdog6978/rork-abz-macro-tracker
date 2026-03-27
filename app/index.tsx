@@ -13,7 +13,8 @@ import SplashBrandSvg from '../components/ui/SplashBrandSvg';
 const SPLASH_BRAND_MAX = 300;
 const SPLASH_BRAND_HORIZONTAL_INSET = 32;
 const SPLASH_BRAND_SCALE = 0.8;
-const ASPECT_SPLASH = 602.13 / 601.26;
+/** Matches viewBox width/height in assets/splash_brand.svg (601.12 × 602.13) */
+const ASPECT_SPLASH = 602.13 / 601.12;
 const VERSION_SIZE = 12;
 
 function navigateFromProfile(router: ReturnType<typeof useRouter>, profile: { onboardingComplete?: boolean; firstName?: string } | null) {

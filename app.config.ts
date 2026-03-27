@@ -11,8 +11,8 @@ export default (): ExpoConfig => ({
   scheme: 'rork-app',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
-  // Native splash cannot use SVG or theme colors. Brand + accent come from
-  // assets/splash_brand.svg via SplashBrandSvg in app/index.tsx (useThemeColors().primary).
+  // Native splash cannot use SVG or theme colors. In-app splash loads
+  // assets/splash_brand.svg at runtime via SplashBrandSvg (useThemeColors().primary).
   splash: {
     backgroundColor: '#0D0D0D',
   },
@@ -40,6 +40,7 @@ export default (): ExpoConfig => ({
   },
   plugins: [
     ['expo-router', { origin: 'https://rork.com/' }],
+    'expo-asset',
     'expo-font',
     'expo-web-browser',
     [
