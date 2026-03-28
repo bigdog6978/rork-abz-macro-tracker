@@ -57,3 +57,53 @@ export const NUTRITION_SCIENCE_SECTIONS: NutritionScienceSection[] = [
     ],
   },
 ];
+
+export const MEAL_PLAN_SOURCE_BLURB =
+  'Meal plans are generated from USDA-sourced food composition data, personalized to your eating style, dietary restrictions, allergies, and evidence-based macro targets.';
+
+export const MEAL_PLAN_METHODOLOGY_SECTIONS: NutritionScienceSection[] = [
+  {
+    title: 'Food Composition Data',
+    body: [
+      'Nutrition values (calories, protein, carbohydrates, fat per 100 g) used in meal plan foods are derived from the USDA FoodData Central database.',
+    ],
+    reference: [
+      'U.S. Department of Agriculture, Agricultural Research Service. FoodData Central. fdc.nal.usda.gov',
+    ],
+  },
+  {
+    title: 'Calorie & Macro Targets',
+    body: [
+      'Daily calorie targets are estimated using the Mifflin-St Jeor equation for basal metabolic rate, adjusted by an activity multiplier and goal-based calorie offset. Protein, carbohydrate, and fat grams are derived from evidence-based sports nutrition ranges.',
+    ],
+    reference: [
+      'Mifflin MD, St Jeor ST, Hill LA, Scott BJ, Daugherty SA, Koh YO. A new predictive equation for resting energy expenditure in healthy individuals. American Journal of Clinical Nutrition, 1990.',
+      'American College of Sports Medicine (ACSM). Position Stand on Nutrition and Athletic Performance.',
+      'Jager R et al. International Society of Sports Nutrition Position Stand: Protein and Exercise. Journal of the International Society of Sports Nutrition, 2017.',
+    ],
+  },
+  {
+    title: 'Eating Style Adaptation',
+    body: [
+      'Food selection is adapted to your chosen eating style: Standard, Mediterranean, Vegan, Vegetarian, Paleo, Keto, or Carnivore. Most styles change which foods are suggested. Keto and Carnivore also adjust macro distribution by lowering carbohydrates and increasing fat.',
+    ],
+  },
+  {
+    title: 'Dietary Restrictions',
+    body: [
+      'When dietary restrictions are active (Gluten-Free, Dairy-Free, Nut-Free, Egg-Free, Soy-Free, Shellfish-Free, Low Glycemic, Intermittent Fasting), foods in restricted categories are excluded from meal suggestions. Restriction filters are based on common food allergen categories. Always verify individual food labels for safety.',
+    ],
+  },
+  {
+    title: 'Allergies & Disliked Foods',
+    body: [
+      'User-entered allergies further filter meal suggestions using keyword matching against food names and ingredient tags. Disliked foods are excluded from all generated plans. Allergy filtering is a convenience feature and is not a substitute for reading food labels or consulting a healthcare professional.',
+    ],
+  },
+  {
+    title: 'Portion Sizing',
+    body: [
+      'Portion sizes are calculated to meet your daily macro targets, distributed proportionally across meals. Amounts are approximate and should be adjusted based on individual needs and preferences.',
+    ],
+  },
+];

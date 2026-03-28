@@ -116,6 +116,7 @@ import EditQuantitySheet from '../../../components/ui/EditQuantitySheet';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import TabScreenTitle from '../../../components/ui/TabScreenTitle';
 import ResponsiveContainer from '../../../components/ui/ResponsiveContainer';
+import MealPlanMethodologyCard from '../../../components/ui/MealPlanMethodologyCard';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
 const SHEET_HEIGHT = 420;
@@ -1506,11 +1507,11 @@ export default function PlanScreen() {
           </>
         )}
 
-        <View style={styles.disclaimer}>
-          <Text style={styles.disclaimerText}>
-            For general fitness guidance only. Portions are approximate. Adjust based on your needs and preferences.
-          </Text>
-        </View>
+        <MealPlanMethodologyCard
+          eatingStyle={profile.eatingStyle}
+          dietModifiers={profile.dietModifiers ?? []}
+          onViewMethodology={() => router.push('/settings/nutrition-science' as never)}
+        />
         </ResponsiveContainer>
       </ScrollView>
 
@@ -2089,16 +2090,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 15,
     fontWeight: '700' as const,
-  },
-  disclaimer: {
-    marginTop: 8,
-    padding: 14,
-  },
-  disclaimerText: {
-    color: Colors.textTertiary,
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
   },
   emptyState: {
     flex: 1,
