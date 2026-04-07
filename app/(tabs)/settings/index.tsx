@@ -339,6 +339,16 @@ export default function SettingsScreen() {
         : healthConnectionStatus === 'not_available'
           ? 'Unavailable'
           : 'Connect';
+  const selectedProductTitle = (hasAthleteAccess || (!hasProAccess && upsellTier === 'athlete'))
+    ? 'Physiq Athlete'
+    : 'Physiq Pro';
+  const selectedProductSubtitle = hasAthleteAccess
+    ? 'Athlete active plan'
+    : hasProAccess
+      ? 'Pro active plan'
+      : upsellTier === 'athlete'
+        ? PRO_COPY.athleteSubheadline
+        : PRO_COPY.subheadline;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -362,10 +372,8 @@ export default function SettingsScreen() {
               <Zap size={16} color={colors.primary} />
             </View>
             <View style={styles.rowCopy}>
-              <Text style={styles.rowTitle}>Physiq Pro</Text>
-              <Text style={styles.rowSubtitle}>
-                {hasAthleteAccess ? 'Athlete active plan' : hasProAccess ? 'Pro active plan' : PRO_COPY.subheadline}
-              </Text>
+              <Text style={styles.rowTitle}>{selectedProductTitle}</Text>
+              <Text style={styles.rowSubtitle}>{selectedProductSubtitle}</Text>
             </View>
             <TouchableOpacity
               style={styles.proInfoIconBtn}

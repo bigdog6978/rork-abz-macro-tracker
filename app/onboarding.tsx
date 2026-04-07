@@ -1,9 +1,11 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
   Alert,
+  Animated,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -50,7 +52,6 @@ import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import ProInfoModal from '../components/ui/ProInfoModal';
 import { PRO_COPY } from '../src/content/proMicrocopy';
-import { ATHLETE_SPORTS, AthleteSeasonPhase, AthleteUserType } from '../features/pro/types';
 
 const TOTAL_STEPS = 9;
 
@@ -96,9 +97,6 @@ export default function OnboardingScreen() {
     athleteProduct,
     iapPurchasePending,
     iapError,
-    restoreActivePurchases,
-    openManageSubscriptions,
-    iapRestorePending,
   } = usePro();
   const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
 
@@ -123,11 +121,15 @@ export default function OnboardingScreen() {
   const [definitionSheetSections, setDefinitionSheetSections] = useState<LearnMoreSection[]>([]);
   const [proInfoVisible, setProInfoVisible] = useState(false);
   const [selectedTier, setSelectedTier] = useState<'core' | 'pro' | 'athlete'>('pro');
-  const [athleteUserType, setAthleteUserType] = useState<AthleteUserType>('performance_intermediate');
-  const [athleteSport, setAthleteSport] = useState('Soccer');
-  const [athleteSeason, setAthleteSeason] = useState<AthleteSeasonPhase>('in_season');
-  const [femaleTrackEnabled, setFemaleTrackEnabled] = useState(false);
-  const [femaleTrackConsent, setFemaleTrackConsent] = useState(false);
+  const [legalStep, setLegalStep] = useState<'terms' | 'privacy' | null>(null);
+  const [pendingEntitlement, setPendingEntitlement] = useState<
+    | 'pro_trial_active'
+    | 'pro_subscriber_active'
+    | 'athlete_trial_active'
+    | 'athlete_subscriber_active'
+    | null
+  >(null);
+  const [legalSubmitPending, setLegalSubmitPending] = useState(false);
 
   const animateProgress = useCallback(
     (nextStep: number) => {
@@ -250,12 +252,55 @@ export default function OnboardingScreen() {
     router.replace('/(tabs)' as never);
   }, [completeOnboarding, draftProfile, dislikedFoodIds]);
 
-  const confirmProAction = useCallback((title: string, message: string, onConfirm: () => void) => {
-    Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Confirm', onPress: onConfirm },
-    ]);
-  }, []);
+  const executeTierPurchase = useCallback(
+    (
+      entitlement:
+        | 'pro_trial_active'
+        | 'pro_subscriber_active'
+        | 'athlete_trial_active'
+        | 'athlete_subscriber_active'
+    ) => {
+      const isAthlete = entitlement === 'athlete_trial_active' || entitlement === 'athlete_subscriber_active';
+      const run = async () => {
+        setLegalSubmitPending(true);
+        try {
+          if (isAthlete) {
+            await updateAthleteProfile({
+              enabled: true,
+            });
+            await updateCycleProfile(
+              sex === 'female'
+                ? { enabled: true }
+                : { enabled: false, cycleDataConsentGivenAt: undefined, cycleDataConsentVersion: undefined }
+            );
+          }
+          const purchased = await startPurchase(isAthlete ? 'athlete' : 'pro');
+          if (purchased) {
+            void handleComplete();
+            return;
+          }
+          setEntitlement('core_active');
+          Alert.alert(
+            'Continuing with free access',
+            'Subscription is unavailable right now. You can continue with core features and try again later in Settings.'
+          );
+          void handleComplete();
+        } finally {
+          setLegalSubmitPending(false);
+          setPendingEntitlement(null);
+          setLegalStep(null);
+        }
+      };
+      void run();
+    },
+    [
+      handleComplete,
+      sex,
+      startPurchase,
+      updateAthleteProfile,
+      updateCycleProfile,
+    ]
+  );
 
   const completeWithTierEntitlement = useCallback(
     (
@@ -271,62 +316,20 @@ export default function OnboardingScreen() {
         void handleComplete();
         return;
       }
-      const isAthlete = entitlement === 'athlete_trial_active' || entitlement === 'athlete_subscriber_active';
-      const title = entitlement === 'pro_trial_active'
-        ? 'Start Pro trial?'
-        : entitlement === 'athlete_trial_active'
-          ? 'Start Athlete trial?'
-          : isAthlete
-            ? 'Confirm Athlete subscription?'
-            : 'Confirm Pro subscription?';
-      const message =
-        entitlement === 'pro_trial_active'
-          ? PRO_COPY.renewalDisclosure
-          : entitlement === 'athlete_trial_active'
-            ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
-            : isAthlete
-              ? 'You are choosing Athlete monthly access at $6.99/month. You can manage or cancel in Apple ID Subscriptions.'
-              : 'You are choosing Pro monthly access at $4.99/month. You can manage or cancel in Apple ID Subscriptions.';
-      confirmProAction(title, message, async () => {
-        if (isAthlete) {
-          await updateAthleteProfile({
-            enabled: true,
-            userType: athleteUserType,
-            sport: athleteSport,
-            season: { phase: athleteSeason },
-          });
-          await updateCycleProfile({
-            enabled: femaleTrackEnabled && femaleTrackConsent,
-            cycleDataConsentGivenAt:
-              femaleTrackEnabled && femaleTrackConsent ? new Date().toISOString() : undefined,
-            cycleDataConsentVersion: femaleTrackEnabled && femaleTrackConsent ? 'v1' : undefined,
-          });
-        }
-        const purchased = await startPurchase(isAthlete ? 'athlete' : 'pro');
-        if (purchased) {
-          void handleComplete();
-        } else {
-          Alert.alert(
-            'Purchase not completed',
-            'We could not complete your subscription purchase right now. Please try again.'
-          );
-        }
-      });
+      setPendingEntitlement(entitlement);
+      setLegalStep('terms');
     },
-    [
-      athleteSeason,
-      athleteSport,
-      athleteUserType,
-      confirmProAction,
-      femaleTrackConsent,
-      femaleTrackEnabled,
-      handleComplete,
-      setEntitlement,
-      startPurchase,
-      updateAthleteProfile,
-      updateCycleProfile,
-    ]
+    [handleComplete, setEntitlement]
   );
+
+  const acknowledgeTerms = useCallback(() => {
+    setLegalStep('privacy');
+  }, []);
+
+  const acknowledgePrivacy = useCallback(() => {
+    if (!pendingEntitlement) return;
+    executeTierPurchase(pendingEntitlement);
+  }, [executeTierPurchase, pendingEntitlement]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -686,13 +689,17 @@ export default function OnboardingScreen() {
   const renderProUpsellStep = () => (
     <View style={styles.stepContainer}>
       <View style={styles.stepHeaderRow}>
-        <Text style={styles.stepTitle}>{PRO_COPY.headline}</Text>
+        <Text style={styles.stepTitle}>
+          {selectedTier === 'athlete' ? PRO_COPY.athleteHeadline : PRO_COPY.headline}
+        </Text>
         <TouchableOpacity style={styles.learnMoreButton} onPress={() => setProInfoVisible(true)}>
           <Info size={14} color={colors.primary} />
           <Text style={styles.learnMoreText}>Info</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.stepSubtitle}>{PRO_COPY.subheadline}</Text>
+      <Text style={styles.stepSubtitle}>
+        {selectedTier === 'athlete' ? PRO_COPY.athleteSubheadline : PRO_COPY.subheadline}
+      </Text>
       <View style={styles.segmentRow}>
         <TouchableOpacity
           style={[styles.segment, selectedTier === 'pro' && styles.segmentActive]}
@@ -707,74 +714,6 @@ export default function OnboardingScreen() {
           <Text style={[styles.segmentText, selectedTier === 'athlete' && styles.segmentTextActive]}>Athlete</Text>
         </TouchableOpacity>
       </View>
-      {selectedTier === 'athlete' ? (
-        <View style={styles.choiceList}>
-          <Text style={styles.stepSubtitle}>Fueling built for performance: schedule + season + sport.</Text>
-          <Text style={styles.label}>Athlete User Type</Text>
-          <View style={styles.segmentRow}>
-            <TouchableOpacity style={[styles.segment, athleteUserType === 'casual_data_driven' && styles.segmentActive]} onPress={() => setAthleteUserType('casual_data_driven')}>
-              <Text style={[styles.segmentText, athleteUserType === 'casual_data_driven' && styles.segmentTextActive]}>Casual</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.segment, athleteUserType === 'performance_intermediate' && styles.segmentActive]} onPress={() => setAthleteUserType('performance_intermediate')}>
-              <Text style={[styles.segmentText, athleteUserType === 'performance_intermediate' && styles.segmentTextActive]}>Intermediate</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.segment, athleteUserType === 'advanced_athlete' && styles.segmentActive]} onPress={() => setAthleteUserType('advanced_athlete')}>
-              <Text style={[styles.segmentText, athleteUserType === 'advanced_athlete' && styles.segmentTextActive]}>Advanced</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.label}>Sport</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.chipWrap}>
-              {ATHLETE_SPORTS.map((sport) => (
-                <TouchableOpacity
-                  key={sport}
-                  style={[styles.chip, athleteSport === sport && styles.chipActive]}
-                  onPress={() => setAthleteSport(sport)}
-                >
-                  <Text style={[styles.chipText, athleteSport === sport && styles.chipTextActive]}>{sport}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-          <Text style={styles.label}>Season</Text>
-          <View style={styles.segmentRow}>
-            <TouchableOpacity style={[styles.segment, athleteSeason === 'preseason' && styles.segmentActive]} onPress={() => setAthleteSeason('preseason')}>
-              <Text style={[styles.segmentText, athleteSeason === 'preseason' && styles.segmentTextActive]}>Pre</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.segment, athleteSeason === 'in_season' && styles.segmentActive]} onPress={() => setAthleteSeason('in_season')}>
-              <Text style={[styles.segmentText, athleteSeason === 'in_season' && styles.segmentTextActive]}>In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.segment, athleteSeason === 'off_season' && styles.segmentActive]} onPress={() => setAthleteSeason('off_season')}>
-              <Text style={[styles.segmentText, athleteSeason === 'off_season' && styles.segmentTextActive]}>Off</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={[styles.choiceCard, femaleTrackEnabled && styles.choiceCardSelected]}
-            onPress={() => setFemaleTrackEnabled((prev) => !prev)}
-          >
-            <View style={styles.choiceCopy}>
-              <Text style={[styles.choiceTitle, femaleTrackEnabled && styles.choiceTitleSelected]}>
-                Enable Female Athlete Track (optional)
-              </Text>
-              <Text style={[styles.choiceDescription, femaleTrackEnabled && styles.choiceDescriptionSelected]}>
-                Cycle-aware fueling hooks with privacy-safe controls.
-              </Text>
-            </View>
-            {femaleTrackEnabled ? <View style={styles.choiceDot} /> : null}
-          </TouchableOpacity>
-          {femaleTrackEnabled ? (
-            <TouchableOpacity
-              style={[styles.choiceCard, femaleTrackConsent && styles.choiceCardSelected]}
-              onPress={() => setFemaleTrackConsent((prev) => !prev)}
-            >
-              <View style={styles.choiceCopy}>
-                <Text style={[styles.choiceTitle, femaleTrackConsent && styles.choiceTitleSelected]}>I consent to menstrual-cycle data use for Athlete fueling adjustments.</Text>
-              </View>
-              {femaleTrackConsent ? <View style={styles.choiceDot} /> : null}
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      ) : null}
       <View style={styles.choiceList}>
         {(selectedTier === 'athlete' ? PRO_COPY.athleteFeatureBullets : PRO_COPY.featureBullets).map((line) => (
           <View key={line} style={styles.proFeatureRow}>
@@ -792,7 +731,7 @@ export default function OnboardingScreen() {
         </Text>
         <Text style={styles.proDisclosure}>
           {selectedTier === 'athlete'
-            ? `3-day free trial, then ${athleteProduct?.priceText ?? '$6.99'} ${athleteProduct?.billingPeriodText ?? 'per month'}. Auto-renews unless canceled at least 24 hours before renewal.`
+            ? 'You get full access for 3 days. After trial ends, subscription renews unless canceled.'
             : PRO_COPY.renewalDisclosure}
         </Text>
         <Text style={styles.proDisclosure}>
@@ -802,16 +741,24 @@ export default function OnboardingScreen() {
       {iapError ? <Text style={styles.proDisclosure}>{iapError}</Text> : null}
       <View style={styles.proCtaRow}>
         <TouchableOpacity
-          style={styles.proOutlinedCta}
+          style={[styles.proOutlinedCta, styles.proCtaRowButton, styles.proOutlinedCtaSecondary]}
           disabled={iapPurchasePending}
           onPress={() =>
             completeWithTierEntitlement(selectedTier === 'athlete' ? 'athlete_trial_active' : 'pro_trial_active')
           }
         >
-          <Text style={styles.proOutlinedCtaText}>{iapPurchasePending ? 'Processing…' : PRO_COPY.ctaTrial}</Text>
+          <View style={styles.ctaCopy}>
+            <Text style={styles.ctaTitleSecondary}>{iapPurchasePending ? 'Processing…' : PRO_COPY.ctaTrial}</Text>
+            <Text style={styles.ctaSubtleText}>Cancel anytime in subscriptions</Text>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.proOutlinedCta, styles.proOutlinedCtaActive]}
+          style={[
+            styles.proOutlinedCta,
+            styles.proCtaRowButton,
+            styles.proOutlinedCtaActive,
+            styles.proOutlinedCtaPrimary,
+          ]}
           disabled={iapPurchasePending}
           onPress={() =>
             completeWithTierEntitlement(
@@ -819,36 +766,37 @@ export default function OnboardingScreen() {
             )
           }
         >
-          <Text style={[styles.proOutlinedCtaText, styles.proOutlinedCtaTextActive]}>
-            {selectedTier === 'athlete' ? 'Subscribe $6.99/mo' : PRO_COPY.ctaSubscribe}
+          <View style={styles.ctaCopy}>
+            <Text style={[styles.ctaTitlePrimary, styles.proOutlinedCtaTextActive]}>
+              {selectedTier === 'athlete' ? 'Subscribe $6.99/mo' : PRO_COPY.ctaSubscribe}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.legalCopyWrap}>
+        <Text style={styles.proDisclosure}>
+          By continuing, you acknowledge our{' '}
+          <Text
+            style={styles.inlineLegalLink}
+            onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}
+          >
+            Terms of Use
+          </Text>{' '}
+          and{' '}
+          <Text
+            style={styles.inlineLegalLink}
+            onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}
+          >
+            Privacy Policy
           </Text>
+          .
+        </Text>
+      </View>
+      <View style={styles.proTertiaryRow}>
+        <TouchableOpacity style={styles.proSkipButton} onPress={() => completeWithTierEntitlement('core_active')}>
+          <Text style={styles.proSkipText}>{PRO_COPY.ctaNotNow}</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.proCtaRow}>
-        <TouchableOpacity style={styles.proOutlinedCta} onPress={() => void restoreActivePurchases()}>
-          <Text style={styles.proOutlinedCtaText}>{iapRestorePending ? 'Restoring…' : 'Restore Purchases'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.proOutlinedCta} onPress={() => void openManageSubscriptions()}>
-          <Text style={styles.proOutlinedCtaText}>Manage Subscription</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.proCtaRow}>
-        <TouchableOpacity
-          style={styles.proOutlinedCta}
-          onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}
-        >
-          <Text style={styles.proOutlinedCtaText}>Terms of Use</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.proOutlinedCta}
-          onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}
-        >
-          <Text style={styles.proOutlinedCtaText}>Privacy Policy</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity onPress={() => completeWithTierEntitlement('core_active')}>
-        <Text style={styles.proSkipText}>{PRO_COPY.ctaNotNow}</Text>
-      </TouchableOpacity>
     </View>
   );
 
@@ -882,7 +830,7 @@ export default function OnboardingScreen() {
       >
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 120 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -908,7 +856,7 @@ export default function OnboardingScreen() {
           onPress={isLastStep ? () => completeWithTierEntitlement('core_active') : goNext}
           activeOpacity={0.85}
         >
-          <Text style={styles.primaryButtonText}>{isLastStep ? 'Finish' : 'Continue'}</Text>
+          <Text style={styles.primaryButtonText}>Continue</Text>
           <ChevronRight size={18} color={colors.onPrimary} />
         </TouchableOpacity>
       </View>
@@ -919,7 +867,77 @@ export default function OnboardingScreen() {
         sections={definitionSheetSections}
         onClose={() => setDefinitionSheetVisible(false)}
       />
-      <ProInfoModal visible={proInfoVisible} onClose={() => setProInfoVisible(false)} />
+      <ProInfoModal
+        visible={proInfoVisible}
+        onClose={() => setProInfoVisible(false)}
+        tier={selectedTier === 'athlete' ? 'athlete' : 'pro'}
+      />
+      <Modal
+        visible={legalStep !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (legalSubmitPending) return;
+          setLegalStep(null);
+          setPendingEntitlement(null);
+        }}
+      >
+        <Pressable
+          style={styles.legalBackdrop}
+          onPress={() => {
+            if (legalSubmitPending) return;
+            setLegalStep(null);
+            setPendingEntitlement(null);
+          }}
+        >
+          <Pressable style={styles.legalSheet} onPress={() => {}}>
+            <ScrollView
+              style={styles.legalScroll}
+              contentContainerStyle={styles.legalScrollContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              <Text style={styles.legalTitle}>
+                {legalStep === 'terms' ? 'Acknowledge Terms of Use' : 'Acknowledge Privacy Policy'}
+              </Text>
+              <Text style={styles.legalBody}>
+                {legalStep === 'terms'
+                  ? 'Please review and acknowledge the Terms of Use before starting your subscription.'
+                  : 'Please review and acknowledge the Privacy Policy before starting your subscription.'}
+              </Text>
+              <View style={styles.legalActionStack}>
+                <TouchableOpacity
+                  style={[styles.proOutlinedCta, styles.legalSecondaryCta]}
+                  disabled={legalSubmitPending}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/legal-document' as any,
+                      params: { type: legalStep === 'terms' ? 'terms' : 'privacy' },
+                    })
+                  }
+                >
+                  <Text style={styles.proOutlinedCtaText}>
+                    {legalStep === 'terms' ? 'View Terms of Use' : 'View Privacy Policy'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.proOutlinedCta, styles.proOutlinedCtaActive, styles.legalPrimaryCta]}
+                  disabled={legalSubmitPending}
+                  onPress={legalStep === 'terms' ? acknowledgeTerms : acknowledgePrivacy}
+                >
+                  <Text style={[styles.proOutlinedCtaText, styles.proOutlinedCtaTextActive]}>
+                    {legalSubmitPending
+                      ? 'Processing...'
+                      : legalStep === 'terms'
+                        ? 'I Acknowledge Terms'
+                        : 'I Acknowledge Privacy'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
     </DismissKeyboard>
   );
@@ -1278,20 +1296,67 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
+  inlineLegalLink: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
   proCtaRow: {
     flexDirection: 'row',
     gap: 10,
+    marginTop: 2,
+  },
+  legalCopyWrap: {
+    marginTop: 2,
   },
   proOutlinedCta: {
-    flex: 1,
-    height: 50,
+    minHeight: 58,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: Colors.cardBorder,
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  proCtaRowButton: {
+    flex: 1,
+  },
+  proOutlinedCtaSecondary: {
+    backgroundColor: Colors.card,
+  },
+  proOutlinedCtaPrimary: {
+    shadowColor: colors.primary,
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  ctaCopy: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  ctaTitlePrimary: {
+    color: Colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  ctaTitleSecondary: {
+    color: Colors.text,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  ctaSubtleText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   proOutlinedCtaActive: {
     borderColor: colors.primary,
@@ -1310,6 +1375,66 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  proTertiaryRow: {
+    marginTop: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.cardBorder,
+  },
+  proSkipButton: {
+    width: '100%',
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  legalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  legalSheet: {
+    backgroundColor: Colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 16,
+    width: '100%',
+    maxHeight: '78%',
+    overflow: 'hidden',
+  },
+  legalScroll: {
+    width: '100%',
+  },
+  legalScrollContent: {
+    padding: 16,
+    gap: 12,
+  },
+  legalTitle: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  legalBody: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  legalActionStack: {
+    width: '100%',
+    gap: 10,
     marginTop: 4,
+  },
+  legalSecondaryCta: {
+    width: '100%',
+    backgroundColor: Colors.cardElevated,
+  },
+  legalPrimaryCta: {
+    width: '100%',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
   },
 });

@@ -8,29 +8,40 @@ import { PRO_COPY } from '../../src/content/proMicrocopy';
 type Props = {
   visible: boolean;
   onClose: () => void;
+  tier?: 'pro' | 'athlete';
 };
 
-export default function ProInfoModal({ visible, onClose }: Props) {
+export default function ProInfoModal({ visible, onClose, tier = 'pro' }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const infoTitle = tier === 'athlete' ? PRO_COPY.athleteInfoTitle : PRO_COPY.infoTitle;
+  const infoBody = tier === 'athlete' ? PRO_COPY.athleteInfoBody : PRO_COPY.infoBody;
+  const infoIncludedTitle =
+    tier === 'athlete' ? PRO_COPY.athleteInfoIncludedTitle : PRO_COPY.infoIncludedTitle;
+  const infoIncludedBullets =
+    tier === 'athlete' ? PRO_COPY.athleteInfoIncludedBullets : PRO_COPY.infoIncludedBullets;
+  const disclosure =
+    tier === 'athlete'
+      ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
+      : PRO_COPY.renewalDisclosure;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>{PRO_COPY.infoTitle}</Text>
+            <Text style={styles.title}>{infoTitle}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <X size={16} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.body}>{PRO_COPY.infoBody}</Text>
-            <Text style={styles.subtitle}>{PRO_COPY.infoIncludedTitle}</Text>
-            {PRO_COPY.infoIncludedBullets.map((line) => (
+            <Text style={styles.body}>{infoBody}</Text>
+            <Text style={styles.subtitle}>{infoIncludedTitle}</Text>
+            {infoIncludedBullets.map((line) => (
               <Text key={line} style={styles.bullet}>- {line}</Text>
             ))}
-            <Text style={styles.disclosure}>{PRO_COPY.renewalDisclosure}</Text>
+            <Text style={styles.disclosure}>{disclosure}</Text>
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -48,8 +59,8 @@ const createStyles = (colors: AppColors) =>
     },
     sheet: {
       backgroundColor: Colors.card,
-      borderWidth: 1,
-      borderColor: Colors.cardBorder,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
       borderRadius: 16,
       padding: 16,
       maxHeight: '78%',

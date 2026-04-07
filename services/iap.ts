@@ -54,6 +54,8 @@ export function mapCustomerInfoToState(info: CustomerInfo): IapCustomerState {
   const gracePeriodExpiresDate =
     entitlementValues.map((e) => e?.gracePeriodExpiresDate).find(Boolean) ?? null;
   const isDeferred = entitlementValues.some((e) => Boolean(e?.isSandbox && e?.periodType === 'trial' && !e?.isActive));
+  const trialEntitlement = entitlementValues.find((e) => e?.isActive && e?.periodType === 'trial');
+  const trialEndsAt = trialEntitlement?.expirationDate ?? null;
 
   return mapCustomerLikeInfoToState({
     activeSubscriptions: info.activeSubscriptions,
@@ -61,6 +63,8 @@ export function mapCustomerInfoToState(info: CustomerInfo): IapCustomerState {
     billingIssueDetectedAt: hasBillingIssue ? new Date().toISOString() : null,
     gracePeriodExpiresDate,
     deferred: isDeferred,
+    trialActive: Boolean(trialEntitlement),
+    trialEndsAt,
     nowIso: anyInfo.requestDate ?? new Date().toISOString(),
   });
 }

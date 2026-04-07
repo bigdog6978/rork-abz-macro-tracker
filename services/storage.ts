@@ -19,6 +19,7 @@ export const STORAGE_KEYS = {
   ATHLETE_PROFILE: 'physiq_athlete_profile_v1',
   ATHLETE_CYCLE_PROFILE: 'physiq_athlete_cycle_profile_v1',
   ATHLETE_CYCLE_LOGS: 'physiq_athlete_cycle_logs_v1',
+  TRIAL_CONVERSION_STATE: 'physiq_trial_conversion_state_v1',
 } as const;
 
 export async function saveData(key: string, value: unknown): Promise<void> {

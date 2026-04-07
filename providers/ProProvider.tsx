@@ -16,6 +16,7 @@ import {
   getProEntitlement,
   getProHydrationLog,
   getProSettings,
+  getTrialConversionState,
   saveAthleteCycleLogs,
   saveAthleteCycleProfile,
   saveAthleteProfile,
@@ -23,7 +24,9 @@ import {
   saveProDynamicTargets,
   saveProHydrationLog,
   saveProSettings,
+  saveTrialConversionState,
   setProEntitlement,
+  TrialConversionState,
 } from '../storage/proRepo';
 import {
   AthleteCycleLogEntry,
@@ -78,6 +81,25 @@ const defaultCycleProfile: AthleteCycleProfile = {
   allowCycleDataInExports: false,
 };
 
+function mapIapErrorForDisplay(error: Error | null): string | null {
+  if (!error?.message) return null;
+  const message = error.message.toLowerCase();
+  if (
+    message.includes('expo_public_revenuecat') ||
+    message.includes('api key') ||
+    message.includes('revenuecat')
+  ) {
+    return 'Subscriptions are not available right now. You can continue with the free experience.';
+  }
+  if (message.includes('product not available')) {
+    return 'This subscription is currently unavailable. Please try again in a moment.';
+  }
+  if (message.includes('cancel')) {
+    return 'Purchase was canceled.';
+  }
+  return 'Unable to complete subscription right now. Please try again.';
+}
+
 export const [ProProvider, usePro] = createContextHook(() => {
   const queryClient = useQueryClient();
   const { macros } = useUser();
@@ -102,9 +124,14 @@ export const [ProProvider, usePro] = createContextHook(() => {
     enabled: Platform.OS === 'ios',
     staleTime: 1000 * 30,
   });
+  const trialConversionQuery = useQuery({
+    queryKey: ['trial_conversion_state'],
+    queryFn: getTrialConversionState,
+  });
 
   const storedEntitlement = entitlementQuery.data ?? 'core_active';
   const iapCustomerState = (iapCustomerQuery.data as IapCustomerState | undefined) ?? null;
+  const trialConversionState = (trialConversionQuery.data as TrialConversionState | undefined) ?? {};
   const entitlement: ProEntitlementState =
     Platform.OS === 'ios' && iapCustomerState ? iapCustomerState.entitlement : storedEntitlement;
   const settings = settingsQuery.data ?? {
@@ -146,6 +173,21 @@ export const [ProProvider, usePro] = createContextHook(() => {
     entitlement === 'athlete_trial_active' || entitlement === 'athlete_subscriber_active';
   const hasAnyPremium = hasProAccess || hasAthleteAccess;
   const tierLabel = hasAthleteAccess ? 'athlete' : hasProAccess ? 'pro' : 'core';
+  const trialConversionPromptDue = useMemo(() => {
+    if (Platform.OS !== 'ios' || !iapCustomerState) return false;
+    const trialEnded = !iapCustomerState.trialActive && iapCustomerState.lifecycleStatus === 'expired';
+    if (!trialEnded || !trialConversionState.trialStartedAt) return false;
+    const lastShown = trialConversionState.trialConversionPromptLastShownAt
+      ? new Date(trialConversionState.trialConversionPromptLastShownAt)
+      : null;
+    const skippedAt = trialConversionState.trialConversionSkippedAt
+      ? new Date(trialConversionState.trialConversionSkippedAt)
+      : null;
+    const now = Date.now();
+    if (lastShown && now - lastShown.getTime() < 1000 * 60 * 60 * 24) return false;
+    if (skippedAt && now - skippedAt.getTime() < 1000 * 60 * 60 * 24) return false;
+    return true;
+  }, [iapCustomerState, trialConversionState]);
 
   const dynamic = useMemo(() => {
     if (!hasAnyPremium || !settings.dynamicMacrosEnabled) {
@@ -276,6 +318,22 @@ export const [ProProvider, usePro] = createContextHook(() => {
       try {
         const beforePremium = hasAnyPremium;
         const result = await purchaseMutation.mutateAsync(tier);
+        const nowIso = new Date().toISOString();
+        if (result.trialActive) {
+          await saveTrialConversionState({
+            ...trialConversionState,
+            trialStartedAt: nowIso,
+            trialEndedAt: undefined,
+            trialTier: tier,
+          });
+          await queryClient.invalidateQueries({ queryKey: ['trial_conversion_state'] });
+        } else if (!result.trialActive && result.lifecycleStatus === 'active') {
+          await saveTrialConversionState({
+            ...trialConversionState,
+            trialConversionSkippedAt: undefined,
+          });
+          await queryClient.invalidateQueries({ queryKey: ['trial_conversion_state'] });
+        }
         const nowPremium =
           result.entitlement === 'pro_subscriber_active' || result.entitlement === 'athlete_subscriber_active';
         if (Platform.OS === 'ios' && nowPremium && !beforePremium) {
@@ -287,7 +345,7 @@ export const [ProProvider, usePro] = createContextHook(() => {
         return false;
       }
     },
-    [hasAnyPremium, purchaseMutation]
+    [hasAnyPremium, purchaseMutation, queryClient, trialConversionState]
   );
 
   const restoreActivePurchases = useCallback(async (): Promise<boolean> => {
@@ -452,10 +510,49 @@ export const [ProProvider, usePro] = createContextHook(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void queryClient.invalidateQueries({ queryKey: ['iap_customer_state'] });
+        void queryClient.invalidateQueries({ queryKey: ['trial_conversion_state'] });
       }
     });
     return () => sub.remove();
   }, [queryClient]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !iapCustomerState || iapCustomerState.trialActive) return;
+    if (!trialConversionState.trialStartedAt || trialConversionState.trialEndedAt) return;
+    const run = async () => {
+      await saveTrialConversionState({
+        ...trialConversionState,
+        trialEndedAt: iapCustomerState.trialEndsAt ?? new Date().toISOString(),
+      });
+      await queryClient.invalidateQueries({ queryKey: ['trial_conversion_state'] });
+    };
+    void run();
+  }, [iapCustomerState, queryClient, trialConversionState]);
+
+  const markTrialConversionPromptShown = useCallback(async () => {
+    await saveTrialConversionState({
+      ...trialConversionState,
+      trialConversionPromptLastShownAt: new Date().toISOString(),
+    });
+    await queryClient.invalidateQueries({ queryKey: ['trial_conversion_state'] });
+  }, [queryClient, trialConversionState]);
+
+  const skipTrialConversionPrompt = useCallback(async () => {
+    await saveTrialConversionState({
+      ...trialConversionState,
+      trialConversionSkippedAt: new Date().toISOString(),
+      trialConversionPromptLastShownAt: new Date().toISOString(),
+    });
+    await queryClient.invalidateQueries({ queryKey: ['trial_conversion_state'] });
+  }, [queryClient, trialConversionState]);
+
+  const saveTrialExperienceRating = useCallback(async (rating: number) => {
+    await saveTrialConversionState({
+      ...trialConversionState,
+      trialExperienceRating: Math.max(1, Math.min(5, Math.round(rating))),
+    });
+    await queryClient.invalidateQueries({ queryKey: ['trial_conversion_state'] });
+  }, [queryClient, trialConversionState]);
 
   return {
     entitlement,
@@ -470,11 +567,14 @@ export const [ProProvider, usePro] = createContextHook(() => {
     iapPurchasePending: purchaseMutation.isPending,
     iapRestorePending: restoreMutation.isPending,
     iapError:
-      (purchaseMutation.error as Error | null)?.message ??
-      (restoreMutation.error as Error | null)?.message ??
-      null,
+      mapIapErrorForDisplay(purchaseMutation.error as Error | null) ??
+      mapIapErrorForDisplay(restoreMutation.error as Error | null),
     iapLifecycleStatus: iapCustomerState?.lifecycleStatus ?? 'expired',
     iapStatusMessage: iapCustomerState?.statusMessage ?? 'Subscription inactive.',
+    trialActive: iapCustomerState?.trialActive ?? false,
+    trialEndsAt: iapCustomerState?.trialEndsAt ?? null,
+    trialConversionState,
+    trialConversionPromptDue,
     settings,
     healthKitAvailable,
     healthKitAvailabilityReady,
@@ -507,5 +607,8 @@ export const [ProProvider, usePro] = createContextHook(() => {
     startPurchase,
     restoreActivePurchases,
     openManageSubscriptions,
+    markTrialConversionPromptShown,
+    skipTrialConversionPrompt,
+    saveTrialExperienceRating,
   };
 });

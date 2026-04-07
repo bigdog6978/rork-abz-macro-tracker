@@ -1,6 +1,9 @@
 export const PRO_COPY = {
   headline: 'Upgrade to Physiq Pro',
-  subheadline: 'Macros that adapt to your activity.',
+  subheadline: 'Macros that dynamically adapt to your activity',
+  athleteHeadline: 'Upgrade to Physiq Athlete',
+  athleteSubheadline:
+    'Fueling built for performance with sport, season, and training-aware guidance.',
   featureBullets: [
     'Dynamic macros based on activity',
     'Health + Apple Watch signal support',
@@ -8,15 +11,15 @@ export const PRO_COPY = {
     'Weekly Pro report with Physiq Score',
   ],
   athleteFeatureBullets: [
-    'Sport + season-aware fueling',
-    'Training / game schedule macro strategy',
-    'Competition protocol windows (T-24, T-4, post)',
-    'Female athlete cycle-aware hooks (optional, consent-based)',
+    'Everything in Pro, plus performance-focused features',
+    'Sport + season-aware fueling guidance',
+    'Training and competition-day nutrition planning',
+    'Performance-focused macro adjustments',
   ],
   trialTitle: '3-day free trial',
   trialDetail: 'Then $4.99/month unless canceled.',
   renewalDisclosure:
-    '3-day free trial, then $4.99/month. Auto-renews unless canceled at least 24 hours before renewal.',
+    'You get full access for 3 days. After trial ends, subscription renews unless canceled.',
   ctaTrial: 'Start 3-Day Trial',
   ctaSubscribe: 'Subscribe $4.99/mo',
   ctaSubscribeAthlete: 'Subscribe $6.99/mo',
@@ -34,6 +37,17 @@ export const PRO_COPY = {
   ],
   legalFooter:
     'Subscription auto-renews unless canceled at least 24 hours before renewal. Manage anytime in Apple ID subscriptions.',
+  athleteInfoTitle: 'What is Physiq Athlete?',
+  athleteInfoBody:
+    'Physiq Athlete includes everything in Pro, then adds sport, season, and training-schedule context to shape fueling strategy for performance-focused users.',
+  athleteInfoIncludedTitle: 'Included with Athlete',
+  athleteInfoIncludedBullets: [
+    'Everything in Physiq Pro',
+    'Sport + season-aware fueling strategy',
+    'Training and game schedule macro planning',
+    'Competition-window adjustments (T-24, T-4, post)',
+    'Optional cycle-aware adjustments with consent controls',
+  ],
   watchRequiredNote: 'Apple Watch is required for full activity-driven Pro automation.',
   watchOptionalNote: 'You can still use basic Pro features without Apple Watch.',
   /** Pro / Athlete adaptive behavior requires Apple Health on iPhone */

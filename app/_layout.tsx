@@ -172,6 +172,16 @@ function RootLayoutNav() {
           headerTintColor: colors.text,
         }}
       />
+      <Stack.Screen
+        name="trial-conversion"
+        options={{
+          presentation: "modal",
+          title: "Trial Check-In",
+          headerStyle: { backgroundColor: 'transparent' },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      />
     </Stack>
   );
 }

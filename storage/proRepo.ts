@@ -10,6 +10,15 @@ import {
   ProSettings,
 } from '../features/pro/types';
 
+export interface TrialConversionState {
+  trialStartedAt?: string;
+  trialEndedAt?: string;
+  trialTier?: 'pro' | 'athlete';
+  trialExperienceRating?: number;
+  trialConversionPromptLastShownAt?: string;
+  trialConversionSkippedAt?: string;
+}
+
 const DEFAULT_PRO_SETTINGS: ProSettings = {
   dynamicMacrosEnabled: true,
   hydrationEnabled: true,
@@ -151,5 +160,13 @@ export function deriveAthleteCycleState(
     dataQuality: hasEnough ? 'sufficient' : logs.length > 0 ? 'limited' : 'insufficient',
     lastComputedAt: now.toISOString(),
   };
+}
+
+export async function getTrialConversionState(): Promise<TrialConversionState> {
+  return (await loadData<TrialConversionState>(STORAGE_KEYS.TRIAL_CONVERSION_STATE)) ?? {};
+}
+
+export async function saveTrialConversionState(next: TrialConversionState): Promise<void> {
+  await saveData(STORAGE_KEYS.TRIAL_CONVERSION_STATE, next);
 }
 

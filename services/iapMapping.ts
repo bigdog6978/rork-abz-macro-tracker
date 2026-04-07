@@ -11,6 +11,8 @@ export interface IapCustomerState {
   latestExpirationDate: string | null;
   lifecycleStatus: 'active' | 'expired' | 'grace_period' | 'billing_retry' | 'deferred';
   statusMessage: string;
+  trialActive: boolean;
+  trialEndsAt: string | null;
 }
 
 export function mapActiveSubscriptionsToEntitlement(activeSubscriptions: string[]): ProEntitlementState {
@@ -26,6 +28,8 @@ export function mapCustomerLikeInfoToState(input: {
   billingIssueDetectedAt?: string | null;
   gracePeriodExpiresDate?: string | null;
   deferred?: boolean;
+  trialActive?: boolean;
+  trialEndsAt?: string | null;
   nowIso?: string;
 }): IapCustomerState {
   const now = new Date(input.nowIso ?? new Date().toISOString());
@@ -63,6 +67,8 @@ export function mapCustomerLikeInfoToState(input: {
     latestExpirationDate: input.latestExpirationDate ?? null,
     lifecycleStatus,
     statusMessage,
+    trialActive: Boolean(input.trialActive),
+    trialEndsAt: input.trialEndsAt ?? null,
   };
 }
 
