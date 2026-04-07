@@ -686,34 +686,58 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderProUpsellStep = () => (
+  const renderProUpsellStep = () => {
+    const priceAfterTrial =
+      selectedTier === 'athlete'
+        ? athleteProduct?.priceText ?? '$6.99'
+        : proProduct?.priceText ?? '$4.99';
+    const ctaPriceLine = PRO_COPY.ctaPrimaryPriceHint.replace('{price}', priceAfterTrial);
+    return (
     <View style={styles.stepContainer}>
       <View style={styles.stepHeaderRow}>
-        <Text style={styles.stepTitle}>
-          {selectedTier === 'athlete' ? PRO_COPY.athleteHeadline : PRO_COPY.headline}
-        </Text>
+        <Text style={styles.stepTitle}>{PRO_COPY.headline}</Text>
         <TouchableOpacity style={styles.learnMoreButton} onPress={() => setProInfoVisible(true)}>
           <Info size={14} color={colors.primary} />
           <Text style={styles.learnMoreText}>Info</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.stepSubtitle}>
-        {selectedTier === 'athlete' ? PRO_COPY.athleteSubheadline : PRO_COPY.subheadline}
-      </Text>
-      <View style={styles.segmentRow}>
-        <TouchableOpacity
-          style={[styles.segment, selectedTier === 'pro' && styles.segmentActive]}
-          onPress={() => setSelectedTier('pro')}
-        >
-          <Text style={[styles.segmentText, selectedTier === 'pro' && styles.segmentTextActive]}>Pro</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.segment, selectedTier === 'athlete' && styles.segmentActive]}
-          onPress={() => setSelectedTier('athlete')}
-        >
-          <Text style={[styles.segmentText, selectedTier === 'athlete' && styles.segmentTextActive]}>Athlete</Text>
-        </TouchableOpacity>
+      <Text style={styles.stepSubtitle}>{PRO_COPY.subheadline}</Text>
+
+      <View style={styles.tierToggleRow}>
+        <View style={styles.tierColumnTop}>
+          <Text style={styles.tierBadgeText} numberOfLines={1} adjustsFontSizeToFit>
+            {PRO_COPY.tierBadgePro}
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.tierSegmentPaywall,
+              selectedTier === 'pro' ? styles.tierSegmentPaywallActive : styles.tierSegmentPaywallIdle,
+            ]}
+            onPress={() => setSelectedTier('pro')}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectedTier === 'pro' }}
+          >
+            <Text style={[styles.segmentText, selectedTier === 'pro' && styles.segmentTextActive]}>Pro</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.tierColumnTop}>
+          <Text style={styles.tierBadgeText} numberOfLines={1} adjustsFontSizeToFit>
+            {PRO_COPY.tierBadgeAthlete}
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.tierSegmentPaywall,
+              selectedTier === 'athlete' ? styles.tierSegmentPaywallActive : styles.tierSegmentPaywallIdle,
+            ]}
+            onPress={() => setSelectedTier('athlete')}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectedTier === 'athlete' }}
+          >
+            <Text style={[styles.segmentText, selectedTier === 'athlete' && styles.segmentTextActive]}>Athlete</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
       <View style={styles.choiceList}>
         {(selectedTier === 'athlete' ? PRO_COPY.athleteFeatureBullets : PRO_COPY.featureBullets).map((line) => (
           <View key={line} style={styles.proFeatureRow}>
@@ -722,59 +746,40 @@ export default function OnboardingScreen() {
           </View>
         ))}
       </View>
+
       <View style={styles.proTrialCard}>
         <Text style={styles.proTrialTitle}>{PRO_COPY.trialTitle}</Text>
-        <Text style={styles.proTrialSubtitle}>
-          {selectedTier === 'athlete'
-            ? `${athleteProduct?.priceText ?? '$6.99'}/${athleteProduct?.billingPeriodText ?? 'per month'} unless canceled.`
-            : `${proProduct?.priceText ?? '$4.99'}/${proProduct?.billingPeriodText ?? 'per month'} unless canceled.`}
+        <Text style={styles.proTrialLine}>{PRO_COPY.trialLineFullAccess}</Text>
+        <Text style={styles.proTrialLine}>
+          Then {priceAfterTrial}/month unless canceled.
         </Text>
-        <Text style={styles.proDisclosure}>
-          {selectedTier === 'athlete'
-            ? 'You get full access for 3 days. After trial ends, subscription renews unless canceled.'
-            : PRO_COPY.renewalDisclosure}
-        </Text>
-        <Text style={styles.proDisclosure}>
-          Payment is charged to your Apple ID at confirmation. Manage or cancel anytime in Apple ID Subscriptions.
-        </Text>
+        <Text style={styles.paywallTrustLineInCard}>{PRO_COPY.paywallTrustLine}</Text>
       </View>
+
+      <TouchableOpacity
+        style={[styles.paywallPrimaryCta, iapPurchasePending && styles.paywallPrimaryCtaDisabled]}
+        disabled={iapPurchasePending}
+        onPress={() =>
+          completeWithTierEntitlement(selectedTier === 'athlete' ? 'athlete_trial_active' : 'pro_trial_active')
+        }
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={PRO_COPY.ctaTrial}
+      >
+        <Text style={styles.paywallPrimaryCtaTitle}>
+          {iapPurchasePending ? 'Processing…' : PRO_COPY.ctaTrial}
+        </Text>
+        <Text style={styles.paywallPrimaryCtaSub}>{ctaPriceLine}</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.proDisclosure}>
+        Full access 3 days, then renews unless canceled. Charged to your Apple ID at confirmation.
+      </Text>
+
       {iapError ? <Text style={styles.proDisclosure}>{iapError}</Text> : null}
-      <View style={styles.proCtaRow}>
-        <TouchableOpacity
-          style={[styles.proOutlinedCta, styles.proCtaRowButton, styles.proOutlinedCtaSecondary]}
-          disabled={iapPurchasePending}
-          onPress={() =>
-            completeWithTierEntitlement(selectedTier === 'athlete' ? 'athlete_trial_active' : 'pro_trial_active')
-          }
-        >
-          <View style={styles.ctaCopy}>
-            <Text style={styles.ctaTitleSecondary}>{iapPurchasePending ? 'Processing…' : PRO_COPY.ctaTrial}</Text>
-            <Text style={styles.ctaSubtleText}>Cancel anytime in subscriptions</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.proOutlinedCta,
-            styles.proCtaRowButton,
-            styles.proOutlinedCtaActive,
-            styles.proOutlinedCtaPrimary,
-          ]}
-          disabled={iapPurchasePending}
-          onPress={() =>
-            completeWithTierEntitlement(
-              selectedTier === 'athlete' ? 'athlete_subscriber_active' : 'pro_subscriber_active'
-            )
-          }
-        >
-          <View style={styles.ctaCopy}>
-            <Text style={[styles.ctaTitlePrimary, styles.proOutlinedCtaTextActive]}>
-              {selectedTier === 'athlete' ? 'Subscribe $6.99/mo' : PRO_COPY.ctaSubscribe}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+
       <View style={styles.legalCopyWrap}>
-        <Text style={styles.proDisclosure}>
+        <Text style={styles.paywallLegalText}>
           By continuing, you acknowledge our{' '}
           <Text
             style={styles.inlineLegalLink}
@@ -792,13 +797,9 @@ export default function OnboardingScreen() {
           .
         </Text>
       </View>
-      <View style={styles.proTertiaryRow}>
-        <TouchableOpacity style={styles.proSkipButton} onPress={() => completeWithTierEntitlement('core_active')}>
-          <Text style={styles.proSkipText}>{PRO_COPY.ctaNotNow}</Text>
-        </TouchableOpacity>
-      </View>
     </View>
-  );
+    );
+  };
 
   const steps = [
     renderProfileStep,
@@ -830,7 +831,12 @@ export default function OnboardingScreen() {
       >
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 120 }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isLastStep && styles.scrollContentPaywall,
+            { paddingBottom: Math.max(insets.bottom, 16) + (isLastStep ? 20 : 120) },
+          ]}
+          bounces={!isLastStep}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -851,14 +857,20 @@ export default function OnboardingScreen() {
           <Text style={[styles.footerButtonText, step === 0 && styles.footerButtonTextGhost]}>Back</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.footerButton, styles.primaryButton]}
-          onPress={isLastStep ? () => completeWithTierEntitlement('core_active') : goNext}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.primaryButtonText}>Continue</Text>
-          <ChevronRight size={18} color={colors.onPrimary} />
-        </TouchableOpacity>
+        {!isLastStep ? (
+          <TouchableOpacity style={[styles.footerButton, styles.primaryButton]} onPress={goNext} activeOpacity={0.85}>
+            <Text style={styles.primaryButtonText}>Continue</Text>
+            <ChevronRight size={18} color={colors.onPrimary} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.footerButton, styles.footerButtonSkip]}
+            onPress={() => completeWithTierEntitlement('core_active')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.footerButtonSkipText}>{PRO_COPY.ctaSkipFooter}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <PlanDefinitionSheet
@@ -999,6 +1011,49 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   stepContainer: {
     gap: 16,
+  },
+  paywallPrimaryCta: {
+    width: '100%',
+    minHeight: 56,
+    marginTop: 8,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    gap: 4,
+  },
+  paywallPrimaryCtaDisabled: {
+    opacity: 0.65,
+  },
+  paywallPrimaryCtaTitle: {
+    color: colors.onPrimary,
+    fontSize: 16,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  paywallPrimaryCtaSub: {
+    color: colors.onPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    opacity: 0.92,
+  },
+  paywallLegalText: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  scrollContentPaywall: {
+    padding: 20,
+    paddingBottom: 28,
+  },
+  paywallTrustLineInCard: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
   },
   stepHeaderRow: {
     flexDirection: 'row',
@@ -1211,6 +1266,21 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  footerButtonSkip: {
+    flex: 1,
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerButtonSkipText: {
+    color: Colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
   footerButtonGhost: {
     opacity: 0.45,
   },
@@ -1286,6 +1356,53 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
+  proTrialLine: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  proTrialCardCta: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+    minHeight: 56,
+  },
+  tierToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+    alignItems: 'flex-start',
+  },
+  tierColumnTop: {
+    flex: 1,
+    gap: 8,
+  },
+  tierSegmentPaywall: {
+    width: '100%',
+    height: 56,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 0,
+    borderWidth: 2,
+  },
+  tierSegmentPaywallIdle: {
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.card,
+  },
+  tierSegmentPaywallActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  tierBadgeText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.45,
+    textTransform: 'uppercase',
+    lineHeight: 14,
+    minHeight: 14,
+  },
   proTrialSubtitle: {
     color: Colors.textSecondary,
     fontSize: 13,
@@ -1306,7 +1423,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: 2,
   },
   legalCopyWrap: {
-    marginTop: 2,
+    marginTop: 10,
   },
   proOutlinedCta: {
     minHeight: 58,

@@ -1,30 +1,41 @@
 export const PRO_COPY = {
-  headline: 'Upgrade to Physiq Pro',
-  subheadline: 'Macros that dynamically adapt to your activity',
-  athleteHeadline: 'Upgrade to Physiq Athlete',
+  /** Onboarding paywall — shared headline for Pro/Athlete selector */
+  headline: 'Stop guessing. Start fueling.',
+  subheadline:
+    'Your macros adjust automatically based on your activity, training, and goals.',
+  athleteHeadline: 'Stop guessing. Start fueling.',
   athleteSubheadline:
-    'Fueling built for performance with sport, season, and training-aware guidance.',
+    'Your macros adjust automatically based on your activity, training, and goals.',
+  tierBadgePro: 'Most Popular',
+  tierBadgeAthlete: 'Built for serious training',
+  tierHintPro: 'Most users start here',
+  tierHintAthlete: 'For structured training & competition',
   featureBullets: [
-    'Dynamic macros based on activity',
-    'Health + Apple Watch signal support',
-    'Hydration nudges and quick logging',
-    'Weekly Pro report with Physiq Score',
+    'Your calories adjust automatically based on your activity',
+    'Carbs increase on training days, decrease on rest days',
+    'Stay on track with smart reminders and hydration',
+    'Weekly progress report with your Physiq Score',
   ],
   athleteFeatureBullets: [
-    'Everything in Pro, plus performance-focused features',
-    'Sport + season-aware fueling guidance',
-    'Training and competition-day nutrition planning',
+    'Everything in Pro, plus structured fueling',
+    'Fuel your body based on your training and competition',
+    'Pre-game carb loading and recovery protocols',
     'Performance-focused macro adjustments',
   ],
   trialTitle: '3-day free trial',
+  trialLineFullAccess: 'Full access. Cancel anytime.',
   trialDetail: 'Then $4.99/month unless canceled.',
   renewalDisclosure:
     'You get full access for 3 days. After trial ends, subscription renews unless canceled.',
-  ctaTrial: 'Start 3-Day Trial',
+  paywallTrustLine: 'No commitment. Cancel anytime.',
+  ctaTrial: 'Start 3 Day Trial',
+  /** Footer escape on paywall step */
+  ctaSkipFooter: 'Skip for now',
+  ctaPrimaryPriceHint: 'Then {price}/month. Cancel anytime.',
   ctaSubscribe: 'Subscribe $4.99/mo',
   ctaSubscribeAthlete: 'Subscribe $6.99/mo',
   ctaNotNow: 'Not now',
-  infoTitle: 'What is Physiq Pro?',
+  infoTitle: 'Physiq Pro overview',
   infoBody:
     'Physiq Pro adapts macro and hydration guidance to your activity and Apple Health signals. It is designed for automated nutrition support without changing your core tracking workflow.',
   infoIncludedTitle: 'Included with Pro',
@@ -37,7 +48,7 @@ export const PRO_COPY = {
   ],
   legalFooter:
     'Subscription auto-renews unless canceled at least 24 hours before renewal. Manage anytime in Apple ID subscriptions.',
-  athleteInfoTitle: 'What is Physiq Athlete?',
+  athleteInfoTitle: 'Physiq Athlete overview',
   athleteInfoBody:
     'Physiq Athlete includes everything in Pro, then adds sport, season, and training-schedule context to shape fueling strategy for performance-focused users.',
   athleteInfoIncludedTitle: 'Included with Athlete',
