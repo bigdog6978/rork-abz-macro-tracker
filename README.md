@@ -7,6 +7,10 @@ This is a native cross-platform mobile app created with [Rork](https://rork.com)
 **Platform**: Native iOS & Android app, exportable to web
 **Framework**: Expo Router + React Native
 
+## Apple Watch (watchOS)
+
+The iOS app includes a native **watchOS** target built with [`@bacons/apple-targets`](https://github.com/EvanBacon/expo-apple-targets) (`targets/watch/`). The **PhysiqWatch** Expo module bridges **WatchConnectivity** on iPhone (`modules/physiq-watch-connectivity/`). See **[docs/WATCH.md](docs/WATCH.md)** for prebuild, EAS, signing, TestFlight, and HealthKit strategy (Option B: HealthKit on phone; Watch is UI + sync).
+
 ## How can I edit this code?
 
 There are several ways of editing your native mobile application.

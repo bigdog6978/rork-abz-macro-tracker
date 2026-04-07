@@ -9,8 +9,10 @@ import { UserProvider, useUser } from "../providers/UserProvider";
 import { DailyLogProvider, useDailyLog } from "../providers/DailyLogProvider";
 import { MeasurementsProvider } from "../providers/MeasurementsProvider";
 import { GoalSettingsProvider } from "../providers/GoalSettingsProvider";
+import { ProProvider } from "../providers/ProProvider";
 import { ThemeProvider, useThemeColors } from "../providers/ThemeProvider";
 import AppBackground from "../components/ui/AppBackground";
+import PostProHealthFlow from "../components/ui/PostProHealthFlow";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -70,6 +72,16 @@ function RootLayoutNav() {
           headerShown: false,
           gestureEnabled: false,
           animation: 'none',
+        }}
+      />
+      <Stack.Screen
+        name="pro-report"
+        options={{
+          presentation: "modal",
+          title: "Pro Report",
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       />
       <Stack.Screen
@@ -173,9 +185,12 @@ export default function RootLayout() {
             <DailyLogProvider>
               <MeasurementsProvider>
                 <GoalSettingsProvider>
-                  <AppBackground>
-                    <AppContent />
-                  </AppBackground>
+                  <ProProvider>
+                    <AppBackground>
+                      <PostProHealthFlow />
+                      <AppContent />
+                    </AppBackground>
+                  </ProProvider>
                 </GoalSettingsProvider>
               </MeasurementsProvider>
             </DailyLogProvider>

@@ -36,6 +36,10 @@ export const [UserProvider, useUser] = createContextHook(() => {
     queryKey: ['custom_macro_targets'],
     queryFn: () => loadData<MacroTargets>(STORAGE_KEYS.CUSTOM_MACRO_TARGETS),
   });
+  const proDynamicTargetsQuery = useQuery({
+    queryKey: ['pro_dynamic_targets'],
+    queryFn: () => loadData<MacroTargets>(STORAGE_KEYS.PRO_DYNAMIC_TARGETS),
+  });
 
   useEffect(() => {
     if (profileQuery.data) {
@@ -109,7 +113,10 @@ export const [UserProvider, useUser] = createContextHook(() => {
     return calculateMacros(profile);
   }, [profile]);
 
-  const macros: MacroTargets = customMacros ?? calculatedMacros;
+  const macros: MacroTargets =
+    customMacros ??
+    proDynamicTargetsQuery.data ??
+    calculatedMacros;
 
   const isLoading = profileQuery.isLoading;
 

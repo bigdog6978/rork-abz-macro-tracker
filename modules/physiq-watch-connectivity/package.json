@@ -1,0 +1,10 @@
+{
+  "name": "physiq-watch-connectivity",
+  "version": "1.0.0",
+  "description": "WatchConnectivity bridge for Physiq iPhone ↔ Apple Watch (Expo module).",
+  "main": "src/PhysiqWatch.ts",
+  "license": "MIT",
+  "peerDependencies": {
+    "expo": "*"
+  }
+}

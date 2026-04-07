@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, ChevronRight, FileText, Mail, RefreshCw, Shield, Trash2, User, Utensils } from 'lucide-react-native';
+import { AlertCircle, ChevronDown, ChevronRight, ChevronUp, FileText, Mail, RefreshCw, Shield, Trash2, User, Utensils, Zap } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Shadows, Spacing } from '../../../theme/tokens';
 import { useTheme, useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
@@ -23,6 +24,10 @@ import TabScreenTitle from '../../../components/ui/TabScreenTitle';
 import ResponsiveContainer from '../../../components/ui/ResponsiveContainer';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
+import { usePro } from '../../../providers/ProProvider';
+import ProInfoModal from '../../../components/ui/ProInfoModal';
+import HealthPermissionModal from '../../../components/ui/HealthPermissionModal';
+import { PRO_COPY } from '../../../src/content/proMicrocopy';
 import { getAllergies } from '../../../storage/allergiesRepo';
 import { getDislikedFoods } from '../../../storage/dislikedFoodsRepo';
 import {
@@ -47,6 +52,21 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { profile, macros, updateProfile, resetProfile } = useUser();
+  const {
+    entitlement,
+    hasProAccess,
+    settings: proSettings,
+    healthConnectionStatus,
+    dynamicReason,
+    inferredDayType,
+    hydration,
+    setEntitlement,
+    enableHealthIntegration,
+    disableHealthIntegration,
+    updateSettings: updateProSettings,
+    refreshHealthSignals,
+    addHydration,
+  } = usePro();
   const { clearAll } = useDailyLog();
   const colors = useThemeColors();
   const { accentTheme, setAccentTheme } = useTheme();
@@ -66,6 +86,13 @@ export default function SettingsScreen() {
   const [eatingStyle, setEatingStyle] = useState<EatingStyle>(profile.eatingStyle);
   const [dietModifiers, setDietModifiers] = useState<DietaryModifier[]>(profile.dietModifiers);
   const [dietNotes, setDietNotes] = useState(profile.dietNotes ?? '');
+  const [proInfoVisible, setProInfoVisible] = useState(false);
+  const [healthPermissionVisible, setHealthPermissionVisible] = useState(false);
+  const [proExpanded, setProExpanded] = useState(hasProAccess);
+
+  useEffect(() => {
+    setProExpanded(hasProAccess);
+  }, [hasProAccess]);
 
   useEffect(() => {
     setMeasurementSystem(profile.measurementSystem);
@@ -178,6 +205,51 @@ export default function SettingsScreen() {
     }
   }, [setAccentTheme]);
 
+  const startProTrial = useCallback(() => {
+    if (entitlement === 'pro_trial_consumed') {
+      Alert.alert('Trial used', 'Your Pro free trial has already been used. Subscribe to continue.');
+      return;
+    }
+    Alert.alert('Start Pro trial?', PRO_COPY.renewalDisclosure, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Start Trial', onPress: () => setEntitlement('pro_trial_active') },
+    ]);
+  }, [entitlement, setEntitlement]);
+
+  const subscribePro = useCallback(() => {
+    Alert.alert(
+      'Confirm subscription',
+      'You are choosing Pro monthly access at $4.99/month. You can manage or cancel in Apple ID Subscriptions.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Subscribe', onPress: () => setEntitlement('pro_subscriber_active') },
+      ]
+    );
+  }, [setEntitlement]);
+
+  const completeHealthConnect = useCallback(async () => {
+    setHealthPermissionVisible(false);
+    const ok = await enableHealthIntegration();
+    if (!ok) {
+      Alert.alert(
+        'Apple Health access needed',
+        'To use adaptive Pro targets, enable Apple Health access in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+    }
+  }, [enableHealthIntegration]);
+
+  const toggleHealthIntegration = useCallback(async () => {
+    if (proSettings.healthIntegrationEnabled) {
+      disableHealthIntegration();
+      return;
+    }
+    setHealthPermissionVisible(true);
+  }, [disableHealthIntegration, proSettings.healthIntegrationEnabled]);
+
   if (!profile.onboardingComplete) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -204,6 +276,22 @@ export default function SettingsScreen() {
     profile.measurementSystem === 'us'
       ? `${profile.weightLb} lb`
       : `${lbToKg(profile.weightLb)} kg`;
+  const healthStatusLabel =
+    healthConnectionStatus === 'connected'
+      ? 'Connected'
+      : healthConnectionStatus === 'denied_or_restricted'
+        ? 'Denied'
+        : healthConnectionStatus === 'not_available'
+          ? 'Not available'
+          : 'Not connected';
+  const healthActionLabel =
+    healthConnectionStatus === 'connected'
+      ? 'Refresh'
+      : healthConnectionStatus === 'denied_or_restricted'
+        ? 'Open Settings'
+        : healthConnectionStatus === 'not_available'
+          ? 'Unavailable'
+          : 'Connect';
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -219,6 +307,220 @@ export default function SettingsScreen() {
             <MetricCard label="Carbs" value={`${macros.carbs_g}g`} color={Colors.carbs} styles={styles} />
             <MetricCard label="Fat" value={`${macros.fat_g}g`} color={Colors.fat} styles={styles} />
           </View>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <TouchableOpacity style={styles.settingsRow} activeOpacity={1}>
+            <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
+              <Zap size={16} color={colors.primary} />
+            </View>
+            <View style={styles.rowCopy}>
+              <Text style={styles.rowTitle}>Physiq Pro</Text>
+              <Text style={styles.rowSubtitle}>
+                {hasProAccess ? 'Active plan' : PRO_COPY.subheadline}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.proInfoIconBtn}
+              onPress={() => setProExpanded((prev) => !prev)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {proExpanded ? (
+                <ChevronUp size={14} color={Colors.textSecondary} />
+              ) : (
+                <ChevronDown size={14} color={Colors.textSecondary} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.proInfoIconBtn}
+              onPress={() => setProInfoVisible(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <FileText size={14} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+          {!proExpanded ? (
+            <View style={styles.collapsedProWrap}>
+              <View style={styles.healthStatusRow}>
+                <Text style={styles.healthStatusLabel} numberOfLines={1}>
+                  Health connection
+                </Text>
+                <View style={styles.healthStatusRight}>
+                  <View
+                    style={[
+                      styles.healthStatusBadge,
+                      healthConnectionStatus === 'connected'
+                        ? styles.healthStatusConnected
+                        : healthConnectionStatus === 'denied_or_restricted'
+                          ? styles.healthStatusDenied
+                          : null,
+                    ]}
+                  >
+                    <Text style={styles.healthStatusBadgeText} numberOfLines={1}>
+                      {healthStatusLabel}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              {hasProAccess && Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
+                <View style={styles.healthBanner}>
+                  <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
+                  <Text style={styles.healthBannerBody}>{PRO_COPY.healthRequiredBannerBody}</Text>
+                  <TouchableOpacity
+                    style={styles.healthBannerCta}
+                    onPress={() => setHealthPermissionVisible(true)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.healthBannerCtaText}>{PRO_COPY.healthRequiredBannerCta}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              <Text style={styles.watchRequiredNote}>{PRO_COPY.watchRequiredNote}</Text>
+              <TouchableOpacity
+                style={styles.proCollapsedCta}
+                onPress={() => setProExpanded(true)}
+              >
+                <Text style={styles.proCollapsedCtaText}>
+                  {hasProAccess ? 'Expand' : 'View Pro options'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.editor}>
+            {!hasProAccess ? (
+              <>
+                <Text style={styles.proDisclosureText}>{PRO_COPY.renewalDisclosure}</Text>
+                <View style={styles.proActionRow}>
+                  <TouchableOpacity style={styles.proOutlineBtn} onPress={startProTrial}>
+                    <Text style={styles.proOutlineBtnText}>{PRO_COPY.ctaTrial}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.proOutlineBtn, styles.proOutlineBtnSelected, { borderColor: colors.primary }]} onPress={subscribePro}>
+                    <Text style={[styles.proOutlineBtnText, { color: colors.primary }]}>{PRO_COPY.ctaSubscribe}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                {Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
+                  <View style={styles.healthBanner}>
+                    <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
+                    <Text style={styles.healthBannerBody}>{PRO_COPY.healthRequiredBannerBody}</Text>
+                    <TouchableOpacity
+                      style={styles.healthBannerCta}
+                      onPress={() => setHealthPermissionVisible(true)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.healthBannerCtaText}>{PRO_COPY.healthRequiredBannerCta}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+                <Text style={styles.rowSubtitle}>Day Type: {inferredDayType.replace('_', ' ')}</Text>
+                <Text style={styles.rowSubtitle}>{dynamicReason}</Text>
+                <View style={styles.chipWrap}>
+                  <Chip
+                    active={proSettings.healthIntegrationEnabled}
+                    label="Health Integration"
+                    onPress={() => void toggleHealthIntegration()}
+                    colors={colors}
+                    styles={styles}
+                  />
+                  <Chip
+                    active={proSettings.dynamicMacrosEnabled}
+                    label="Dynamic Macros"
+                    onPress={() => updateProSettings({ dynamicMacrosEnabled: !proSettings.dynamicMacrosEnabled })}
+                    colors={colors}
+                    styles={styles}
+                  />
+                  <Chip
+                    active={proSettings.hydrationEnabled}
+                    label="Hydration"
+                    onPress={() => updateProSettings({ hydrationEnabled: !proSettings.hydrationEnabled })}
+                    colors={colors}
+                    styles={styles}
+                  />
+                </View>
+                <View style={styles.healthStatusRow}>
+                  <Text style={styles.healthStatusLabel} numberOfLines={1}>
+                    Health connection
+                  </Text>
+                  <View style={styles.healthStatusRight}>
+                    <View
+                      style={[
+                        styles.healthStatusBadge,
+                        healthConnectionStatus === 'connected'
+                          ? styles.healthStatusConnected
+                          : healthConnectionStatus === 'denied_or_restricted'
+                            ? styles.healthStatusDenied
+                            : null,
+                      ]}
+                    >
+                      <Text style={styles.healthStatusBadgeText} numberOfLines={1}>
+                        {healthStatusLabel}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.healthActionBtn}
+                      onPress={() => {
+                        if (healthConnectionStatus === 'connected') {
+                          void refreshHealthSignals();
+                        } else if (healthConnectionStatus === 'denied_or_restricted') {
+                          Linking.openSettings();
+                        } else if (healthConnectionStatus === 'not_connected') {
+                          setHealthPermissionVisible(true);
+                        }
+                      }}
+                      disabled={healthConnectionStatus === 'not_available'}
+                    >
+                      <Text style={styles.healthActionBtnText} numberOfLines={1}>
+                        {healthActionLabel}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <Text style={styles.watchRequiredNote}>{PRO_COPY.watchRequiredNote}</Text>
+                <Text style={styles.watchOptionalNote}>{PRO_COPY.watchOptionalNote}</Text>
+                <View style={styles.proActionRow}>
+                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => void refreshHealthSignals()}>
+                    <Text style={styles.proOutlineBtnText}>Refresh Health</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => router.push('/pro-report' as never)}>
+                    <Text style={styles.proOutlineBtnText}>Open Pro Report</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.rowSubtitle}>
+                  Hydration: {hydration.consumedMl} / {hydration.targetMl} ml
+                </Text>
+                <View style={styles.proActionRow}>
+                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => addHydration(250)}>
+                    <Text style={styles.proOutlineBtnText}>+250ml</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => addHydration(500)}>
+                    <Text style={styles.proOutlineBtnText}>+500ml</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => addHydration(750)}>
+                    <Text style={styles.proOutlineBtnText}>+750ml</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.proLegalLinks}>
+                  <TouchableOpacity onPress={() => Alert.alert('Restore Purchases', 'Restore flow is available and will sync your active Pro entitlement.')}>
+                    <Text style={styles.proLegalLinkText}>Restore Purchases</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}>
+                    <Text style={styles.proLegalLinkText}>Manage Subscription</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.proLegalLinks}>
+                  <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
+                    <Text style={styles.proLegalLinkText}>Terms of Use</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
+                    <Text style={styles.proLegalLinkText}>Privacy Policy</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+          )}
         </View>
 
         <View style={styles.sectionCard}>
@@ -529,6 +831,12 @@ export default function SettingsScreen() {
         </View>
         </ResponsiveContainer>
       </ScrollView>
+      <ProInfoModal visible={proInfoVisible} onClose={() => setProInfoVisible(false)} />
+      <HealthPermissionModal
+        visible={healthPermissionVisible}
+        onContinue={() => void completeHealthConnect()}
+        onNotNow={() => setHealthPermissionVisible(false)}
+      />
     </View>
   );
 }
@@ -665,10 +973,181 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: Colors.cardBorder,
     marginLeft: 62,
   },
+  proInfoIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.cardElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  collapsedProWrap: {
+    padding: 16,
+    paddingTop: 0,
+    gap: 10,
+  },
+  proCollapsedCta: {
+    minHeight: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  proCollapsedCtaText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   editor: {
     padding: 16,
     paddingTop: 0,
     gap: 12,
+  },
+  proDisclosureText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  watchRequiredNote: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  watchOptionalNote: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  healthBanner: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+    padding: 12,
+    gap: 8,
+  },
+  healthBannerTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  healthBannerBody: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  healthBannerCta: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  healthBannerCtaText: {
+    color: colors.onPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  proActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  healthStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    minWidth: 0,
+  },
+  healthStatusLabel: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+    minWidth: 0,
+  },
+  healthStatusRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  healthStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.cardElevated,
+    maxWidth: 120,
+    flexShrink: 1,
+  },
+  healthStatusConnected: {
+    borderColor: Colors.success,
+    backgroundColor: Colors.successMuted,
+  },
+  healthStatusDenied: {
+    borderColor: Colors.warning,
+    backgroundColor: Colors.warningMuted,
+  },
+  healthStatusBadgeText: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  healthActionBtn: {
+    minHeight: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: 110,
+    flexShrink: 1,
+  },
+  healthActionBtnText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  proOutlineBtn: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.cardBorder,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  proOutlineBtnSelected: {
+    backgroundColor: colors.primaryMuted,
+  },
+  proOutlineBtnText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  proLegalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  proLegalLinkText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   fieldLabel: {
     color: Colors.textSecondary,

@@ -11,6 +11,11 @@ export const STORAGE_KEYS = {
   USER_ALLERGIES: 'physiq_user_allergies_v1',
   DISLIKED_FOODS: 'physiq_disliked_foods_v1',
   CUSTOM_MACRO_TARGETS: 'physiq_custom_macro_targets',
+  PRO_ENTITLEMENT: 'physiq_pro_entitlement',
+  PRO_SETTINGS: 'physiq_pro_settings',
+  PRO_HEALTH_SIGNALS: 'physiq_pro_health_signals',
+  PRO_HYDRATION_LOG: 'physiq_pro_hydration_log',
+  PRO_DYNAMIC_TARGETS: 'physiq_pro_dynamic_targets',
 } as const;
 
 export async function saveData(key: string, value: unknown): Promise<void> {

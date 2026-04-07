@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -20,6 +21,7 @@ import { FOODS } from '../constants/foodDatabase';
 import { setDislikedFoods } from '../storage/dislikedFoodsRepo';
 import PlanDefinitionSheet from '../components/ui/PlanDefinitionSheet';
 import { useUser } from '../providers/UserProvider';
+import { usePro } from '../providers/ProProvider';
 import {
   ACTIVITY_DESCRIPTIONS,
   ACTIVITY_LABELS,
@@ -46,8 +48,10 @@ import {
 import { calculateMacros } from '../utils/macroEngine';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import ProInfoModal from '../components/ui/ProInfoModal';
+import { PRO_COPY } from '../src/content/proMicrocopy';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 const PROTEIN_FOOD_IDS = [
   'bacon', 'beef_jerky', 'beef_liver', 'black_beans', 'bone_broth',
@@ -82,6 +86,7 @@ export default function OnboardingScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { completeOnboarding } = useUser();
+  const { setEntitlement } = usePro();
   const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
 
   const [step, setStep] = useState(0);
@@ -103,6 +108,7 @@ export default function OnboardingScreen() {
   const [definitionSheetVisible, setDefinitionSheetVisible] = useState(false);
   const [definitionSheetTitle, setDefinitionSheetTitle] = useState('');
   const [definitionSheetSections, setDefinitionSheetSections] = useState<LearnMoreSection[]>([]);
+  const [proInfoVisible, setProInfoVisible] = useState(false);
 
   const animateProgress = useCallback(
     (nextStep: number) => {
@@ -224,6 +230,33 @@ export default function OnboardingScreen() {
     completeOnboarding(draftProfile);
     router.replace('/(tabs)' as never);
   }, [completeOnboarding, draftProfile, dislikedFoodIds]);
+
+  const confirmProAction = useCallback((title: string, message: string, onConfirm: () => void) => {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Confirm', onPress: onConfirm },
+    ]);
+  }, []);
+
+  const completeWithProEntitlement = useCallback(
+    (entitlement: 'core_active' | 'pro_trial_active' | 'pro_subscriber_active') => {
+      if (entitlement === 'core_active') {
+        setEntitlement('core_active');
+        void handleComplete();
+        return;
+      }
+      const title = entitlement === 'pro_trial_active' ? 'Start Pro trial?' : 'Confirm Pro subscription?';
+      const message =
+        entitlement === 'pro_trial_active'
+          ? PRO_COPY.renewalDisclosure
+          : 'You are choosing Pro monthly access at $4.99/month. You can manage or cancel in Apple ID Subscriptions.';
+      confirmProAction(title, message, () => {
+        setEntitlement(entitlement);
+        void handleComplete();
+      });
+    },
+    [confirmProAction, handleComplete, setEntitlement]
+  );
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -580,6 +613,43 @@ export default function OnboardingScreen() {
     </View>
   );
 
+  const renderProUpsellStep = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.stepHeaderRow}>
+        <Text style={styles.stepTitle}>{PRO_COPY.headline}</Text>
+        <TouchableOpacity style={styles.learnMoreButton} onPress={() => setProInfoVisible(true)}>
+          <Info size={14} color={colors.primary} />
+          <Text style={styles.learnMoreText}>Info</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.stepSubtitle}>{PRO_COPY.subheadline}</Text>
+      <View style={styles.choiceList}>
+        {PRO_COPY.featureBullets.map((line) => (
+          <View key={line} style={styles.proFeatureRow}>
+            <View style={styles.choiceDot} />
+            <Text style={styles.proFeatureText}>{line}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={styles.proTrialCard}>
+        <Text style={styles.proTrialTitle}>{PRO_COPY.trialTitle}</Text>
+        <Text style={styles.proTrialSubtitle}>{PRO_COPY.trialDetail}</Text>
+        <Text style={styles.proDisclosure}>{PRO_COPY.renewalDisclosure}</Text>
+      </View>
+      <View style={styles.proCtaRow}>
+        <TouchableOpacity style={styles.proOutlinedCta} onPress={() => completeWithProEntitlement('pro_trial_active')}>
+          <Text style={styles.proOutlinedCtaText}>{PRO_COPY.ctaTrial}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.proOutlinedCta, styles.proOutlinedCtaActive]} onPress={() => completeWithProEntitlement('pro_subscriber_active')}>
+          <Text style={[styles.proOutlinedCtaText, styles.proOutlinedCtaTextActive]}>{PRO_COPY.ctaSubscribe}</Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity onPress={() => completeWithProEntitlement('core_active')}>
+        <Text style={styles.proSkipText}>{PRO_COPY.ctaNotNow}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const steps = [
     renderProfileStep,
     renderGoalStep,
@@ -589,6 +659,7 @@ export default function OnboardingScreen() {
     renderCarbDislikesStep,
     renderFatDislikesStep,
     renderRestrictionStep,
+    renderProUpsellStep,
   ];
 
   const isLastStep = step === TOTAL_STEPS - 1;
@@ -632,7 +703,7 @@ export default function OnboardingScreen() {
 
         <TouchableOpacity
           style={[styles.footerButton, styles.primaryButton]}
-          onPress={isLastStep ? handleComplete : goNext}
+          onPress={isLastStep ? () => completeWithProEntitlement('core_active') : goNext}
           activeOpacity={0.85}
         >
           <Text style={styles.primaryButtonText}>{isLastStep ? 'Finish' : 'Continue'}</Text>
@@ -646,6 +717,7 @@ export default function OnboardingScreen() {
         sections={definitionSheetSections}
         onClose={() => setDefinitionSheetVisible(false)}
       />
+      <ProInfoModal visible={proInfoVisible} onClose={() => setProInfoVisible(false)} />
     </View>
     </DismissKeyboard>
   );
@@ -969,6 +1041,73 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   foodDislikeNote: {
     color: Colors.textTertiary,
     fontSize: 12,
+    marginTop: 4,
+  },
+  proFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  proFeatureText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  proTrialCard: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    borderRadius: 16,
+    padding: 14,
+    gap: 6,
+  },
+  proTrialTitle: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  proTrialSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  proDisclosure: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  proCtaRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  proOutlinedCta: {
+    flex: 1,
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.cardBorder,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  proOutlinedCtaActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  proOutlinedCtaText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  proOutlinedCtaTextActive: {
+    color: colors.primary,
+  },
+  proSkipText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
     marginTop: 4,
   },
 });

@@ -5,7 +5,7 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.3.0',
+  version: '1.3.1',
   orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
@@ -20,10 +20,19 @@ export default (): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: 'app.rork.abz-macro-tracker',
     buildNumber: '12',
+    // Apple Developer Team ID (10 chars). Set APPLE_TEAM_ID in env for prebuild/EAS, or add here.
+    ...(process.env.APPLE_TEAM_ID ? { appleTeamId: process.env.APPLE_TEAM_ID } : {}),
+    entitlements: {
+      'com.apple.security.application-groups': ['group.app.rork.abz-macro-tracker'],
+    },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription:
         'Physiq uses the camera to scan barcodes to quickly add foods. No photos or videos are stored.',
+      NSHealthShareUsageDescription:
+        'Physiq reads activity, workouts, heart rate, and sleep from Apple Health to adapt macro and hydration targets.',
+      NSHealthUpdateUsageDescription:
+        'Physiq may write hydration entries to Apple Health when enabled.',
     },
   },
   android: {
@@ -60,6 +69,7 @@ export default (): ExpoConfig => ({
       },
     ],
     'expo-sqlite',
+    '@bacons/apple-targets',
   ],
   experiments: {
     typedRoutes: true,

@@ -25,7 +25,8 @@
     "production": {
       "autoIncrement": true,
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "scheme": "PhysiqMacroTracker"
       },
       "env": {
         "USDA_API_KEY": "@usda_api_key",
