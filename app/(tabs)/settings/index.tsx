@@ -67,7 +67,6 @@ export default function SettingsScreen() {
     athleteProfile,
     cycleProfile,
     cycleDerived,
-    setEntitlement,
     enableHealthIntegration,
     disableHealthIntegration,
     updateSettings: updateProSettings,
@@ -77,6 +76,14 @@ export default function SettingsScreen() {
     updateCycleProfile,
     addCycleLog,
     clearCycleData,
+    startPurchase,
+    restoreActivePurchases,
+    openManageSubscriptions,
+    proProduct,
+    athleteProduct,
+    iapPurchasePending,
+    iapRestorePending,
+    iapError,
   } = usePro();
   const { clearAll } = useDailyLog();
   const colors = useThemeColors();
@@ -232,11 +239,16 @@ export default function SettingsScreen() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Start Trial',
-        onPress: () => setEntitlement(isAthlete ? 'athlete_trial_active' : 'pro_trial_active'),
+        onPress: async () => {
+          const ok = await startPurchase(isAthlete ? 'athlete' : 'pro');
+          if (!ok) {
+            Alert.alert('Purchase not completed', 'Unable to start trial right now. Please try again.');
+          }
+        },
       },
       ]
     );
-  }, [entitlement, setEntitlement, tierLabel, hasAthleteAccess, hasProAccess, upsellTier]);
+  }, [entitlement, tierLabel, hasAthleteAccess, hasProAccess, upsellTier, startPurchase]);
 
   const subscribePro = useCallback(() => {
     const isAthlete = !hasAthleteAccess && !hasProAccess ? upsellTier === 'athlete' : tierLabel === 'athlete';
@@ -249,11 +261,16 @@ export default function SettingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Subscribe',
-          onPress: () => setEntitlement(isAthlete ? 'athlete_subscriber_active' : 'pro_subscriber_active'),
+          onPress: async () => {
+            const ok = await startPurchase(isAthlete ? 'athlete' : 'pro');
+            if (!ok) {
+              Alert.alert('Purchase not completed', 'Unable to subscribe right now. Please try again.');
+            }
+          },
         },
       ]
     );
-  }, [setEntitlement, tierLabel, hasAthleteAccess, hasProAccess, upsellTier]);
+  }, [tierLabel, hasAthleteAccess, hasProAccess, upsellTier, startPurchase]);
 
   const completeHealthConnect = useCallback(async () => {
     setHealthPermissionVisible(false);
@@ -433,17 +450,38 @@ export default function SettingsScreen() {
                 </View>
                 <Text style={styles.proDisclosureText}>
                   {upsellTier === 'athlete'
-                    ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
+                    ? `3-day free trial, then ${athleteProduct?.priceText ?? '$6.99'} ${athleteProduct?.billingPeriodText ?? 'per month'}. Auto-renews unless canceled at least 24 hours before renewal.`
                     : PRO_COPY.renewalDisclosure}
                 </Text>
+                <Text style={styles.proDisclosureText}>
+                  Subscription price: {upsellTier === 'athlete'
+                    ? `${athleteProduct?.priceText ?? '$6.99'} ${athleteProduct?.billingPeriodText ?? 'per month'}`
+                    : `${proProduct?.priceText ?? '$4.99'} ${proProduct?.billingPeriodText ?? 'per month'}`}
+                </Text>
+                <Text style={styles.proDisclosureText}>
+                  Cancel anytime in Apple ID Subscriptions. Billing renews automatically unless canceled at least 24 hours before renewal.
+                </Text>
+                {iapError ? <Text style={styles.proDisclosureText}>{iapError}</Text> : null}
                 <View style={styles.proActionRow}>
-                  <TouchableOpacity style={styles.proOutlineBtn} onPress={startProTrial}>
-                    <Text style={styles.proOutlineBtnText}>{PRO_COPY.ctaTrial}</Text>
+                  <TouchableOpacity style={styles.proOutlineBtn} onPress={startProTrial} disabled={iapPurchasePending}>
+                    <Text style={styles.proOutlineBtnText}>{iapPurchasePending ? 'Processing…' : PRO_COPY.ctaTrial}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.proOutlineBtn, styles.proOutlineBtnSelected, { borderColor: colors.primary }]} onPress={subscribePro}>
+                  <TouchableOpacity
+                    style={[styles.proOutlineBtn, styles.proOutlineBtnSelected, { borderColor: colors.primary }]}
+                    onPress={subscribePro}
+                    disabled={iapPurchasePending}
+                  >
                     <Text style={[styles.proOutlineBtnText, { color: colors.primary }]}>
                       {upsellTier === 'athlete' ? PRO_COPY.ctaSubscribeAthlete : PRO_COPY.ctaSubscribe}
                     </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.proLegalLinks}>
+                  <TouchableOpacity onPress={() => void restoreActivePurchases()}>
+                    <Text style={styles.proLegalLinkText}>{iapRestorePending ? 'Restoring…' : 'Restore Purchases'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => void openManageSubscriptions()}>
+                    <Text style={styles.proLegalLinkText}>Manage Subscription</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -628,10 +666,10 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.proLegalLinks}>
-                  <TouchableOpacity onPress={() => Alert.alert('Restore Purchases', 'Restore flow is available and will sync your active Pro entitlement.')}>
+                  <TouchableOpacity onPress={() => void restoreActivePurchases()}>
                     <Text style={styles.proLegalLinkText}>Restore Purchases</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}>
+                  <TouchableOpacity onPress={() => void openManageSubscriptions()}>
                     <Text style={styles.proLegalLinkText}>Manage Subscription</Text>
                   </TouchableOpacity>
                 </View>

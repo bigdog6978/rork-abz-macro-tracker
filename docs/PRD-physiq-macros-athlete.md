@@ -291,6 +291,10 @@ Principles:
 | Future Pro+ | $9.99/mo |
 | Future Athlete+ | TBD |
 
+Store product IDs:
+- `physiq.pro.monthly` -> Physiq Pro ($4.99/mo)
+- `physiq.athlete.monthly` -> Physiq Athlete ($6.99/mo)
+
 Trial logic:
 - One-time trial per tier
 - Managed via entitlement states

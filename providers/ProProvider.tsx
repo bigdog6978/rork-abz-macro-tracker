@@ -43,6 +43,16 @@ import {
 } from '../features/pro/proMacroEngine';
 import { getTodayDateKey } from '../utils/dateKey';
 import { isHealthKitAvailable, readTodayHealthSignals, requestHealthKitPermissions } from '../services/healthkit';
+import {
+  getCustomerState,
+  getProducts,
+  IapProductView,
+  IapTier,
+  openManageSubscriptions,
+  purchaseTier,
+  restorePurchases,
+} from '../services/iap';
+import { IapCustomerState } from '../services/iapMapping';
 
 const defaultHydration: ProHydrationLog = {
   dateKey: '',
@@ -80,8 +90,23 @@ export const [ProProvider, usePro] = createContextHook(() => {
   const athleteProfileQuery = useQuery({ queryKey: ['athlete_profile'], queryFn: getAthleteProfile });
   const athleteCycleProfileQuery = useQuery({ queryKey: ['athlete_cycle_profile'], queryFn: getAthleteCycleProfile });
   const athleteCycleLogsQuery = useQuery({ queryKey: ['athlete_cycle_logs'], queryFn: getAthleteCycleLogs });
+  const iapProductsQuery = useQuery({
+    queryKey: ['iap_products'],
+    queryFn: getProducts,
+    enabled: Platform.OS === 'ios',
+    staleTime: 1000 * 60 * 5,
+  });
+  const iapCustomerQuery = useQuery({
+    queryKey: ['iap_customer_state'],
+    queryFn: getCustomerState,
+    enabled: Platform.OS === 'ios',
+    staleTime: 1000 * 30,
+  });
 
-  const entitlement = entitlementQuery.data ?? 'core_active';
+  const storedEntitlement = entitlementQuery.data ?? 'core_active';
+  const iapCustomerState = (iapCustomerQuery.data as IapCustomerState | undefined) ?? null;
+  const entitlement: ProEntitlementState =
+    Platform.OS === 'ios' && iapCustomerState ? iapCustomerState.entitlement : storedEntitlement;
   const settings = settingsQuery.data ?? {
     dynamicMacrosEnabled: true,
     hydrationEnabled: true,
@@ -94,6 +119,7 @@ export const [ProProvider, usePro] = createContextHook(() => {
   const cycleLogs = athleteCycleLogsQuery.data ?? [];
   const cycleDerived = useMemo(() => deriveAthleteCycleState(cycleProfile, cycleLogs), [cycleProfile, cycleLogs]);
   const healthSignals = healthQuery.data ?? null;
+  const iapProducts = (iapProductsQuery.data as IapProductView[] | undefined) ?? [];
   const healthAvailabilityQuery = useQuery({
     queryKey: ['healthkit_available'],
     queryFn: isHealthKitAvailable,
@@ -105,6 +131,14 @@ export const [ProProvider, usePro] = createContextHook(() => {
     : settings.healthIntegrationEnabled
       ? 'connected'
       : (settings.healthPermissionStatus ?? 'not_connected');
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !iapCustomerState) return;
+    if (storedEntitlement !== iapCustomerState.entitlement) {
+      void setProEntitlement(iapCustomerState.entitlement);
+      void queryClient.invalidateQueries({ queryKey: ['pro_entitlement'] });
+    }
+  }, [iapCustomerState, queryClient, storedEntitlement]);
 
   const hasProAccess =
     entitlement === 'pro_trial_active' || entitlement === 'pro_subscriber_active';
@@ -188,6 +222,22 @@ export const [ProProvider, usePro] = createContextHook(() => {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pro_hydration_log'] }),
   });
+  const purchaseMutation = useMutation({
+    mutationFn: async (tier: IapTier) => purchaseTier(tier),
+    onSuccess: async (state) => {
+      await setProEntitlement(state.entitlement);
+      await queryClient.invalidateQueries({ queryKey: ['iap_customer_state'] });
+      await queryClient.invalidateQueries({ queryKey: ['pro_entitlement'] });
+    },
+  });
+  const restoreMutation = useMutation({
+    mutationFn: async () => restorePurchases(),
+    onSuccess: async (state) => {
+      await setProEntitlement(state.entitlement);
+      await queryClient.invalidateQueries({ queryKey: ['iap_customer_state'] });
+      await queryClient.invalidateQueries({ queryKey: ['pro_entitlement'] });
+    },
+  });
 
   const updateSettings = useCallback(
     (next: Partial<ProSettings>) => {
@@ -219,6 +269,37 @@ export const [ProProvider, usePro] = createContextHook(() => {
   const clearPostProHealthEducation = useCallback(() => {
     setPostProHealthEducationPending(false);
   }, []);
+
+  const startPurchase = useCallback(
+    async (tier: IapTier): Promise<boolean> => {
+      if (Platform.OS !== 'ios') return false;
+      try {
+        const beforePremium = hasAnyPremium;
+        const result = await purchaseMutation.mutateAsync(tier);
+        const nowPremium =
+          result.entitlement === 'pro_subscriber_active' || result.entitlement === 'athlete_subscriber_active';
+        if (Platform.OS === 'ios' && nowPremium && !beforePremium) {
+          setPostProHealthEducationPending(true);
+        }
+        return true;
+      } catch (error) {
+        console.warn('[IAP] purchase failed', error);
+        return false;
+      }
+    },
+    [hasAnyPremium, purchaseMutation]
+  );
+
+  const restoreActivePurchases = useCallback(async (): Promise<boolean> => {
+    if (Platform.OS !== 'ios') return false;
+    try {
+      await restoreMutation.mutateAsync();
+      return true;
+    } catch (error) {
+      console.warn('[IAP] restore failed', error);
+      return false;
+    }
+  }, [restoreMutation]);
 
   const refreshHealthSignals = useCallback(async () => {
     if (!settings.healthIntegrationEnabled) return;
@@ -363,12 +444,25 @@ export const [ProProvider, usePro] = createContextHook(() => {
     await queryClient.invalidateQueries({ queryKey: ['athlete_cycle_logs'] });
   }, [queryClient]);
 
+  const proProduct = iapProducts.find((p) => p.productId === 'physiq.pro.monthly') ?? null;
+  const athleteProduct = iapProducts.find((p) => p.productId === 'physiq.athlete.monthly') ?? null;
+
   return {
     entitlement,
     tierLabel,
     hasProAccess,
     hasAthleteAccess,
     hasAnyPremium,
+    iapProducts,
+    proProduct,
+    athleteProduct,
+    iapLoading: iapProductsQuery.isLoading || iapCustomerQuery.isLoading,
+    iapPurchasePending: purchaseMutation.isPending,
+    iapRestorePending: restoreMutation.isPending,
+    iapError:
+      (purchaseMutation.error as Error | null)?.message ??
+      (restoreMutation.error as Error | null)?.message ??
+      null,
     settings,
     healthKitAvailable,
     healthKitAvailabilityReady,
@@ -398,5 +492,8 @@ export const [ProProvider, usePro] = createContextHook(() => {
     updateCycleProfile,
     addCycleLog,
     clearCycleData,
+    startPurchase,
+    restoreActivePurchases,
+    openManageSubscriptions,
   };
 });

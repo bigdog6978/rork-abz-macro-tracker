@@ -64,3 +64,16 @@
 - **Consent copy:** I consent to menstrual-cycle data use for Athlete fueling adjustments.
 - **Privacy note:** Cycle data is private, optional, and can be deleted in Settings.
 
+## StoreKit / Subscription Compliance
+- Display localized product pricing fetched from App Store:
+  - `physiq.pro.monthly`
+  - `physiq.athlete.monthly`
+- Required paywall disclosures:
+  - subscription price
+  - billing frequency
+  - auto-renew statement
+  - cancellation instructions
+- Required actions:
+  - Restore Purchases
+  - Manage Subscription (Apple ID subscriptions deep link)
+

@@ -87,7 +87,19 @@ export default function OnboardingScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { completeOnboarding } = useUser();
-  const { setEntitlement, updateAthleteProfile, updateCycleProfile } = usePro();
+  const {
+    setEntitlement,
+    updateAthleteProfile,
+    updateCycleProfile,
+    startPurchase,
+    proProduct,
+    athleteProduct,
+    iapPurchasePending,
+    iapError,
+    restoreActivePurchases,
+    openManageSubscriptions,
+    iapRestorePending,
+  } = usePro();
   const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
 
   const [step, setStep] = useState(0);
@@ -290,8 +302,15 @@ export default function OnboardingScreen() {
             cycleDataConsentVersion: femaleTrackEnabled && femaleTrackConsent ? 'v1' : undefined,
           });
         }
-        setEntitlement(entitlement);
-        void handleComplete();
+        const purchased = await startPurchase(isAthlete ? 'athlete' : 'pro');
+        if (purchased) {
+          void handleComplete();
+        } else {
+          Alert.alert(
+            'Purchase not completed',
+            'We could not complete your subscription purchase right now. Please try again.'
+          );
+        }
       });
     },
     [
@@ -303,6 +322,7 @@ export default function OnboardingScreen() {
       femaleTrackEnabled,
       handleComplete,
       setEntitlement,
+      startPurchase,
       updateAthleteProfile,
       updateCycleProfile,
     ]
@@ -766,25 +786,33 @@ export default function OnboardingScreen() {
       <View style={styles.proTrialCard}>
         <Text style={styles.proTrialTitle}>{PRO_COPY.trialTitle}</Text>
         <Text style={styles.proTrialSubtitle}>
-          {selectedTier === 'athlete' ? 'Then $6.99/month unless canceled.' : PRO_COPY.trialDetail}
+          {selectedTier === 'athlete'
+            ? `${athleteProduct?.priceText ?? '$6.99'}/${athleteProduct?.billingPeriodText ?? 'per month'} unless canceled.`
+            : `${proProduct?.priceText ?? '$4.99'}/${proProduct?.billingPeriodText ?? 'per month'} unless canceled.`}
         </Text>
         <Text style={styles.proDisclosure}>
           {selectedTier === 'athlete'
-            ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
+            ? `3-day free trial, then ${athleteProduct?.priceText ?? '$6.99'} ${athleteProduct?.billingPeriodText ?? 'per month'}. Auto-renews unless canceled at least 24 hours before renewal.`
             : PRO_COPY.renewalDisclosure}
         </Text>
+        <Text style={styles.proDisclosure}>
+          Payment is charged to your Apple ID at confirmation. Manage or cancel anytime in Apple ID Subscriptions.
+        </Text>
       </View>
+      {iapError ? <Text style={styles.proDisclosure}>{iapError}</Text> : null}
       <View style={styles.proCtaRow}>
         <TouchableOpacity
           style={styles.proOutlinedCta}
+          disabled={iapPurchasePending}
           onPress={() =>
             completeWithTierEntitlement(selectedTier === 'athlete' ? 'athlete_trial_active' : 'pro_trial_active')
           }
         >
-          <Text style={styles.proOutlinedCtaText}>{PRO_COPY.ctaTrial}</Text>
+          <Text style={styles.proOutlinedCtaText}>{iapPurchasePending ? 'Processing…' : PRO_COPY.ctaTrial}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.proOutlinedCta, styles.proOutlinedCtaActive]}
+          disabled={iapPurchasePending}
           onPress={() =>
             completeWithTierEntitlement(
               selectedTier === 'athlete' ? 'athlete_subscriber_active' : 'pro_subscriber_active'
@@ -794,6 +822,14 @@ export default function OnboardingScreen() {
           <Text style={[styles.proOutlinedCtaText, styles.proOutlinedCtaTextActive]}>
             {selectedTier === 'athlete' ? 'Subscribe $6.99/mo' : PRO_COPY.ctaSubscribe}
           </Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.proCtaRow}>
+        <TouchableOpacity style={styles.proOutlinedCta} onPress={() => void restoreActivePurchases()}>
+          <Text style={styles.proOutlinedCtaText}>{iapRestorePending ? 'Restoring…' : 'Restore Purchases'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.proOutlinedCta} onPress={() => void openManageSubscriptions()}>
+          <Text style={styles.proOutlinedCtaText}>Manage Subscription</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={() => completeWithTierEntitlement('core_active')}>
