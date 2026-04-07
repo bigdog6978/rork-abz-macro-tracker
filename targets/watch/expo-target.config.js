@@ -4,6 +4,6 @@ module.exports = (config) => ({
   icon: '../../assets/images/icon.png',
   displayName: 'Physiq',
   frameworks: ['WatchConnectivity', 'SwiftUI'],
-  deploymentTarget: '11.0',
+  deploymentTarget: '8.0',
   bundleIdentifier: '.watch',
 });

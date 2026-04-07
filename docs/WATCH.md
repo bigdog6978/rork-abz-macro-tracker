@@ -1,5 +1,11 @@
 # Apple Watch (watchOS) + iPhone integration
 
+## Compatibility
+
+- Minimum watchOS target: **8.0**
+- Intended support: **watchOS 8.0 through current**
+- Final install eligibility still depends on Apple toolchain/App Store validation at build submission time.
+
 ## Pro / Health messaging (iPhone)
 
 **HealthKit stays on the iPhone** for adaptive Pro / Athlete-style targets; the Watch is optional and receives data via Health sync + WatchConnectivity (`docs` copy lives in `src/content/proMicrocopy.ts`). After activating Pro (trial or subscribe), iOS users see **`PostProHealthFlow`**: education modal → existing `HealthPermissionModal` → `enableHealthIntegration()`. Settings shows an **inline banner** while Health integration is off. No Watch app is required for HealthKit permission or reads.
