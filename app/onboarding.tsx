@@ -832,6 +832,20 @@ export default function OnboardingScreen() {
           <Text style={styles.proOutlinedCtaText}>Manage Subscription</Text>
         </TouchableOpacity>
       </View>
+      <View style={styles.proCtaRow}>
+        <TouchableOpacity
+          style={styles.proOutlinedCta}
+          onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}
+        >
+          <Text style={styles.proOutlinedCtaText}>Terms of Use</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.proOutlinedCta}
+          onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}
+        >
+          <Text style={styles.proOutlinedCtaText}>Privacy Policy</Text>
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity onPress={() => completeWithTierEntitlement('core_active')}>
         <Text style={styles.proSkipText}>{PRO_COPY.ctaNotNow}</Text>
       </TouchableOpacity>

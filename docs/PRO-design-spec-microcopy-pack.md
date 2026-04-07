@@ -76,4 +76,13 @@
 - Required actions:
   - Restore Purchases
   - Manage Subscription (Apple ID subscriptions deep link)
+  - Terms of Use link
+  - Privacy Policy link
+
+## Subscription Status States
+- **active:** Subscription active.
+- **expired:** Subscription expired. Renew to restore premium features.
+- **grace_period:** Billing grace period active; payment fix required.
+- **billing_retry:** Billing retry in progress.
+- **deferred:** Purchase is pending and will unlock once Apple confirms.
 

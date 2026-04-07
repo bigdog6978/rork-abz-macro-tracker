@@ -34,4 +34,6 @@
    - purchase pro/athlete
    - restore purchases
    - active/expired entitlement updates
+   - grace period / billing retry / deferred pending messaging paths
+   - Terms of Use + Privacy links visible on onboarding and settings paywalls
 

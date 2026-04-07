@@ -1,7 +1,7 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { sendProSnapshotToWatch, subscribePhysiqWatch } from 'physiq-watch-connectivity';
 import { useUser } from './UserProvider';
 import {
@@ -447,6 +447,16 @@ export const [ProProvider, usePro] = createContextHook(() => {
   const proProduct = iapProducts.find((p) => p.productId === 'physiq.pro.monthly') ?? null;
   const athleteProduct = iapProducts.find((p) => p.productId === 'physiq.athlete.monthly') ?? null;
 
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void queryClient.invalidateQueries({ queryKey: ['iap_customer_state'] });
+      }
+    });
+    return () => sub.remove();
+  }, [queryClient]);
+
   return {
     entitlement,
     tierLabel,
@@ -463,6 +473,8 @@ export const [ProProvider, usePro] = createContextHook(() => {
       (purchaseMutation.error as Error | null)?.message ??
       (restoreMutation.error as Error | null)?.message ??
       null,
+    iapLifecycleStatus: iapCustomerState?.lifecycleStatus ?? 'expired',
+    iapStatusMessage: iapCustomerState?.statusMessage ?? 'Subscription inactive.',
     settings,
     healthKitAvailable,
     healthKitAvailabilityReady,

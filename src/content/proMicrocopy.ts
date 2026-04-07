@@ -50,5 +50,12 @@ export const PRO_COPY = {
   healthRequiredBannerBody:
     'Connect Apple Health to unlock Athlete-style adaptive targets and hydration cues tied to your activity.',
   healthRequiredBannerCta: 'Connect',
+  iapStateCopy: {
+    active: 'Subscription active.',
+    expired: 'Subscription expired. Renew to restore premium features.',
+    grace_period: 'Billing grace period active. Update payment details to keep access.',
+    billing_retry: 'Billing retry in progress. Please check Apple payment settings.',
+    deferred: 'Purchase pending approval. Access unlocks after Apple confirms.',
+  },
 } as const;
 

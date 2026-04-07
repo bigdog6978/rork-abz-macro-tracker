@@ -84,6 +84,8 @@ export default function SettingsScreen() {
     iapPurchasePending,
     iapRestorePending,
     iapError,
+    iapLifecycleStatus,
+    iapStatusMessage,
   } = usePro();
   const { clearAll } = useDailyLog();
   const colors = useThemeColors();
@@ -461,6 +463,10 @@ export default function SettingsScreen() {
                 <Text style={styles.proDisclosureText}>
                   Cancel anytime in Apple ID Subscriptions. Billing renews automatically unless canceled at least 24 hours before renewal.
                 </Text>
+                <Text style={styles.proDisclosureText}>
+                  {PRO_COPY.iapStateCopy[iapLifecycleStatus]}
+                </Text>
+                <Text style={styles.proDisclosureText}>{iapStatusMessage}</Text>
                 {iapError ? <Text style={styles.proDisclosureText}>{iapError}</Text> : null}
                 <View style={styles.proActionRow}>
                   <TouchableOpacity style={styles.proOutlineBtn} onPress={startProTrial} disabled={iapPurchasePending}>
@@ -482,6 +488,14 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => void openManageSubscriptions()}>
                     <Text style={styles.proLegalLinkText}>Manage Subscription</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.proLegalLinks}>
+                  <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
+                    <Text style={styles.proLegalLinkText}>Terms of Use</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
+                    <Text style={styles.proLegalLinkText}>Privacy Policy</Text>
                   </TouchableOpacity>
                 </View>
               </>

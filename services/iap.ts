@@ -48,9 +48,20 @@ function mapPackageToView(pkg: PurchasesPackage): IapProductView {
 }
 
 export function mapCustomerInfoToState(info: CustomerInfo): IapCustomerState {
+  const anyInfo = info as any;
+  const entitlementValues = Object.values(anyInfo.entitlements?.all ?? {}) as Array<any>;
+  const hasBillingIssue = entitlementValues.some((e) => Boolean(e?.billingIssueDetectedAt));
+  const gracePeriodExpiresDate =
+    entitlementValues.map((e) => e?.gracePeriodExpiresDate).find(Boolean) ?? null;
+  const isDeferred = entitlementValues.some((e) => Boolean(e?.isSandbox && e?.periodType === 'trial' && !e?.isActive));
+
   return mapCustomerLikeInfoToState({
     activeSubscriptions: info.activeSubscriptions,
     latestExpirationDate: info.latestExpirationDate,
+    billingIssueDetectedAt: hasBillingIssue ? new Date().toISOString() : null,
+    gracePeriodExpiresDate,
+    deferred: isDeferred,
+    nowIso: anyInfo.requestDate ?? new Date().toISOString(),
   });
 }
 

@@ -24,4 +24,29 @@ describe('iap mapping', () => {
     });
     expect(state.entitlement).toBe('core_active');
   });
+
+  it('maps billing issue to billing_retry lifecycle', () => {
+    const state = mapCustomerLikeInfoToState({
+      activeSubscriptions: [],
+      latestExpirationDate: '2026-04-01T00:00:00Z',
+      billingIssueDetectedAt: '2026-04-02T00:00:00Z',
+    });
+    expect(state.lifecycleStatus).toBe('billing_retry');
+  });
+
+  it('maps grace period when grace end is in future', () => {
+    const state = mapCustomerLikeInfoToState({
+      activeSubscriptions: [],
+      gracePeriodExpiresDate: '2999-04-02T00:00:00Z',
+    });
+    expect(state.lifecycleStatus).toBe('grace_period');
+  });
+
+  it('maps deferred pending state', () => {
+    const state = mapCustomerLikeInfoToState({
+      activeSubscriptions: [],
+      deferred: true,
+    });
+    expect(state.lifecycleStatus).toBe('deferred');
+  });
 });
