@@ -25,6 +25,7 @@ import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { getMealPlanForEatingStyle } from '../../../mocks/mealTemplates';
+import { normalizeMacroTargetsForPlanning } from '../../../utils/mealPlanGenerator';
 import { getAllergies } from '../../../storage/allergiesRepo';
 import { getDislikedFoods } from '../../../storage/dislikedFoodsRepo';
 import {
@@ -106,6 +107,7 @@ import {
   getActiveMealPlan,
   setActiveMealPlan,
   clearActivePlan,
+  saveMealTemplate,
 } from '../../../storage/mealPlanRepo';
 import { generateGroceryList, formatGroceryListAsText } from '../../../utils/grocery/groceryListEngine';
 import { loadChecklist, saveChecklist } from '../../../storage/groceryRepo';
@@ -239,6 +241,10 @@ function MealCard({
   mealIndex,
   onSwapPress,
   onLogPress,
+  onMealLogPress,
+  onMealRegeneratePress,
+  onMealSavePress,
+  isMealLogged,
   onEditQuantityPress,
   isLogged,
 }: {
@@ -247,6 +253,10 @@ function MealCard({
   mealIndex: number;
   onSwapPress: (mealIndex: number, foodIndex: number, food: MealSuggestion) => void;
   onLogPress: (food: MealSuggestion) => void;
+  onMealLogPress: (mealIndex: number, meal: MealSlot) => void;
+  onMealRegeneratePress: (mealIndex: number) => void;
+  onMealSavePress: (mealIndex: number, meal: MealSlot) => void;
+  isMealLogged: (mealIndex: number, meal: MealSlot) => boolean;
   onEditQuantityPress?: (mealIndex: number, foodIndex: number, food: MealSuggestion) => void;
   isLogged: (planItemId: string) => boolean;
 }) {
@@ -255,6 +265,8 @@ function MealCard({
   const slotProtein = Math.round(macros.protein_g * meal.percentage);
   const slotCarbs = Math.round(macros.carbs_g * meal.percentage);
   const slotFat = Math.round(macros.fat_g * meal.percentage);
+
+  const mealLogged = isMealLogged(mealIndex, meal);
 
   return (
     <View style={styles.mealCard}>
@@ -266,8 +278,39 @@ function MealCard({
           <Text style={styles.mealName}>{meal.name}</Text>
           <Text style={styles.mealPercent}>{Math.round(meal.percentage * 100)}% of daily</Text>
         </View>
-        <View style={[styles.mealTargetBadge, { backgroundColor: colors.primaryMuted }]}>
-          <Text style={[styles.mealTargetText, { color: colors.primary }]}>{formatNumber(slotCalories)} cal</Text>
+        <View style={styles.mealHeaderActions}>
+          <TouchableOpacity
+            style={[
+              styles.mealActionBtn,
+              mealLogged ? [styles.mealActionBtnActive, { borderColor: colors.primary }] : null,
+            ]}
+            onPress={() => onMealLogPress(mealIndex, meal)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            testID={`log-meal-btn-${mealIndex}`}
+          >
+            <View
+              style={[
+                styles.mealActionDot,
+                mealLogged ? [styles.mealActionDotActive, { backgroundColor: colors.primary }] : null,
+              ]}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.mealActionBtn, { backgroundColor: Colors.cardElevated }]}
+            onPress={() => onMealRegeneratePress(mealIndex)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            testID={`regen-meal-btn-${mealIndex}`}
+          >
+            <RotateCcw size={14} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.mealActionBtn, { backgroundColor: Colors.cardElevated }]}
+            onPress={() => onMealSavePress(mealIndex, meal)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            testID={`save-meal-btn-${mealIndex}`}
+          >
+            <Save size={14} color={Colors.textSecondary} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -280,6 +323,9 @@ function MealCard({
         </View>
         <View style={[styles.mealMacroPill, { backgroundColor: Colors.fatMuted }]}>
           <Text style={[styles.mealMacroText, { color: Colors.fat }]}>{formatNumber(slotFat)}g F</Text>
+        </View>
+        <View style={[styles.mealMacroPill, { backgroundColor: colors.primaryMuted }]}>
+          <Text style={[styles.mealMacroText, { color: colors.primary }]}>{formatNumber(slotCalories)} cal</Text>
         </View>
       </View>
 
@@ -908,14 +954,24 @@ function createFoodEntryFromPlanItem(food: MealSuggestion): FoodEntry {
   };
 }
 
+function mealSlotBaseId(mealIndex: number, foodIndex: number): string {
+  return `plan-${mealIndex}-${foodIndex}`;
+}
+
 export default function PlanScreen() {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const { profile, macros } = useUser();
-  const { todayEntries, addEntry, removeEntry, updateEntry } = useDailyLog();
+  const { todayEntries, addEntry, addEntries, removeEntry, updateEntry } = useDailyLog();
   const queryClient = useQueryClient();
   const router = useRouter();
+
+  const planningTargetInfo = useMemo(
+    () => normalizeMacroTargetsForPlanning(macros),
+    [macros]
+  );
+  const planningTargets = planningTargetInfo.normalizedTargets;
 
   const activePlanQuery = useQuery({
     queryKey: ['active_meal_plan'],
@@ -950,13 +1006,13 @@ export default function PlanScreen() {
         measurementSystem,
         modifiers: profile.dietModifiers ?? [],
         allergies: allergies.map((item) => item.normalized),
-        macros,
+        macros: planningTargets,
         generationSeed,
       }),
     [
       allergies,
       generationSeed,
-      macros,
+      planningTargets,
       measurementSystem,
       profile.activityLevel,
       profile.dietModifiers,
@@ -969,21 +1025,21 @@ export default function PlanScreen() {
     return (
       activePlan.eatingStyle === profile.eatingStyle &&
       areStringListsEqual(activePlan.dietaryModifiers ?? [], profile.dietModifiers ?? []) &&
-      areMacroTargetsEqual(activePlan.macroTargets, macros)
+      areMacroTargetsEqual(activePlan.macroTargets, planningTargets)
     );
-  }, [activePlan, macros, profile.dietModifiers, profile.eatingStyle]);
+  }, [activePlan, planningTargets, profile.dietModifiers, profile.eatingStyle]);
 
   const basePlan = useMemo(() => {
     return getMealPlanForEatingStyle(
       profile.eatingStyle,
       profile.dietModifiers ?? [],
-      macros,
+      planningTargets,
       profile.measurementSystem ?? 'us',
       allergies,
       generationSeed,
       dislikedFoodIds
     );
-  }, [profile.eatingStyle, profile.dietModifiers, profile.goal, macros, profile.measurementSystem, allergies, generationSeed, dislikedFoodIds]);
+  }, [profile.eatingStyle, profile.dietModifiers, profile.goal, planningTargets, profile.measurementSystem, allergies, generationSeed, dislikedFoodIds]);
 
   const [substitutionMap, setSubstitutionMap] = useState<
     Record<string, MealSuggestion>
@@ -1076,6 +1132,7 @@ export default function PlanScreen() {
   }, [activePlanMeals, basePlan, isUsingActivePlan, measurementSystem, quantityMap, substitutionMap]);
 
   const planTotals = useMemo(() => computePlanTotals(plan.meals), [plan.meals]);
+  const planTarget = plan.targetUsed ?? planningTargets;
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [selectedFood, setSelectedFood] = useState<MealSuggestion | null>(null);
@@ -1132,6 +1189,140 @@ export default function PlanScreen() {
     [todayEntries, addEntry, removeEntry, showToast]
   );
 
+  const isMealLogged = useCallback(
+    (mealIndex: number, meal: MealSlot) =>
+      meal.suggestions.every((_, foodIndex) => isLogged(mealSlotBaseId(mealIndex, foodIndex))),
+    [isLogged]
+  );
+
+  const handleLogMeal = useCallback(
+    (mealIndex: number, meal: MealSlot) => {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+
+      const missingEntries: FoodEntry[] = [];
+      meal.suggestions.forEach((food, foodIndex) => {
+        const slotId = mealSlotBaseId(mealIndex, foodIndex);
+        const exists = todayEntries.some(
+          (e) => e.source === 'mealPlan' && e.sourceRefId === slotId
+        );
+        if (!exists) {
+          missingEntries.push(
+            createFoodEntryFromPlanItem({
+              ...food,
+              id: slotId,
+            })
+          );
+        }
+      });
+
+      if (missingEntries.length === 0) {
+        showToast('Meal already logged');
+        return;
+      }
+      addEntries(missingEntries);
+      showToast(`Added ${missingEntries.length} item${missingEntries.length === 1 ? '' : 's'} to Today`);
+    },
+    [addEntries, showToast, todayEntries]
+  );
+
+  const handleSaveMealTemplate = useCallback(
+    async (_mealIndex: number, meal: MealSlot) => {
+      const items = meal.suggestions.map((s) => ({
+        foodId: s.foodId,
+        name: s.name,
+        portion: s.portion,
+        portionGrams: s.portionGrams,
+        protein_g: s.protein_g,
+        carbs_g: s.carbs_g,
+        fat_g: s.fat_g,
+        calories: s.calories,
+        category: s.category,
+      }));
+      const total = items.reduce(
+        (acc, item) => ({
+          calories: acc.calories + item.calories,
+          protein_g: acc.protein_g + item.protein_g,
+          carbs_g: acc.carbs_g + item.carbs_g,
+          fat_g: acc.fat_g + item.fat_g,
+        }),
+        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+      );
+
+      await saveMealTemplate({
+        name: meal.name,
+        icon: meal.icon,
+        eatingStyle: profile.eatingStyle,
+        dietaryModifiers: [...(profile.dietModifiers ?? [])],
+        items,
+        total,
+      });
+      showToast(`Saved meal: ${meal.name}`);
+    },
+    [profile.dietModifiers, profile.eatingStyle, showToast]
+  );
+
+  const handleRegenerateMeal = useCallback(
+    (mealIndex: number) => {
+      const nextSeed = generationSeed + mealIndex + 1;
+      const nextPlan = getMealPlanForEatingStyle(
+        profile.eatingStyle,
+        profile.dietModifiers ?? [],
+        planningTargets,
+        profile.measurementSystem ?? 'us',
+        allergies,
+        nextSeed,
+        dislikedFoodIds
+      );
+      const replacement = nextPlan.meals[mealIndex];
+      if (!replacement) return;
+
+      const entries = replacement.suggestions.map((food, foodIndex) => {
+        const slotId = mealSlotBaseId(mealIndex, foodIndex);
+        return {
+          ...food,
+          id: slotId,
+        };
+      });
+
+      setSubstitutionMap((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((k) => {
+          if (k.startsWith(`plan-${mealIndex}-`)) delete next[k];
+        });
+        entries.forEach((item) => {
+          next[item.id] = item;
+        });
+        return next;
+      });
+      setQuantityMap((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((k) => {
+          if (k.startsWith(`plan-${mealIndex}-`)) delete next[k];
+        });
+        loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES).then((existing) => {
+          const merged = { ...(existing ?? {}), [planKey]: next };
+          saveData(STORAGE_KEYS.MEAL_PLAN_QUANTITIES, merged);
+        });
+        return next;
+      });
+
+      showToast('Meal regenerated');
+    },
+    [
+      allergies,
+      dislikedFoodIds,
+      generationSeed,
+      planKey,
+      planningTargets,
+      profile.dietModifiers,
+      profile.eatingStyle,
+      profile.measurementSystem,
+      showToast,
+    ]
+  );
+
   const savePlanMutation = useMutation({
     mutationFn: async (name: string) => {
       const eatingStyle = profile.eatingStyle;
@@ -1152,7 +1343,7 @@ export default function PlanScreen() {
         updatedAt: now,
         meals: mealsDeepCopy,
         substitutionMap: { ...substitutionMap },
-        macroTargets: { ...macros },
+        macroTargets: { ...planTarget },
         isActive: true,
       };
 
@@ -1376,8 +1567,13 @@ export default function PlanScreen() {
                 {EATING_STYLE_LABELS[profile.eatingStyle]} Plan
               </Text>
               <Text style={styles.headerSubtitle}>
-                Plan totals: {formatNumber(planTotals.calories)} cal (target {formatNumber(macros.calories)})
+                Plan totals: {formatNumber(planTotals.calories)} cal (target {formatNumber(planTarget.calories)})
               </Text>
+              {(plan.targetNormalization?.wasNormalized || planningTargetInfo.wasNormalized) && (
+                <Text style={styles.headerNormalizationNote}>
+                  Targets normalized to macro-equivalent calories for plan accuracy.
+                </Text>
+              )}
             </View>
             <View style={styles.headerActions}>
               <TouchableOpacity
@@ -1490,10 +1686,14 @@ export default function PlanScreen() {
               <MealCard
                 key={idx}
                 meal={meal}
-                macros={macros}
+                macros={planTarget}
                 mealIndex={idx}
                 onSwapPress={openSheet}
                 onLogPress={handleLogToggle}
+                onMealLogPress={handleLogMeal}
+                onMealRegeneratePress={handleRegenerateMeal}
+                onMealSavePress={handleSaveMealTemplate}
+                isMealLogged={isMealLogged}
                 onEditQuantityPress={openEditQuantity}
                 isLogged={isLogged}
               />
@@ -1785,6 +1985,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '500' as const,
   },
+  headerNormalizationNote: {
+    color: Colors.textTertiary,
+    fontSize: 11,
+    marginTop: 6,
+    fontWeight: '500' as const,
+  },
   activePlanTag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1886,6 +2092,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500' as const,
     marginTop: 1,
+  },
+  mealHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mealActionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealActionBtnActive: {
+    backgroundColor: Colors.primaryMuted,
+  },
+  mealActionDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: Colors.textSecondary,
+  },
+  mealActionDotActive: {
+    borderColor: 'transparent',
   },
   mealTargetBadge: {
     backgroundColor: Colors.primaryMuted,

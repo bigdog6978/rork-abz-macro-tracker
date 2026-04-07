@@ -194,6 +194,13 @@ export interface DayPlan {
   meals: MealSlot[];
   /** True when allergies/constraints blocked all foods and no plan could be generated */
   planUnavailable?: boolean;
+  /** Target macros/calories actually used to generate this plan. */
+  targetUsed?: MacroTargets;
+  /** Indicates whether calories were normalized to match macro-equivalent energy. */
+  targetNormalization?: {
+    wasNormalized: boolean;
+    deltaCalories: number;
+  };
 }
 
 export const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
@@ -283,6 +290,31 @@ export interface SavedMealPlan {
   substitutionMap: Record<string, MealSuggestion>;
   macroTargets: MacroTargets;
   isActive: boolean;
+}
+
+export interface SavedMealTemplateItem {
+  foodId: string;
+  name: string;
+  portion: string;
+  portionGrams: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  calories: number;
+  category: FoodCategory;
+}
+
+export interface SavedMealTemplate {
+  id: string;
+  name: string;
+  icon: string;
+  eatingStyle: EatingStyle;
+  dietaryModifiers: DietaryModifier[];
+  items: SavedMealTemplateItem[];
+  total: MacroTargets;
+  compositionHash: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export function legacyMacroStrategyToEatingStyle(strategy?: string | null): EatingStyle {

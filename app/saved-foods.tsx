@@ -19,19 +19,31 @@ import { formatNumber } from '../utils/formatNumber';
 import * as foodsRepo from '../src/data/foodsRepo';
 import type { LocalFood } from '../src/types/Food';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
+import { useDailyLog } from '../providers/DailyLogProvider';
+import { getSavedMealTemplates, deleteSavedMealTemplate } from '../storage/mealPlanRepo';
+import { FoodEntry, SavedMealTemplate } from '../types';
+
+function generateId(): string {
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
 export default function SavedFoodsScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [foods, setFoods] = useState<LocalFood[]>([]);
+  const [savedMeals, setSavedMeals] = useState<SavedMealTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'foods' | 'meals'>('foods');
   const [loading, setLoading] = useState(true);
+  const { addEntries } = useDailyLog();
 
   const loadFoods = useCallback(async () => {
     setLoading(true);
     try {
       const all = await foodsRepo.getUserSavedFoods();
       setFoods(all);
+      const meals = await getSavedMealTemplates();
+      setSavedMeals(meals);
     } catch (err) {
       console.log('[SavedFoods] Load error:', err);
     } finally {
@@ -50,6 +62,10 @@ export default function SavedFoodsScreen() {
           (f.brand?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false)
       )
     : foods;
+
+  const filteredMeals = searchQuery.trim()
+    ? savedMeals.filter((m) => m.name.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+    : savedMeals;
 
   const handleSelectFood = useCallback(
     (food: LocalFood) => {
@@ -94,6 +110,48 @@ export default function SavedFoodsScreen() {
     []
   );
 
+  const handleDeleteMeal = useCallback((meal: SavedMealTemplate) => {
+    Alert.alert(
+      'Delete saved meal?',
+      'This removes the saved meal template only.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteSavedMealTemplate(meal.id);
+            setSavedMeals((prev) => prev.filter((m) => m.id !== meal.id));
+          },
+        },
+      ]
+    );
+  }, []);
+
+  const handleAddMealToLog = useCallback(
+    (meal: SavedMealTemplate) => {
+      const entries: FoodEntry[] = meal.items.map((item) => ({
+        id: generateId(),
+        name: item.name,
+        protein_g: item.protein_g,
+        carbs_g: item.carbs_g,
+        fat_g: item.fat_g,
+        calories: item.calories,
+        timestamp: new Date().toISOString(),
+        providerId: 'manual',
+        servingGrams: item.portionGrams,
+        source: 'mealPlan',
+        sourceRefId: `saved-meal-${meal.id}-${item.foodId}`,
+      }));
+      addEntries(entries);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      Alert.alert('Added', `${meal.name} added to today.`);
+    },
+    [addEntries]
+  );
+
   const handleScanBarcode = useCallback(() => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -128,12 +186,30 @@ export default function SavedFoodsScreen() {
           placeholderTextColor={Colors.textTertiary}
         />
       </View>
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tabBtn, activeTab === 'foods' ? styles.tabBtnActive : null]}
+          onPress={() => setActiveTab('foods')}
+        >
+          <Text style={[styles.tabText, activeTab === 'foods' ? styles.tabTextActive : null]}>
+            Saved Foods
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, activeTab === 'meals' ? styles.tabBtnActive : null]}
+          onPress={() => setActiveTab('meals')}
+        >
+          <Text style={[styles.tabText, activeTab === 'meals' ? styles.tabTextActive : null]}>
+            Saved Meals
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      ) : filteredFoods.length === 0 ? (
+      ) : activeTab === 'foods' && filteredFoods.length === 0 ? (
         <View style={styles.emptyState}>
           <UtensilsCrossed size={48} color={Colors.textTertiary} strokeWidth={1} />
           <Text style={styles.emptyTitle}>
@@ -156,7 +232,7 @@ export default function SavedFoodsScreen() {
             </View>
           )}
         </View>
-      ) : (
+      ) : activeTab === 'foods' ? (
         <ScrollView
           style={styles.list}
           contentContainerStyle={styles.listContent}
@@ -183,6 +259,39 @@ export default function SavedFoodsScreen() {
               <TouchableOpacity
                 style={styles.deleteBtn}
                 onPress={() => handleDeleteFood(food)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Trash2 size={18} color={Colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      ) : filteredMeals.length === 0 ? (
+        <View style={styles.emptyState}>
+          <UtensilsCrossed size={48} color={Colors.textTertiary} strokeWidth={1} />
+          <Text style={styles.emptyTitle}>No saved meals yet</Text>
+          <Text style={styles.emptySubtitle}>Save meals from Meal Plan to use them here.</Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.list} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+          {filteredMeals.map((meal) => (
+            <View key={meal.id} style={styles.card}>
+              <View style={styles.cardMain}>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.foodName} numberOfLines={1}>
+                    {meal.icon} {meal.name}
+                  </Text>
+                  <Text style={styles.foodMacros}>
+                    {formatNumber(meal.total.calories)} cal · {formatNumber(meal.total.protein_g)}p · {formatNumber(meal.total.carbs_g)}c · {formatNumber(meal.total.fat_g)}f
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => handleAddMealToLog(meal)}>
+                  <Text style={styles.emptyBtnText}>Add Meal to Log</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => handleDeleteMeal(meal)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Trash2 size={18} color={Colors.textTertiary} />
@@ -220,6 +329,35 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 14,
     color: Colors.text,
     fontSize: 16,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    borderRadius: 10,
+    padding: 4,
+    gap: 4,
+  },
+  tabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  tabBtnActive: {
+    backgroundColor: colors.primaryMuted,
+  },
+  tabText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  tabTextActive: {
+    color: colors.primary,
   },
   center: {
     flex: 1,

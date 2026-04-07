@@ -1,8 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { legacyMacroStrategyToEatingStyle, SavedMealPlan } from '../types';
+import {
+  legacyMacroStrategyToEatingStyle,
+  SavedMealPlan,
+  SavedMealTemplate,
+  SavedMealTemplateItem,
+} from '../types';
 
 const KEYS = {
   savedPlans: 'abz_saved_meal_plans',
+  savedMeals: 'abz_saved_meal_templates',
   activePlanId: 'abz_active_meal_plan_id',
   schemaVersion: 'abz_meal_plan_schema_version',
 };
@@ -139,4 +145,65 @@ export async function clearActivePlan(): Promise<void> {
   } catch (err) {
     console.log('[mealPlanRepo] Error clearing active plan:', err);
   }
+}
+
+function computeMealTemplateHash(
+  eatingStyle: string,
+  modifiers: string[],
+  items: SavedMealTemplateItem[]
+): string {
+  const itemPart = [...items]
+    .sort((a, b) => `${a.foodId}:${a.portionGrams}`.localeCompare(`${b.foodId}:${b.portionGrams}`))
+    .map((i) => `${i.foodId}:${i.portionGrams}`)
+    .join('|');
+  return [
+    eatingStyle,
+    [...modifiers].sort().join(','),
+    itemPart,
+  ].join('::');
+}
+
+export async function getSavedMealTemplates(): Promise<SavedMealTemplate[]> {
+  await checkSchema();
+  try {
+    const data = await AsyncStorage.getItem(KEYS.savedMeals);
+    return data ? (JSON.parse(data) as SavedMealTemplate[]) : [];
+  } catch (err) {
+    console.log('[mealPlanRepo] Error reading saved meals:', err);
+    return [];
+  }
+}
+
+export async function saveMealTemplate(
+  meal: Omit<SavedMealTemplate, 'id' | 'createdAt' | 'updatedAt' | 'compositionHash'>
+): Promise<SavedMealTemplate> {
+  const now = new Date().toISOString();
+  const hash = computeMealTemplateHash(meal.eatingStyle, meal.dietaryModifiers, meal.items);
+  const existing = await getSavedMealTemplates();
+  const matched = existing.find((m) => m.compositionHash === hash);
+
+  const record: SavedMealTemplate = matched
+    ? {
+        ...matched,
+        ...meal,
+        compositionHash: hash,
+        updatedAt: now,
+      }
+    : {
+        ...meal,
+        id: `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+        compositionHash: hash,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+  const next = [record, ...existing.filter((m) => m.id !== record.id)];
+  await AsyncStorage.setItem(KEYS.savedMeals, JSON.stringify(next));
+  return record;
+}
+
+export async function deleteSavedMealTemplate(id: string): Promise<void> {
+  const current = await getSavedMealTemplates();
+  const next = current.filter((m) => m.id !== id);
+  await AsyncStorage.setItem(KEYS.savedMeals, JSON.stringify(next));
 }
