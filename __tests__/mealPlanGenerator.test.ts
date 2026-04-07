@@ -4,11 +4,12 @@
  * proper snack structure (no top-ups), and IF timing collapse.
  */
 
-import { generateMealPlan } from '../utils/mealPlanGenerator';
+import { generateMealPlan, normalizeMacroTargetsForPlanning } from '../utils/mealPlanGenerator';
 import { MacroTargets, UserAllergy } from '../types';
 
 const TOLERANCE = { protein: 3, carbs: 5, fat: 3, calories: 50 };
 const TEST_TOLERANCE = { protein: 15, carbs: 20, fat: 10, calories: 80 };
+const REQUIRED_TARGET_TOLERANCE = { protein: 8, carbs: 15, fat: 6, calories: 60 };
 
 function sumPlanTotals(plan: ReturnType<typeof generateMealPlan>): MacroTargets {
   let calories = 0;
@@ -46,6 +47,24 @@ function getPlanFingerprint(plan: ReturnType<typeof generateMealPlan>): string {
 }
 
 describe('MealPlanGenerator', () => {
+  describe('target normalization for planning', () => {
+    it('normalizes calories when macro-derived calories differ significantly', () => {
+      const rawTargets: MacroTargets = { calories: 3615, protein_g: 229, carbs_g: 277, fat_g: 78 };
+      const normalized = normalizeMacroTargetsForPlanning(rawTargets);
+      expect(normalized.wasNormalized).toBe(true);
+      expect(normalized.normalizedTargets.calories).toBe(2726);
+      expect(normalized.deltaCalories).toBe(-889);
+    });
+
+    it('keeps calories unchanged when already consistent with macro energy', () => {
+      const rawTargets: MacroTargets = { calories: 1941, protein_g: 122, carbs_g: 271, fat_g: 41 };
+      const normalized = normalizeMacroTargetsForPlanning(rawTargets);
+      expect(normalized.wasNormalized).toBe(false);
+      expect(normalized.normalizedTargets.calories).toBe(1941);
+      expect(normalized.deltaCalories).toBe(0);
+    });
+  });
+
   // ── No top-ups anywhere ──────────────────────────────────────────────────
 
   describe('snack structure', () => {
@@ -123,6 +142,89 @@ describe('MealPlanGenerator', () => {
       const totals = sumPlanTotals(plan);
       expect(withinTolerance(totals, targets, TEST_TOLERANCE)).toBe(true);
     });
+
+    it('IF meal percentages remain mathematically exact (sum ~ 1.0)', () => {
+      const targets: MacroTargets = { calories: 2200, protein_g: 160, carbs_g: 230, fat_g: 73 };
+      const plan = generateMealPlan(targets, 'standard', ['intermittent_fasting'], 'us');
+      const pct = plan.meals.reduce((sum, meal) => sum + meal.percentage, 0);
+      expect(Math.abs(pct - 1)).toBeLessThanOrEqual(0.001);
+    });
+  });
+
+  describe('required tolerance across preference combinations', () => {
+    const cases: Array<{
+      label: string;
+      style: Parameters<typeof generateMealPlan>[1];
+      modifiers: Parameters<typeof generateMealPlan>[2];
+      targets: MacroTargets;
+      allergies?: UserAllergy[];
+      disliked?: string[];
+    }> = [
+      {
+        label: 'no modifiers',
+        style: 'standard',
+        modifiers: [],
+        targets: { calories: 2200, protein_g: 170, carbs_g: 230, fat_g: 73 },
+      },
+      {
+        label: 'IF + low glycemic',
+        style: 'standard',
+        modifiers: ['intermittent_fasting', 'low_glycemic'],
+        targets: { calories: 2400, protein_g: 180, carbs_g: 260, fat_g: 80 },
+      },
+      {
+        label: 'IF + restrictions + allergies + disliked',
+        style: 'mediterranean',
+        modifiers: ['intermittent_fasting', 'low_glycemic', 'dairy_free', 'egg_free'],
+        targets: { calories: 2100, protein_g: 140, carbs_g: 245, fat_g: 62 },
+        allergies: [
+          { id: 'a1', name: 'Soy', normalized: 'soy', createdAt: 0, updatedAt: 0 },
+          { id: 'a2', name: 'Tree nuts', normalized: 'tree nuts', createdAt: 0, updatedAt: 0 },
+        ],
+        disliked: ['chicken_breast', 'greek_yogurt'],
+      },
+      {
+        label: 'keto edge case',
+        style: 'keto',
+        modifiers: ['intermittent_fasting'],
+        targets: { calories: 1900, protein_g: 140, carbs_g: 30, fat_g: 120 },
+      },
+      {
+        label: 'carnivore edge case',
+        style: 'carnivore',
+        modifiers: ['intermittent_fasting'],
+        targets: { calories: 2042, protein_g: 105, carbs_g: 5, fat_g: 178 },
+      },
+      {
+        label: 'vegan edge case',
+        style: 'vegan',
+        modifiers: ['intermittent_fasting', 'low_glycemic'],
+        targets: { calories: 2300, protein_g: 135, carbs_g: 300, fat_g: 70 },
+      },
+      {
+        label: 'high calorie',
+        style: 'standard',
+        modifiers: ['intermittent_fasting'],
+        targets: { calories: 3600, protein_g: 230, carbs_g: 430, fat_g: 100 },
+      },
+      {
+        label: 'low calorie',
+        style: 'standard',
+        modifiers: [],
+        targets: { calories: 1500, protein_g: 130, carbs_g: 120, fat_g: 50 },
+      },
+    ];
+
+    it.each(cases)('$label stays within required tolerance and produces a usable plan', ({ style, modifiers, targets, allergies = [], disliked = [] }) => {
+      const normalizedTargets = normalizeMacroTargetsForPlanning(targets).normalizedTargets;
+      const plan = generateMealPlan(targets, style, modifiers, 'us', allergies, 1, disliked);
+      const totals = sumPlanTotals(plan);
+      const ok = withinTolerance(totals, normalizedTargets, REQUIRED_TARGET_TOLERANCE);
+
+      expect(plan.planUnavailable).not.toBe(true);
+      expect(plan.meals.length).toBeGreaterThan(0);
+      expect(ok).toBe(true);
+    });
   });
 
   // ── Solver convergence ───────────────────────────────────────────────────
@@ -154,7 +256,8 @@ describe('MealPlanGenerator', () => {
       const targets: MacroTargets = { calories: 1900, protein_g: 140, carbs_g: 30, fat_g: 120 };
       const plan = generateMealPlan(targets, 'keto', [], 'us');
       const totals = sumPlanTotals(plan);
-      expect(withinTolerance(totals, targets, { protein: 15, carbs: 10, fat: 12, calories: 120 })).toBe(true);
+      const ok = withinTolerance(totals, targets, { protein: 15, carbs: 10, fat: 12, calories: 120 });
+      expect(ok).toBe(true);
     });
 
     it('different target set (cut): plan totals match within tolerance', () => {

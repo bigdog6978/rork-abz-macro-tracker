@@ -537,6 +537,22 @@ function applyIFTimings(meals: MealBlueprint[]): MealBlueprint[] {
     },
   ];
 
+  const totalPct = result.reduce((sum, meal) => sum + meal.percentage, 0);
+  if (Math.abs(totalPct - 1) > 0.001) {
+    if (__DEV__) {
+      console.warn(`[mealPlan] IF percentages drifted from 1.0 (${totalPct.toFixed(4)}), normalizing.`);
+    }
+    const maxIdx = result.reduce(
+      (best, meal, idx, arr) => (meal.percentage > arr[best].percentage ? idx : best),
+      0
+    );
+    const delta = 1 - totalPct;
+    result[maxIdx] = {
+      ...result[maxIdx],
+      percentage: result[maxIdx].percentage + delta,
+    };
+  }
+
   return result;
 }
 
@@ -545,6 +561,7 @@ function applyIFTimings(meals: MealBlueprint[]): MealBlueprint[] {
 const DAILY_TOLERANCE = { protein: 8, carbs: 15, fat: 6, calories: 60 };
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.5;
+const RECOVERY_MAX_SCALE = 4.0;
 const SOLVER_ITERATIONS = 80;
 const DAILY_RECONCILIATION_ITERATIONS = 160;
 
@@ -588,6 +605,33 @@ function getCaloriesFromMacros(macros: {
   fat_g: number;
 }): number {
   return macros.protein_g * 4 + macros.carbs_g * 4 + macros.fat_g * 9;
+}
+
+export function normalizeMacroTargetsForPlanning(target: MacroTargets): {
+  normalizedTargets: MacroTargets;
+  wasNormalized: boolean;
+  deltaCalories: number;
+} {
+  const macroCalories = Math.round(getCaloriesFromMacros(target));
+  const deltaCalories = macroCalories - target.calories;
+  const wasNormalized = Math.abs(deltaCalories) > 75;
+
+  if (!wasNormalized) {
+    return {
+      normalizedTargets: target,
+      wasNormalized: false,
+      deltaCalories: 0,
+    };
+  }
+
+  return {
+    normalizedTargets: {
+      ...target,
+      calories: macroCalories,
+    },
+    wasNormalized: true,
+    deltaCalories,
+  };
 }
 
 function scoreTargets(actual: MacroTargets, target: MacroTargets): number {
@@ -646,6 +690,48 @@ function getAdjustmentOrder(actual: MacroTargets, target: MacroTargets): MacroKe
   });
 }
 
+const ROLE_FALLBACK_FOODS: Record<MealFoodRef['role'], string[]> = {
+  protein: ['chicken_breast', 'eggs', 'tofu', 'lentils', 'salmon'],
+  carb: ['brown_rice', 'sweet_potato', 'quinoa', 'oats_dry'],
+  fat: ['olive_oil', 'avocado', 'almonds'],
+  veggie: ['broccoli', 'mixed_greens', 'cauliflower'],
+  complete: ['lentils', 'black_beans', 'chickpeas', 'tofu'],
+};
+
+function appendFallbackFoods(
+  resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[],
+  blueprint: MealBlueprint,
+  mealTarget: MacroTargets,
+  modifiers: string[],
+  allergies: UserAllergy[],
+  dislikedFoodIds: string[],
+  seenIds: Set<string>
+): void {
+  const missingRoles = Array.from(new Set(blueprint.foods.map((f) => f.role))).filter(
+    (role) => !resolvedFoods.some((item) => item.ref.role === role)
+  );
+  if (mealTarget.fat_g >= 6 && !resolvedFoods.some((item) => item.ref.role === 'fat')) {
+    missingRoles.push('fat');
+  }
+  if (mealTarget.carbs_g >= 10 && !resolvedFoods.some((item) => item.ref.role === 'carb')) {
+    missingRoles.push('carb');
+  }
+
+  for (const role of Array.from(new Set(missingRoles))) {
+    const candidates = ROLE_FALLBACK_FOODS[role] ?? [];
+    for (const baseFoodId of candidates) {
+      const foodId = applyFoodSwaps(baseFoodId, modifiers);
+      const food = FOODS[foodId];
+      if (!food || seenIds.has(foodId)) continue;
+      if (isFoodBlockedByAllergies(food, allergies)) continue;
+      if (dislikedFoodIds.includes(foodId)) continue;
+      seenIds.add(foodId);
+      resolvedFoods.push({ food, ref: { foodId, role } });
+      break;
+    }
+  }
+}
+
 function buildMealToTarget(
   blueprint: MealBlueprint,
   mealTarget: MacroTargets,
@@ -666,6 +752,16 @@ function buildMealToTarget(
     seenIds.add(foodId);
     resolvedFoods.push({ food, ref: { ...ref, foodId } });
   }
+
+  appendFallbackFoods(
+    resolvedFoods,
+    blueprint,
+    mealTarget,
+    modifiers,
+    allergies,
+    dislikedFoodIds,
+    seenIds
+  );
 
   if (resolvedFoods.length === 0) {
     return {
@@ -879,6 +975,44 @@ function adjustSuggestionByGramDelta(
 
   const minGrams = Math.round(food.basePortionG * MIN_SCALE);
   const maxGrams = Math.round(food.basePortionG * MAX_SCALE);
+  const targetGrams = Math.max(
+    minGrams,
+    Math.min(maxGrams, Math.round(suggestion.portionGrams + gramDelta))
+  );
+
+  if (targetGrams === suggestion.portionGrams) {
+    return meals;
+  }
+
+  const macros = computeMacros(food, targetGrams);
+  nextMeals[mealIdx].suggestions[suggestionIdx] = {
+    ...suggestion,
+    portionGrams: targetGrams,
+    portion: formatPortionLabel(food, targetGrams, measurementSystem),
+    calories: Math.round(getCaloriesFromMacros(macros)),
+    protein_g: Math.round(macros.protein_g * 10) / 10,
+    carbs_g: Math.round(macros.carbs_g * 10) / 10,
+    fat_g: Math.round(macros.fat_g * 10) / 10,
+  };
+
+  return nextMeals;
+}
+
+function adjustSuggestionByGramDeltaWithBounds(
+  meals: MealSlot[],
+  mealIdx: number,
+  suggestionIdx: number,
+  gramDelta: number,
+  measurementSystem: MeasurementSystem,
+  maxScale: number
+): MealSlot[] {
+  const nextMeals = cloneMeals(meals);
+  const suggestion = nextMeals[mealIdx].suggestions[suggestionIdx];
+  const food = FOODS[suggestion.foodId];
+  if (!food) return meals;
+
+  const minGrams = Math.round(food.basePortionG * MIN_SCALE);
+  const maxGrams = Math.round(food.basePortionG * maxScale);
   const targetGrams = Math.max(
     minGrams,
     Math.min(maxGrams, Math.round(suggestion.portionGrams + gramDelta))
@@ -1147,6 +1281,92 @@ function tightenCloseCalorieGap(
   return workingMeals;
 }
 
+function recoverRemainingCalorieGap(
+  meals: MealSlot[],
+  eatingStyle: EatingStyle,
+  dailyTarget: MacroTargets,
+  measurementSystem: MeasurementSystem = 'us'
+): MealSlot[] {
+  let workingMeals = cloneMeals(meals);
+
+  for (let iter = 0; iter < 28; iter++) {
+    const totals = getDailyTotals(workingMeals);
+    const calorieGap = dailyTarget.calories - totals.calories;
+    if (Math.abs(calorieGap) <= DAILY_TOLERANCE.calories) {
+      return workingMeals;
+    }
+
+    const increasing = calorieGap > 0;
+    const gramSteps = increasing
+      ? [4, 7, 10, 14, 18, 24, 32, 42, 56]
+      : [-4, -7, -10, -14, -18, -24, -32, -42, -56];
+
+    const macroKeyOrder = getCloseGapMacroOrder(eatingStyle, totals, dailyTarget);
+
+    let bestMeals = workingMeals;
+    let bestScore = getCloseGapScore(totals, dailyTarget);
+
+    for (const key of macroKeyOrder) {
+      const candidates = workingMeals
+        .flatMap((meal, mealIdx) =>
+          meal.suggestions
+            .map((suggestion, suggestionIdx) => {
+              const food = FOODS[suggestion.foodId];
+              if (!food) return null;
+              return {
+                mealIdx,
+                suggestionIdx,
+                priority: getSuggestionRolePriority(suggestion, food, key),
+                density: food.per100g[key],
+              };
+            })
+            .filter((candidate): candidate is NonNullable<typeof candidate> => {
+              return candidate != null && candidate.priority > 0 && candidate.density > 0;
+            })
+        )
+        .sort((a, b) => {
+          if (a.priority !== b.priority) return b.priority - a.priority;
+          return b.density - a.density;
+        })
+        .slice(0, 14);
+
+      for (const candidate of candidates) {
+        for (const gramDelta of gramSteps) {
+          const nextMeals = adjustSuggestionByGramDeltaWithBounds(
+            workingMeals,
+            candidate.mealIdx,
+            candidate.suggestionIdx,
+            gramDelta,
+            measurementSystem,
+            RECOVERY_MAX_SCALE
+          );
+          const nextTotals = getDailyTotals(nextMeals);
+          if (nextTotals.calories > dailyTarget.calories + 60) continue;
+          if (
+            (eatingStyle === 'keto' || eatingStyle === 'carnivore') &&
+            nextTotals.carbs_g > dailyTarget.carbs_g + 10
+          ) {
+            continue;
+          }
+
+          const candidateScore = getCloseGapScore(nextTotals, dailyTarget);
+          if (candidateScore + 0.0001 < bestScore) {
+            bestScore = candidateScore;
+            bestMeals = nextMeals;
+          }
+        }
+      }
+    }
+
+    if (bestMeals === workingMeals) {
+      return workingMeals;
+    }
+    workingMeals = bestMeals;
+  }
+
+  return workingMeals;
+}
+
 // ─── Main entry point ────────────────────────────────────────────────────────
 
 export function generateMealPlan(
@@ -1158,11 +1378,16 @@ export function generateMealPlan(
   generationSeed = 0,
   dislikedFoodIds: string[] = []
 ): DayPlan {
+  const {
+    normalizedTargets,
+    wasNormalized,
+    deltaCalories,
+  } = normalizeMacroTargetsForPlanning(macros);
   const effectiveModifiers = eatingStyle === 'paleo' ? [...modifiers, 'paleo'] : modifiers;
   const isIF = effectiveModifiers.includes('intermittent_fasting');
 
-  const config = selectMainConfig(eatingStyle, macros, generationSeed);
-  const blueprint = assembleBlueprint(config.main, config.snacks, macros.calories);
+  const config = selectMainConfig(eatingStyle, normalizedTargets, generationSeed);
+  const blueprint = assembleBlueprint(config.main, config.snacks, normalizedTargets.calories);
 
   let mealBlueprints = [...blueprint.meals];
   if (isIF) {
@@ -1170,10 +1395,18 @@ export function generateMealPlan(
   }
 
   let meals = mealBlueprints.map((mb) =>
-    scaleMealToTargets(mb, macros, effectiveModifiers, measurementSystem, allergies, dislikedFoodIds)
+    scaleMealToTargets(
+      mb,
+      normalizedTargets,
+      effectiveModifiers,
+      measurementSystem,
+      allergies,
+      dislikedFoodIds
+    )
   );
-  meals = reconcileDailyTotals(meals, macros, measurementSystem);
-  meals = tightenCloseCalorieGap(meals, eatingStyle, macros, measurementSystem);
+  meals = reconcileDailyTotals(meals, normalizedTargets, measurementSystem);
+  meals = tightenCloseCalorieGap(meals, eatingStyle, normalizedTargets, measurementSystem);
+  meals = recoverRemainingCalorieGap(meals, eatingStyle, normalizedTargets, measurementSystem);
 
   const totalFoods = meals.reduce((s, m) => s + m.suggestions.length, 0);
   const planUnavailable = totalFoods === 0;
@@ -1183,5 +1416,10 @@ export function generateMealPlan(
     tags: effectiveModifiers as string[],
     meals,
     planUnavailable,
+    targetUsed: normalizedTargets,
+    targetNormalization: {
+      wasNormalized,
+      deltaCalories,
+    },
   };
 }

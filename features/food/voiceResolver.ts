@@ -66,6 +66,103 @@ function singularize(query: string): string {
   return query;
 }
 
+function tokenizeQuery(query: string): string[] {
+  return query
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((t) => t.length > 1);
+}
+
+function tokenCoverage(food: NormalizedFood, query: string): number {
+  const tokens = tokenizeQuery(query);
+  if (tokens.length === 0) return 0;
+  const nameNorm = food.name.toLowerCase();
+  const matched = tokens.filter((t) => nameNorm.includes(t));
+  return matched.length / tokens.length;
+}
+
+const BRAND_OR_RESTAURANT_QUERY_HINTS = new Set([
+  'mcdonalds',
+  'burger',
+  'king',
+  'wendys',
+  'dennys',
+  'ihop',
+  'kfc',
+  'subway',
+  'chipotle',
+  'panera',
+  'starbucks',
+  'taco',
+  'bell',
+  'restaurant',
+  'takeout',
+  'from',
+  'brand',
+]);
+
+const BRAND_OR_RESTAURANT_NAME_HINTS = new Set([
+  'restaurant',
+  'denny',
+  'mcdonald',
+  'wendy',
+  'ihop',
+  'kfc',
+  'subway',
+  'chipotle',
+  'panera',
+  'starbucks',
+  'taco',
+  'bell',
+  'pizza',
+  'hut',
+  'domino',
+  'popeyes',
+  'arbys',
+  'chick',
+  'fil',
+  'a',
+]);
+
+function queryHasBrandOrRestaurantIntent(query: string): boolean {
+  const q = query.toLowerCase().trim();
+  if (/\bfrom\s+[a-z0-9]/i.test(q)) return true;
+  if (/\b[a-z0-9]+['’]s\b/i.test(q)) return true;
+  const tokens = tokenizeQuery(q);
+  return tokens.some((t) => BRAND_OR_RESTAURANT_QUERY_HINTS.has(t));
+}
+
+function isBrandOrRestaurantFood(food: NormalizedFood): boolean {
+  if (food.brand && food.brand.trim().length > 0) return true;
+  const nameTokens = tokenizeQuery(food.name);
+  return nameTokens.some((t) => BRAND_OR_RESTAURANT_NAME_HINTS.has(t));
+}
+
+/**
+ * Voice-specific rerank:
+ * - If user did not explicitly mention a brand/restaurant, prefer generic foods
+ *   with comparable token coverage over branded/restaurant entries.
+ * - Keeps fallback behavior intact when only branded options exist.
+ */
+function rerankVoiceResults(results: NormalizedFood[], query: string): NormalizedFood[] {
+  if (results.length <= 1) return results;
+  if (queryHasBrandOrRestaurantIntent(query)) return results;
+
+  const top = results[0];
+  if (!isBrandOrRestaurantFood(top)) return results;
+
+  const topCoverage = tokenCoverage(top, query);
+  const coverageFloor = Math.max(0.5, topCoverage - 0.34);
+  const genericIndex = results.findIndex((f) => {
+    if (isBrandOrRestaurantFood(f)) return false;
+    return tokenCoverage(f, query) >= coverageFloor;
+  });
+
+  if (genericIndex <= 0) return results;
+  const picked = results[genericIndex];
+  return [picked, ...results.slice(0, genericIndex), ...results.slice(genericIndex + 1)];
+}
+
 const SOLID_FOOD_PATTERN =
   /\b(steak|beef|chicken|pork|meat|fish|bacon|turkey|lamb|salmon|tuna|burger|egg|bread|rice|pasta|potato|vegetable|salad|cheese|tofu|tempeh|shrimp|prawn|crab|lobster|scallop|clam|mussel|oyster)\b/i;
 
@@ -317,7 +414,8 @@ export async function resolveVoiceItem(
 
   // ── Fast path: local-only, no network ────────────────────────────────────────
   for (const candidate of candidates) {
-    const localResults = await foodService.searchLocalOnly(candidate) ?? [];
+    const localResultsRaw = await foodService.searchLocalOnly(candidate) ?? [];
+    const localResults = rerankVoiceResults(localResultsRaw, parsedItem.query);
     if (localResults.length > 0) {
       const topLocal = localResults[0];
       const localConfidence = scoreConfidence(topLocal, parsedItem.query);
@@ -333,7 +431,7 @@ export async function resolveVoiceItem(
   for (const candidate of candidates) {
     const result = await foodService.searchSuggestions(candidate);
     if (result.status === 'ok' && result.results.length > 0) {
-      allResults = result.results;
+      allResults = rerankVoiceResults(result.results, parsedItem.query);
       break;
     }
   }
