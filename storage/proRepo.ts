@@ -1,5 +1,9 @@
 import { loadData, removeData, saveData, STORAGE_KEYS } from '../services/storage';
 import {
+  AthleteCycleDerivedState,
+  AthleteCycleLogEntry,
+  AthleteCycleProfile,
+  AthleteProfile,
   ProEntitlementState,
   ProHealthSignals,
   ProHydrationLog,
@@ -14,8 +18,39 @@ const DEFAULT_PRO_SETTINGS: ProSettings = {
   healthPermissionStatus: 'not_connected',
 };
 
+const DEFAULT_ATHLETE_PROFILE: AthleteProfile = {
+  enabled: false,
+  userType: 'performance_intermediate',
+  sport: 'Soccer',
+  season: { phase: 'in_season' },
+  schedule: [],
+};
+
+const DEFAULT_CYCLE_PROFILE: AthleteCycleProfile = {
+  enabled: false,
+  trackingMode: 'manual',
+  symptomTrackingEnabled: true,
+  notesEnabled: true,
+  allowCycleDataInExports: false,
+  allowCoachExportCycleSummary: false,
+};
+
 export async function getProEntitlement(): Promise<ProEntitlementState> {
-  return (await loadData<ProEntitlementState>(STORAGE_KEYS.PRO_ENTITLEMENT)) ?? 'core_active';
+  const stored = await loadData<string>(STORAGE_KEYS.PRO_ENTITLEMENT);
+  if (!stored) return 'core_active';
+  if (stored === 'pro_active') return 'pro_subscriber_active';
+  if (
+    stored === 'core_active' ||
+    stored === 'pro_trial_active' ||
+    stored === 'pro_subscriber_active' ||
+    stored === 'pro_trial_consumed' ||
+    stored === 'athlete_trial_active' ||
+    stored === 'athlete_subscriber_active' ||
+    stored === 'athlete_trial_consumed'
+  ) {
+    return stored;
+  }
+  return 'core_active';
 }
 
 export async function setProEntitlement(state: ProEntitlementState): Promise<void> {
@@ -23,7 +58,8 @@ export async function setProEntitlement(state: ProEntitlementState): Promise<voi
 }
 
 export async function getProSettings(): Promise<ProSettings> {
-  return (await loadData<ProSettings>(STORAGE_KEYS.PRO_SETTINGS)) ?? DEFAULT_PRO_SETTINGS;
+  const stored = await loadData<ProSettings>(STORAGE_KEYS.PRO_SETTINGS);
+  return { ...DEFAULT_PRO_SETTINGS, ...(stored ?? {}) };
 }
 
 export async function saveProSettings(settings: ProSettings): Promise<void> {
@@ -56,5 +92,64 @@ export async function saveProDynamicTargets(targets: unknown): Promise<void> {
 
 export async function clearProDynamicTargets(): Promise<void> {
   await removeData(STORAGE_KEYS.PRO_DYNAMIC_TARGETS);
+}
+
+export async function getAthleteProfile(): Promise<AthleteProfile> {
+  const stored = await loadData<AthleteProfile>(STORAGE_KEYS.ATHLETE_PROFILE);
+  return { ...DEFAULT_ATHLETE_PROFILE, ...(stored ?? {}) };
+}
+
+export async function saveAthleteProfile(profile: AthleteProfile): Promise<void> {
+  await saveData(STORAGE_KEYS.ATHLETE_PROFILE, profile);
+}
+
+export async function getAthleteCycleProfile(): Promise<AthleteCycleProfile> {
+  const stored = await loadData<AthleteCycleProfile>(STORAGE_KEYS.ATHLETE_CYCLE_PROFILE);
+  return { ...DEFAULT_CYCLE_PROFILE, ...(stored ?? {}) };
+}
+
+export async function saveAthleteCycleProfile(profile: AthleteCycleProfile): Promise<void> {
+  await saveData(STORAGE_KEYS.ATHLETE_CYCLE_PROFILE, profile);
+}
+
+export async function getAthleteCycleLogs(): Promise<AthleteCycleLogEntry[]> {
+  return (await loadData<AthleteCycleLogEntry[]>(STORAGE_KEYS.ATHLETE_CYCLE_LOGS)) ?? [];
+}
+
+export async function saveAthleteCycleLogs(logs: AthleteCycleLogEntry[]): Promise<void> {
+  await saveData(STORAGE_KEYS.ATHLETE_CYCLE_LOGS, logs);
+}
+
+export async function appendAthleteCycleLog(log: AthleteCycleLogEntry): Promise<void> {
+  const existing = await getAthleteCycleLogs();
+  const next = [log, ...existing.filter((item) => item.date !== log.date)].slice(0, 90);
+  await saveAthleteCycleLogs(next);
+}
+
+export async function clearAthleteCycleData(): Promise<void> {
+  await removeData(STORAGE_KEYS.ATHLETE_CYCLE_PROFILE);
+  await removeData(STORAGE_KEYS.ATHLETE_CYCLE_LOGS);
+}
+
+export function deriveAthleteCycleState(
+  profile: AthleteCycleProfile,
+  logs: AthleteCycleLogEntry[]
+): AthleteCycleDerivedState {
+  const now = new Date();
+  const latest = logs[0];
+  const symptomCount = latest?.symptoms?.length ?? 0;
+  const currentPhase = latest?.phaseTag ?? 'unknown';
+  const hasEnough = logs.length >= 3 || Boolean(profile.lastPeriodStartDate);
+  return {
+    currentPhase,
+    phaseConfidence: hasEnough ? (symptomCount > 0 ? 'high' : 'medium') : 'low',
+    predictedNextPhaseDate: profile.lastPeriodStartDate
+      ? new Date(new Date(profile.lastPeriodStartDate).getTime() + (profile.cycleLengthDays ?? 28) * 86400000)
+          .toISOString()
+          .slice(0, 10)
+      : undefined,
+    dataQuality: hasEnough ? 'sufficient' : logs.length > 0 ? 'limited' : 'insufficient',
+    lastComputedAt: now.toISOString(),
+  };
 }
 

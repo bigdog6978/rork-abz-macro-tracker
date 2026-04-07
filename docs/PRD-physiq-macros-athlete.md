@@ -370,3 +370,31 @@ Rules:
 
 ### Phase 4 (Future)
 - AI layers (Pro+ / Athlete+)
+
+## 15) Female Athlete Track - Menstrual-Cycle Requirements (Addendum)
+
+Scope:
+- Athlete tier only (initial release)
+- Consent-gated and privacy-forward
+- Performance fueling guidance only (no diagnosis/treatment claims)
+
+Data model:
+- `AthleteCycleProfile` (enabled, tracking mode, baseline cycle settings, consent + export flags)
+- `AthleteCycleLogEntry` (phase tag, bleeding, symptoms, optional notes)
+- `AthleteCycleDerivedState` (phase + confidence + data quality + last computed)
+
+UX:
+- Optional enablement during Athlete onboarding with explicit consent
+- Settings controls for enabling/disabling and deleting cycle data
+- Explainability in reports only when enabled/applicable
+- No sensitive cycle details on watch glance surfaces by default
+
+Algorithm hooks:
+- Bounded hydration/fueling/recovery adjustments when confidence is adequate
+- Confidence-aware fallback: low-confidence signals reduce cycle influence
+- Hooked into Athlete layer with guardrails (Athlete > Pro > Core)
+
+Privacy/compliance:
+- Data minimization, explicit consent, deletion path
+- Export of cycle details disabled by default
+- Neutral performance wording; no medical claims

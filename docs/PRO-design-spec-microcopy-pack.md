@@ -48,3 +48,19 @@
 - Terms of Use
 - Privacy Policy
 
+## Athlete Upsell Extension
+- **Tier toggle labels:** Pro / Athlete
+- **Athlete headline:** Fueling built for performance.
+- **Athlete subtitle:** Nutrition that follows your training and competition.
+- **Athlete bullets:**
+  - Sport + season-aware fueling
+  - Training/game schedule strategy
+  - Competition protocol windows
+  - Female athlete track (optional, consent-based)
+- **Athlete trial disclosure:** 3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.
+
+## Female Athlete Track Copy
+- **Enable label:** Enable Female Athlete Track (optional)
+- **Consent copy:** I consent to menstrual-cycle data use for Athlete fueling adjustments.
+- **Privacy note:** Cycle data is private, optional, and can be deleted in Settings.
+

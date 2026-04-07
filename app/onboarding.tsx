@@ -50,6 +50,7 @@ import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import ProInfoModal from '../components/ui/ProInfoModal';
 import { PRO_COPY } from '../src/content/proMicrocopy';
+import { ATHLETE_SPORTS, AthleteSeasonPhase, AthleteUserType } from '../features/pro/types';
 
 const TOTAL_STEPS = 9;
 
@@ -86,7 +87,7 @@ export default function OnboardingScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { completeOnboarding } = useUser();
-  const { setEntitlement } = usePro();
+  const { setEntitlement, updateAthleteProfile, updateCycleProfile } = usePro();
   const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
 
   const [step, setStep] = useState(0);
@@ -109,6 +110,12 @@ export default function OnboardingScreen() {
   const [definitionSheetTitle, setDefinitionSheetTitle] = useState('');
   const [definitionSheetSections, setDefinitionSheetSections] = useState<LearnMoreSection[]>([]);
   const [proInfoVisible, setProInfoVisible] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<'core' | 'pro' | 'athlete'>('pro');
+  const [athleteUserType, setAthleteUserType] = useState<AthleteUserType>('performance_intermediate');
+  const [athleteSport, setAthleteSport] = useState('Soccer');
+  const [athleteSeason, setAthleteSeason] = useState<AthleteSeasonPhase>('in_season');
+  const [femaleTrackEnabled, setFemaleTrackEnabled] = useState(false);
+  const [femaleTrackConsent, setFemaleTrackConsent] = useState(false);
 
   const animateProgress = useCallback(
     (nextStep: number) => {
@@ -238,24 +245,67 @@ export default function OnboardingScreen() {
     ]);
   }, []);
 
-  const completeWithProEntitlement = useCallback(
-    (entitlement: 'core_active' | 'pro_trial_active' | 'pro_subscriber_active') => {
+  const completeWithTierEntitlement = useCallback(
+    (
+      entitlement:
+        | 'core_active'
+        | 'pro_trial_active'
+        | 'pro_subscriber_active'
+        | 'athlete_trial_active'
+        | 'athlete_subscriber_active'
+    ) => {
       if (entitlement === 'core_active') {
         setEntitlement('core_active');
         void handleComplete();
         return;
       }
-      const title = entitlement === 'pro_trial_active' ? 'Start Pro trial?' : 'Confirm Pro subscription?';
+      const isAthlete = entitlement === 'athlete_trial_active' || entitlement === 'athlete_subscriber_active';
+      const title = entitlement === 'pro_trial_active'
+        ? 'Start Pro trial?'
+        : entitlement === 'athlete_trial_active'
+          ? 'Start Athlete trial?'
+          : isAthlete
+            ? 'Confirm Athlete subscription?'
+            : 'Confirm Pro subscription?';
       const message =
         entitlement === 'pro_trial_active'
           ? PRO_COPY.renewalDisclosure
-          : 'You are choosing Pro monthly access at $4.99/month. You can manage or cancel in Apple ID Subscriptions.';
-      confirmProAction(title, message, () => {
+          : entitlement === 'athlete_trial_active'
+            ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
+            : isAthlete
+              ? 'You are choosing Athlete monthly access at $6.99/month. You can manage or cancel in Apple ID Subscriptions.'
+              : 'You are choosing Pro monthly access at $4.99/month. You can manage or cancel in Apple ID Subscriptions.';
+      confirmProAction(title, message, async () => {
+        if (isAthlete) {
+          await updateAthleteProfile({
+            enabled: true,
+            userType: athleteUserType,
+            sport: athleteSport,
+            season: { phase: athleteSeason },
+          });
+          await updateCycleProfile({
+            enabled: femaleTrackEnabled && femaleTrackConsent,
+            cycleDataConsentGivenAt:
+              femaleTrackEnabled && femaleTrackConsent ? new Date().toISOString() : undefined,
+            cycleDataConsentVersion: femaleTrackEnabled && femaleTrackConsent ? 'v1' : undefined,
+          });
+        }
         setEntitlement(entitlement);
         void handleComplete();
       });
     },
-    [confirmProAction, handleComplete, setEntitlement]
+    [
+      athleteSeason,
+      athleteSport,
+      athleteUserType,
+      confirmProAction,
+      femaleTrackConsent,
+      femaleTrackEnabled,
+      handleComplete,
+      setEntitlement,
+      updateAthleteProfile,
+      updateCycleProfile,
+    ]
   );
 
   const progressWidth = progressAnim.interpolate({
@@ -623,8 +673,90 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
       </View>
       <Text style={styles.stepSubtitle}>{PRO_COPY.subheadline}</Text>
+      <View style={styles.segmentRow}>
+        <TouchableOpacity
+          style={[styles.segment, selectedTier === 'pro' && styles.segmentActive]}
+          onPress={() => setSelectedTier('pro')}
+        >
+          <Text style={[styles.segmentText, selectedTier === 'pro' && styles.segmentTextActive]}>Pro</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.segment, selectedTier === 'athlete' && styles.segmentActive]}
+          onPress={() => setSelectedTier('athlete')}
+        >
+          <Text style={[styles.segmentText, selectedTier === 'athlete' && styles.segmentTextActive]}>Athlete</Text>
+        </TouchableOpacity>
+      </View>
+      {selectedTier === 'athlete' ? (
+        <View style={styles.choiceList}>
+          <Text style={styles.stepSubtitle}>Fueling built for performance: schedule + season + sport.</Text>
+          <Text style={styles.label}>Athlete User Type</Text>
+          <View style={styles.segmentRow}>
+            <TouchableOpacity style={[styles.segment, athleteUserType === 'casual_data_driven' && styles.segmentActive]} onPress={() => setAthleteUserType('casual_data_driven')}>
+              <Text style={[styles.segmentText, athleteUserType === 'casual_data_driven' && styles.segmentTextActive]}>Casual</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.segment, athleteUserType === 'performance_intermediate' && styles.segmentActive]} onPress={() => setAthleteUserType('performance_intermediate')}>
+              <Text style={[styles.segmentText, athleteUserType === 'performance_intermediate' && styles.segmentTextActive]}>Intermediate</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.segment, athleteUserType === 'advanced_athlete' && styles.segmentActive]} onPress={() => setAthleteUserType('advanced_athlete')}>
+              <Text style={[styles.segmentText, athleteUserType === 'advanced_athlete' && styles.segmentTextActive]}>Advanced</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.label}>Sport</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.chipWrap}>
+              {ATHLETE_SPORTS.map((sport) => (
+                <TouchableOpacity
+                  key={sport}
+                  style={[styles.chip, athleteSport === sport && styles.chipActive]}
+                  onPress={() => setAthleteSport(sport)}
+                >
+                  <Text style={[styles.chipText, athleteSport === sport && styles.chipTextActive]}>{sport}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+          <Text style={styles.label}>Season</Text>
+          <View style={styles.segmentRow}>
+            <TouchableOpacity style={[styles.segment, athleteSeason === 'preseason' && styles.segmentActive]} onPress={() => setAthleteSeason('preseason')}>
+              <Text style={[styles.segmentText, athleteSeason === 'preseason' && styles.segmentTextActive]}>Pre</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.segment, athleteSeason === 'in_season' && styles.segmentActive]} onPress={() => setAthleteSeason('in_season')}>
+              <Text style={[styles.segmentText, athleteSeason === 'in_season' && styles.segmentTextActive]}>In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.segment, athleteSeason === 'off_season' && styles.segmentActive]} onPress={() => setAthleteSeason('off_season')}>
+              <Text style={[styles.segmentText, athleteSeason === 'off_season' && styles.segmentTextActive]}>Off</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[styles.choiceCard, femaleTrackEnabled && styles.choiceCardSelected]}
+            onPress={() => setFemaleTrackEnabled((prev) => !prev)}
+          >
+            <View style={styles.choiceCopy}>
+              <Text style={[styles.choiceTitle, femaleTrackEnabled && styles.choiceTitleSelected]}>
+                Enable Female Athlete Track (optional)
+              </Text>
+              <Text style={[styles.choiceDescription, femaleTrackEnabled && styles.choiceDescriptionSelected]}>
+                Cycle-aware fueling hooks with privacy-safe controls.
+              </Text>
+            </View>
+            {femaleTrackEnabled ? <View style={styles.choiceDot} /> : null}
+          </TouchableOpacity>
+          {femaleTrackEnabled ? (
+            <TouchableOpacity
+              style={[styles.choiceCard, femaleTrackConsent && styles.choiceCardSelected]}
+              onPress={() => setFemaleTrackConsent((prev) => !prev)}
+            >
+              <View style={styles.choiceCopy}>
+                <Text style={[styles.choiceTitle, femaleTrackConsent && styles.choiceTitleSelected]}>I consent to menstrual-cycle data use for Athlete fueling adjustments.</Text>
+              </View>
+              {femaleTrackConsent ? <View style={styles.choiceDot} /> : null}
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
       <View style={styles.choiceList}>
-        {PRO_COPY.featureBullets.map((line) => (
+        {(selectedTier === 'athlete' ? PRO_COPY.athleteFeatureBullets : PRO_COPY.featureBullets).map((line) => (
           <View key={line} style={styles.proFeatureRow}>
             <View style={styles.choiceDot} />
             <Text style={styles.proFeatureText}>{line}</Text>
@@ -633,18 +765,38 @@ export default function OnboardingScreen() {
       </View>
       <View style={styles.proTrialCard}>
         <Text style={styles.proTrialTitle}>{PRO_COPY.trialTitle}</Text>
-        <Text style={styles.proTrialSubtitle}>{PRO_COPY.trialDetail}</Text>
-        <Text style={styles.proDisclosure}>{PRO_COPY.renewalDisclosure}</Text>
+        <Text style={styles.proTrialSubtitle}>
+          {selectedTier === 'athlete' ? 'Then $6.99/month unless canceled.' : PRO_COPY.trialDetail}
+        </Text>
+        <Text style={styles.proDisclosure}>
+          {selectedTier === 'athlete'
+            ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
+            : PRO_COPY.renewalDisclosure}
+        </Text>
       </View>
       <View style={styles.proCtaRow}>
-        <TouchableOpacity style={styles.proOutlinedCta} onPress={() => completeWithProEntitlement('pro_trial_active')}>
+        <TouchableOpacity
+          style={styles.proOutlinedCta}
+          onPress={() =>
+            completeWithTierEntitlement(selectedTier === 'athlete' ? 'athlete_trial_active' : 'pro_trial_active')
+          }
+        >
           <Text style={styles.proOutlinedCtaText}>{PRO_COPY.ctaTrial}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.proOutlinedCta, styles.proOutlinedCtaActive]} onPress={() => completeWithProEntitlement('pro_subscriber_active')}>
-          <Text style={[styles.proOutlinedCtaText, styles.proOutlinedCtaTextActive]}>{PRO_COPY.ctaSubscribe}</Text>
+        <TouchableOpacity
+          style={[styles.proOutlinedCta, styles.proOutlinedCtaActive]}
+          onPress={() =>
+            completeWithTierEntitlement(
+              selectedTier === 'athlete' ? 'athlete_subscriber_active' : 'pro_subscriber_active'
+            )
+          }
+        >
+          <Text style={[styles.proOutlinedCtaText, styles.proOutlinedCtaTextActive]}>
+            {selectedTier === 'athlete' ? 'Subscribe $6.99/mo' : PRO_COPY.ctaSubscribe}
+          </Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity onPress={() => completeWithProEntitlement('core_active')}>
+      <TouchableOpacity onPress={() => completeWithTierEntitlement('core_active')}>
         <Text style={styles.proSkipText}>{PRO_COPY.ctaNotNow}</Text>
       </TouchableOpacity>
     </View>
@@ -703,7 +855,7 @@ export default function OnboardingScreen() {
 
         <TouchableOpacity
           style={[styles.footerButton, styles.primaryButton]}
-          onPress={isLastStep ? () => completeWithProEntitlement('core_active') : goNext}
+          onPress={isLastStep ? () => completeWithTierEntitlement('core_active') : goNext}
           activeOpacity={0.85}
         >
           <Text style={styles.primaryButtonText}>{isLastStep ? 'Finish' : 'Continue'}</Text>

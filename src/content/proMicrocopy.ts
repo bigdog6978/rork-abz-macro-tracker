@@ -7,12 +7,19 @@ export const PRO_COPY = {
     'Hydration nudges and quick logging',
     'Weekly Pro report with Physiq Score',
   ],
+  athleteFeatureBullets: [
+    'Sport + season-aware fueling',
+    'Training / game schedule macro strategy',
+    'Competition protocol windows (T-24, T-4, post)',
+    'Female athlete cycle-aware hooks (optional, consent-based)',
+  ],
   trialTitle: '3-day free trial',
   trialDetail: 'Then $4.99/month unless canceled.',
   renewalDisclosure:
     '3-day free trial, then $4.99/month. Auto-renews unless canceled at least 24 hours before renewal.',
   ctaTrial: 'Start 3-Day Trial',
   ctaSubscribe: 'Subscribe $4.99/mo',
+  ctaSubscribeAthlete: 'Subscribe $6.99/mo',
   ctaNotNow: 'Not now',
   infoTitle: 'What is Physiq Pro?',
   infoBody:

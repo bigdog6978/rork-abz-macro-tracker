@@ -1,5 +1,11 @@
 import { MacroTargets } from '../../types';
-import { ProDayType, ProHealthSignals, ProMacroAdjustment } from './types';
+import {
+  AthleteCycleDerivedState,
+  AthleteProfile,
+  ProDayType,
+  ProHealthSignals,
+  ProMacroAdjustment,
+} from './types';
 
 const MAX_CAL_ADJUSTMENT_PCT = 0.14;
 const MAX_CARB_ADJUSTMENT_G = 55;
@@ -63,5 +69,82 @@ export function getHydrationTargetMl(baseTargets: MacroTargets, signals: ProHeal
   const activityBoost = signals ? Math.round(Math.max(0, signals.workoutMinutes * 8 + signals.activeEnergyKcal * 0.35)) : 0;
   const calorieFactor = Math.round(Math.max(0, (baseTargets.calories - 1800) * 0.25));
   return Math.max(1800, Math.min(5200, baseline + activityBoost + calorieFactor));
+}
+
+function getAthleteSessionLoad(athlete: AthleteProfile): number {
+  return athlete.schedule.reduce((sum, entry) => {
+    const sessionWeight =
+      entry.sessionType === 'game' ? 1.25 : entry.sessionType === 'training' ? 1.1 : entry.sessionType === 'practice' ? 1 : 0.5;
+    const intensityWeight = entry.intensity === 'high' ? 1.3 : entry.intensity === 'moderate' ? 1 : 0.7;
+    return sum + (entry.durationMin / 60) * sessionWeight * intensityWeight;
+  }, 0);
+}
+
+export function applyAthleteAdjustments(
+  baseTargets: MacroTargets,
+  proAdjusted: ProMacroAdjustment,
+  athlete: AthleteProfile,
+  cycle: AthleteCycleDerivedState | null
+): ProMacroAdjustment {
+  const load = getAthleteSessionLoad(athlete);
+  const seasonFactor =
+    athlete.season.phase === 'preseason' ? 1.06 : athlete.season.phase === 'in_season' ? 1.03 : 0.97;
+  const loadFactor = Math.max(0.9, Math.min(1.2, 1 + load / 40));
+  const cycleHydrationBoost =
+    cycle && cycle.currentPhase === 'menstrual' ? 180 : cycle && cycle.currentPhase === 'luteal' ? 120 : 0;
+  const cycleFuelBoost = cycle && cycle.phaseConfidence !== 'low' && cycle.currentPhase === 'luteal' ? 0.02 : 0;
+
+  const calorieMultiplier = seasonFactor * loadFactor * (1 + cycleFuelBoost);
+  const nextCalories = Math.max(1400, Math.round(proAdjusted.targets.calories * calorieMultiplier));
+  const carbDelta = Math.round((nextCalories - proAdjusted.targets.calories) / 6);
+  const protein = Math.max(proAdjusted.targets.protein_g, Math.round(proAdjusted.targets.protein_g * 1.04));
+  const carbs = Math.max(0, proAdjusted.targets.carbs_g + carbDelta);
+  const fatCalories = Math.max(0, nextCalories - protein * 4 - carbs * 4);
+  const fat = Math.max(25, Math.round(fatCalories / 9));
+  const finalCalories = protein * 4 + carbs * 4 + fat * 9;
+
+  const fuelingStrategy =
+    athlete.season.phase === 'in_season'
+      ? 'Competition fueling windows prioritized (T-24 / T-4 / post-session).'
+      : athlete.season.phase === 'preseason'
+        ? 'Training build block fueling emphasis with higher carb timing around sessions.'
+        : 'Off-season recovery and consistency emphasis.';
+
+  const explainability = [
+    `Athlete schedule load score: ${load.toFixed(1)}`,
+    `Season context: ${athlete.season.phase.replace('_', '-')}`,
+    cycle ? `Cycle phase influence: ${cycle.currentPhase} (${cycle.phaseConfidence})` : 'Cycle phase influence: not enabled',
+  ];
+
+  return {
+    targets: {
+      calories: finalCalories,
+      protein_g: protein,
+      carbs_g: carbs,
+      fat_g: fat,
+      calculationDetails: baseTargets.calculationDetails,
+    },
+    reason:
+      `Athlete layer applied using schedule + season` +
+      (cycle ? ' + female athlete cycle-aware hooks' : '') +
+      '.',
+    inferredDayType: proAdjusted.inferredDayType,
+    tierApplied: 'athlete',
+    explainability,
+    adjustmentConfidence: cycle?.phaseConfidence === 'low' ? 'medium' : 'high',
+    fuelingStrategy,
+  };
+}
+
+export function getAthleteHydrationTargetMl(
+  baseTargets: MacroTargets,
+  signals: ProHealthSignals | null,
+  athlete: AthleteProfile,
+  cycle: AthleteCycleDerivedState | null
+): number {
+  const base = getHydrationTargetMl(baseTargets, signals);
+  const loadBoost = Math.round(getAthleteSessionLoad(athlete) * 45);
+  const cycleBoost = cycle?.currentPhase === 'menstrual' ? 180 : cycle?.currentPhase === 'luteal' ? 120 : 0;
+  return Math.max(2000, Math.min(5800, base + loadBoost + cycleBoost));
 }
 

@@ -55,17 +55,28 @@ export default function SettingsScreen() {
   const {
     entitlement,
     hasProAccess,
+    hasAthleteAccess,
+    tierLabel,
     settings: proSettings,
     healthConnectionStatus,
     dynamicReason,
+    dynamicExplainability,
+    fuelingStrategy,
     inferredDayType,
     hydration,
+    athleteProfile,
+    cycleProfile,
+    cycleDerived,
     setEntitlement,
     enableHealthIntegration,
     disableHealthIntegration,
     updateSettings: updateProSettings,
     refreshHealthSignals,
     addHydration,
+    updateAthleteProfile,
+    updateCycleProfile,
+    addCycleLog,
+    clearCycleData,
   } = usePro();
   const { clearAll } = useDailyLog();
   const colors = useThemeColors();
@@ -88,11 +99,12 @@ export default function SettingsScreen() {
   const [dietNotes, setDietNotes] = useState(profile.dietNotes ?? '');
   const [proInfoVisible, setProInfoVisible] = useState(false);
   const [healthPermissionVisible, setHealthPermissionVisible] = useState(false);
-  const [proExpanded, setProExpanded] = useState(hasProAccess);
+  const [proExpanded, setProExpanded] = useState(hasProAccess || hasAthleteAccess);
+  const [upsellTier, setUpsellTier] = useState<'pro' | 'athlete'>('pro');
 
   useEffect(() => {
-    setProExpanded(hasProAccess);
-  }, [hasProAccess]);
+    setProExpanded(hasProAccess || hasAthleteAccess);
+  }, [hasProAccess, hasAthleteAccess]);
 
   useEffect(() => {
     setMeasurementSystem(profile.measurementSystem);
@@ -206,26 +218,42 @@ export default function SettingsScreen() {
   }, [setAccentTheme]);
 
   const startProTrial = useCallback(() => {
-    if (entitlement === 'pro_trial_consumed') {
-      Alert.alert('Trial used', 'Your Pro free trial has already been used. Subscribe to continue.');
+    if (entitlement === 'pro_trial_consumed' || entitlement === 'athlete_trial_consumed') {
+      Alert.alert('Trial used', 'Your free trial for this tier has already been used. Subscribe to continue.');
       return;
     }
-    Alert.alert('Start Pro trial?', PRO_COPY.renewalDisclosure, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Start Trial', onPress: () => setEntitlement('pro_trial_active') },
-    ]);
-  }, [entitlement, setEntitlement]);
-
-  const subscribePro = useCallback(() => {
+    const isAthlete = !hasAthleteAccess && !hasProAccess ? upsellTier === 'athlete' : tierLabel === 'athlete';
     Alert.alert(
-      'Confirm subscription',
-      'You are choosing Pro monthly access at $4.99/month. You can manage or cancel in Apple ID Subscriptions.',
+      isAthlete ? 'Start Athlete trial?' : 'Start Pro trial?',
+      isAthlete
+        ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
+        : PRO_COPY.renewalDisclosure,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Subscribe', onPress: () => setEntitlement('pro_subscriber_active') },
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Start Trial',
+        onPress: () => setEntitlement(isAthlete ? 'athlete_trial_active' : 'pro_trial_active'),
+      },
       ]
     );
-  }, [setEntitlement]);
+  }, [entitlement, setEntitlement, tierLabel, hasAthleteAccess, hasProAccess, upsellTier]);
+
+  const subscribePro = useCallback(() => {
+    const isAthlete = !hasAthleteAccess && !hasProAccess ? upsellTier === 'athlete' : tierLabel === 'athlete';
+    Alert.alert(
+      isAthlete ? 'Confirm Athlete subscription' : 'Confirm subscription',
+      isAthlete
+        ? 'You are choosing Athlete monthly access at $6.99/month. You can manage or cancel in Apple ID Subscriptions.'
+        : 'You are choosing Pro monthly access at $4.99/month. You can manage or cancel in Apple ID Subscriptions.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Subscribe',
+          onPress: () => setEntitlement(isAthlete ? 'athlete_subscriber_active' : 'pro_subscriber_active'),
+        },
+      ]
+    );
+  }, [setEntitlement, tierLabel, hasAthleteAccess, hasProAccess, upsellTier]);
 
   const completeHealthConnect = useCallback(async () => {
     setHealthPermissionVisible(false);
@@ -317,7 +345,7 @@ export default function SettingsScreen() {
             <View style={styles.rowCopy}>
               <Text style={styles.rowTitle}>Physiq Pro</Text>
               <Text style={styles.rowSubtitle}>
-                {hasProAccess ? 'Active plan' : PRO_COPY.subheadline}
+                {hasAthleteAccess ? 'Athlete active plan' : hasProAccess ? 'Pro active plan' : PRO_COPY.subheadline}
               </Text>
             </View>
             <TouchableOpacity
@@ -362,7 +390,7 @@ export default function SettingsScreen() {
                   </View>
                 </View>
               </View>
-              {hasProAccess && Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
+              {(hasProAccess || hasAthleteAccess) && Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
                 <View style={styles.healthBanner}>
                   <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
                   <Text style={styles.healthBannerBody}>{PRO_COPY.healthRequiredBannerBody}</Text>
@@ -381,21 +409,41 @@ export default function SettingsScreen() {
                 onPress={() => setProExpanded(true)}
               >
                 <Text style={styles.proCollapsedCtaText}>
-                  {hasProAccess ? 'Expand' : 'View Pro options'}
+                  {hasProAccess || hasAthleteAccess ? 'Expand' : 'View Pro options'}
                 </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.editor}>
-            {!hasProAccess ? (
+            {!(hasProAccess || hasAthleteAccess) ? (
               <>
-                <Text style={styles.proDisclosureText}>{PRO_COPY.renewalDisclosure}</Text>
+                <View style={styles.segmentRow}>
+                  <TouchableOpacity
+                    style={[styles.segment, upsellTier === 'pro' && { borderColor: colors.primary, backgroundColor: colors.primaryMuted }]}
+                    onPress={() => setUpsellTier('pro')}
+                  >
+                    <Text style={[styles.segmentText, upsellTier === 'pro' && { color: colors.primary }]}>Pro</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.segment, upsellTier === 'athlete' && { borderColor: colors.primary, backgroundColor: colors.primaryMuted }]}
+                    onPress={() => setUpsellTier('athlete')}
+                  >
+                    <Text style={[styles.segmentText, upsellTier === 'athlete' && { color: colors.primary }]}>Athlete</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.proDisclosureText}>
+                  {upsellTier === 'athlete'
+                    ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
+                    : PRO_COPY.renewalDisclosure}
+                </Text>
                 <View style={styles.proActionRow}>
                   <TouchableOpacity style={styles.proOutlineBtn} onPress={startProTrial}>
                     <Text style={styles.proOutlineBtnText}>{PRO_COPY.ctaTrial}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.proOutlineBtn, styles.proOutlineBtnSelected, { borderColor: colors.primary }]} onPress={subscribePro}>
-                    <Text style={[styles.proOutlineBtnText, { color: colors.primary }]}>{PRO_COPY.ctaSubscribe}</Text>
+                    <Text style={[styles.proOutlineBtnText, { color: colors.primary }]}>
+                      {upsellTier === 'athlete' ? PRO_COPY.ctaSubscribeAthlete : PRO_COPY.ctaSubscribe}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -416,6 +464,84 @@ export default function SettingsScreen() {
                 ) : null}
                 <Text style={styles.rowSubtitle}>Day Type: {inferredDayType.replace('_', ' ')}</Text>
                 <Text style={styles.rowSubtitle}>{dynamicReason}</Text>
+                <Text style={styles.rowSubtitle}>Tier: {tierLabel.toUpperCase()}</Text>
+                {fuelingStrategy ? <Text style={styles.rowSubtitle}>{fuelingStrategy}</Text> : null}
+                {dynamicExplainability?.length ? (
+                  <View style={styles.chipWrap}>
+                    {dynamicExplainability.map((line: string) => (
+                      <View key={line} style={styles.chip}>
+                        <Text style={styles.chipText}>{line}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                {hasAthleteAccess ? (
+                  <View style={styles.healthBanner}>
+                    <Text style={styles.healthBannerTitle}>Athlete Configuration</Text>
+                    <Text style={styles.healthBannerBody}>
+                      {athleteProfile.sport} · {athleteProfile.userType.replace('_', ' ')} · {athleteProfile.season.phase.replace('_', '-')}
+                    </Text>
+                    <View style={styles.proActionRow}>
+                      <TouchableOpacity
+                        style={styles.proOutlineBtn}
+                        onPress={() =>
+                          void updateAthleteProfile({
+                            enabled: true,
+                            season: {
+                              ...athleteProfile.season,
+                              phase:
+                                athleteProfile.season.phase === 'preseason'
+                                  ? 'in_season'
+                                  : athleteProfile.season.phase === 'in_season'
+                                    ? 'off_season'
+                                    : 'preseason',
+                            },
+                          })
+                        }
+                      >
+                        <Text style={styles.proOutlineBtnText}>Cycle Season</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.proOutlineBtn}
+                        onPress={() =>
+                          void updateCycleProfile({
+                            enabled: !cycleProfile.enabled,
+                            cycleDataConsentGivenAt: !cycleProfile.enabled ? new Date().toISOString() : undefined,
+                            cycleDataConsentVersion: !cycleProfile.enabled ? 'v1' : undefined,
+                          })
+                        }
+                      >
+                        <Text style={styles.proOutlineBtnText}>
+                          {cycleProfile.enabled ? 'Disable Female Track' : 'Enable Female Track'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    {cycleProfile.enabled ? (
+                      <>
+                        <Text style={styles.rowSubtitle}>
+                          Cycle phase: {cycleDerived.currentPhase} ({cycleDerived.phaseConfidence})
+                        </Text>
+                        <View style={styles.proActionRow}>
+                          <TouchableOpacity
+                            style={styles.proOutlineBtn}
+                            onPress={() =>
+                              void addCycleLog({
+                                date: new Date().toISOString().slice(0, 10),
+                                phaseTag: 'menstrual',
+                                symptoms: ['fatigue'],
+                              })
+                            }
+                          >
+                            <Text style={styles.proOutlineBtnText}>Log Fatigue Day</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.proOutlineBtn} onPress={() => void clearCycleData()}>
+                            <Text style={styles.proOutlineBtnText}>Delete Cycle Data</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    ) : null}
+                  </View>
+                ) : null}
                 <View style={styles.chipWrap}>
                   <Chip
                     active={proSettings.healthIntegrationEnabled}

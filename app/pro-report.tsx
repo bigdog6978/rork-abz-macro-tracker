@@ -14,7 +14,18 @@ export default function ProReportScreen() {
   const { todayTotals } = useDailyLog();
   const { macros } = useUser();
   const { records } = useMeasurements();
-  const { hydration, healthSignals, dynamicTargets, inferredDayType } = usePro();
+  const {
+    hydration,
+    healthSignals,
+    dynamicTargets,
+    inferredDayType,
+    tierLabel,
+    hasAthleteAccess,
+    athleteProfile,
+    cycleDerived,
+    fuelingStrategy,
+    dynamicExplainability,
+  } = usePro();
 
   const nutritionAdherence = getAdherencePercent(todayTotals, dynamicTargets);
   const hydrationAdherence = Math.round(
@@ -41,8 +52,9 @@ export default function ProReportScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Pro Report' }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Weekly Pro Snapshot</Text>
+        <Text style={styles.title}>{hasAthleteAccess ? 'Weekly Athlete Snapshot' : 'Weekly Pro Snapshot'}</Text>
         <Text style={styles.subtitle}>Day type: {inferredDayType.replace('_', ' ')}</Text>
+        <Text style={styles.subtitle}>Tier: {tierLabel.toUpperCase()}</Text>
 
         <Card label="Physiq Score" value={`${physiqScore}`} styles={styles} />
         <Card label="Nutrition Adherence" value={`${nutritionAdherence}%`} styles={styles} />
@@ -52,6 +64,26 @@ export default function ProReportScreen() {
         <Card label="Latest Weight" value={latestWeight ? `${latestWeight} lb` : 'N/A'} styles={styles} />
         <Card label="Current Core Calories" value={`${macros.calories} cal`} styles={styles} />
         <Card label="Pro Dynamic Calories" value={`${dynamicTargets.calories} cal`} styles={styles} />
+        {fuelingStrategy ? <Card label="Fueling Strategy" value={fuelingStrategy} styles={styles} /> : null}
+        {hasAthleteAccess ? (
+          <>
+            <Card label="Athlete Sport" value={athleteProfile.sport} styles={styles} />
+            <Card label="Season Context" value={athleteProfile.season.phase.replace('_', '-')} styles={styles} />
+            <Card
+              label="Competition Windows"
+              value="T-72, T-24, T-4, Post 0-2h"
+              styles={styles}
+            />
+            <Card
+              label="Cycle Influence"
+              value={`${cycleDerived.currentPhase} (${cycleDerived.phaseConfidence})`}
+              styles={styles}
+            />
+          </>
+        ) : null}
+        {dynamicExplainability?.map((item: string) => (
+          <Card key={item} label="Why targets changed" value={item} styles={styles} />
+        ))}
       </ScrollView>
     </View>
   );

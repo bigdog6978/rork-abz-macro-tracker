@@ -61,6 +61,7 @@ Set **`APPLE_TEAM_ID`** in EAS secrets or `eas.json` env so `app.config.ts` can 
 
 - **Phone → Watch:** `updateApplicationContext` with string fields: `calories`, `protein`, `carbs`, `fat`, `hydration`, `updatedAt` (see `ProProvider`).
 - **Watch → Phone:** `sendMessage` / `updateApplicationContext` with `action: hydration_ack`; iPhone adds **250 ml** via `addHydration(250)`.
+- Athlete-aware summaries may be included (`tier`, `athleteSport`) but cycle-sensitive details are intentionally excluded from watch payloads.
 
 If the session is not reachable, `applicationContext` still updates when the watch next becomes active.
 
