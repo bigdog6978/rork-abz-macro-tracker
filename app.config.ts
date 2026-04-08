@@ -2,6 +2,12 @@ import type { ExpoConfig } from 'expo/config';
 
 const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 
+/** Single source of truth for HealthKit usage strings (react-native-health config plugin + review). */
+const HEALTH_SHARE_USAGE =
+  'Physiq reads activity, workouts, heart rate, and sleep from Apple Health to adapt macro and hydration targets.';
+const HEALTH_UPDATE_USAGE =
+  'Physiq may write hydration entries to Apple Health when enabled.';
+
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
@@ -29,10 +35,6 @@ export default (): ExpoConfig => ({
       ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription:
         'Physiq uses the camera to scan barcodes to quickly add foods. No photos or videos are stored.',
-      NSHealthShareUsageDescription:
-        'Physiq reads activity, workouts, heart rate, and sleep from Apple Health to adapt macro and hydration targets.',
-      NSHealthUpdateUsageDescription:
-        'Physiq may write hydration entries to Apple Health when enabled.',
     },
   },
   android: {
@@ -69,6 +71,13 @@ export default (): ExpoConfig => ({
       },
     ],
     'expo-sqlite',
+    [
+      'react-native-health',
+      {
+        healthSharePermission: HEALTH_SHARE_USAGE,
+        healthUpdatePermission: HEALTH_UPDATE_USAGE,
+      },
+    ],
     '@bacons/apple-targets',
   ],
   experiments: {
