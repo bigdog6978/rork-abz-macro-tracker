@@ -82,5 +82,7 @@ export default (): ExpoConfig => ({
     usda_api_key: process.env.usda_api_key ?? process.env.USDA_API_KEY ?? process.env.EXPO_PUBLIC_USDA_API_KEY ?? '',
     USDA_BASE_URL: process.env.USDA_BASE_URL ?? DEFAULT_USDA_BASE_URL,
     EXPO_PUBLIC_REVENUECAT_IOS_API_KEY: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY ?? '',
+    // Set to 1/true in .env for local or internal review only — never in App Store production env.
+    EXPO_PUBLIC_DEV_UNLOCK_PREMIUM: process.env.EXPO_PUBLIC_DEV_UNLOCK_PREMIUM ?? '',
   },
 });

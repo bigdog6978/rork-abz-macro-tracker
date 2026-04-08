@@ -1,5 +1,6 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Constants from 'expo-constants';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { sendProSnapshotToWatch, subscribePhysiqWatch } from 'physiq-watch-connectivity';
@@ -81,6 +82,17 @@ const defaultCycleProfile: AthleteCycleProfile = {
   allowCycleDataInExports: false,
 };
 
+/** When EXPO_PUBLIC_DEV_UNLOCK_PREMIUM is 1/true, treat as full Athlete (Pro + Athlete surfaces). */
+function isDevUnlockPremium(): boolean {
+  const raw = Constants.expoConfig?.extra?.EXPO_PUBLIC_DEV_UNLOCK_PREMIUM;
+  if (raw === true) return true;
+  if (typeof raw === 'string') {
+    const s = raw.trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes';
+  }
+  return false;
+}
+
 function mapIapErrorForDisplay(error: Error | null): string | null {
   if (!error?.message) return null;
   const message = error.message.toLowerCase();
@@ -132,8 +144,12 @@ export const [ProProvider, usePro] = createContextHook(() => {
   const storedEntitlement = entitlementQuery.data ?? 'core_active';
   const iapCustomerState = (iapCustomerQuery.data as IapCustomerState | undefined) ?? null;
   const trialConversionState = (trialConversionQuery.data as TrialConversionState | undefined) ?? {};
-  const entitlement: ProEntitlementState =
+  const devUnlockPremium = isDevUnlockPremium();
+  const entitlementFromSources: ProEntitlementState =
     Platform.OS === 'ios' && iapCustomerState ? iapCustomerState.entitlement : storedEntitlement;
+  const entitlement: ProEntitlementState = devUnlockPremium
+    ? 'athlete_subscriber_active'
+    : entitlementFromSources;
   const settings = settingsQuery.data ?? {
     dynamicMacrosEnabled: true,
     hydrationEnabled: true,
@@ -141,7 +157,11 @@ export const [ProProvider, usePro] = createContextHook(() => {
     electrolyteNudgesEnabled: false,
     healthPermissionStatus: 'not_connected',
   };
-  const athleteProfile = athleteProfileQuery.data ?? defaultAthleteProfile;
+  const athleteProfileRaw = athleteProfileQuery.data ?? defaultAthleteProfile;
+  const athleteProfile = useMemo(
+    () => (devUnlockPremium ? { ...athleteProfileRaw, enabled: true } : athleteProfileRaw),
+    [devUnlockPremium, athleteProfileRaw]
+  );
   const cycleProfile = athleteCycleProfileQuery.data ?? defaultCycleProfile;
   const cycleLogs = athleteCycleLogsQuery.data ?? [];
   const cycleDerived = useMemo(() => deriveAthleteCycleState(cycleProfile, cycleLogs), [cycleProfile, cycleLogs]);
@@ -160,20 +180,26 @@ export const [ProProvider, usePro] = createContextHook(() => {
       : (settings.healthPermissionStatus ?? 'not_connected');
 
   useEffect(() => {
+    if (devUnlockPremium) return;
     if (Platform.OS !== 'ios' || !iapCustomerState) return;
     if (storedEntitlement !== iapCustomerState.entitlement) {
       void setProEntitlement(iapCustomerState.entitlement);
       void queryClient.invalidateQueries({ queryKey: ['pro_entitlement'] });
     }
-  }, [iapCustomerState, queryClient, storedEntitlement]);
+  }, [devUnlockPremium, iapCustomerState, queryClient, storedEntitlement]);
 
   const hasProAccess =
-    entitlement === 'pro_trial_active' || entitlement === 'pro_subscriber_active';
+    devUnlockPremium ||
+    entitlement === 'pro_trial_active' ||
+    entitlement === 'pro_subscriber_active';
   const hasAthleteAccess =
-    entitlement === 'athlete_trial_active' || entitlement === 'athlete_subscriber_active';
+    devUnlockPremium ||
+    entitlement === 'athlete_trial_active' ||
+    entitlement === 'athlete_subscriber_active';
   const hasAnyPremium = hasProAccess || hasAthleteAccess;
   const tierLabel = hasAthleteAccess ? 'athlete' : hasProAccess ? 'pro' : 'core';
   const trialConversionPromptDue = useMemo(() => {
+    if (devUnlockPremium) return false;
     if (Platform.OS !== 'ios' || !iapCustomerState) return false;
     const trialEnded = !iapCustomerState.trialActive && iapCustomerState.lifecycleStatus === 'expired';
     if (!trialEnded || !trialConversionState.trialStartedAt) return false;
@@ -187,7 +213,7 @@ export const [ProProvider, usePro] = createContextHook(() => {
     if (lastShown && now - lastShown.getTime() < 1000 * 60 * 60 * 24) return false;
     if (skippedAt && now - skippedAt.getTime() < 1000 * 60 * 60 * 24) return false;
     return true;
-  }, [iapCustomerState, trialConversionState]);
+  }, [devUnlockPremium, iapCustomerState, trialConversionState]);
 
   const dynamic = useMemo(() => {
     if (!hasAnyPremium || !settings.dynamicMacrosEnabled) {
@@ -471,11 +497,11 @@ export const [ProProvider, usePro] = createContextHook(() => {
 
   const updateAthleteProfile = useCallback(
     async (next: Partial<AthleteProfile>) => {
-      const merged = { ...athleteProfile, ...next };
+      const merged = { ...athleteProfileRaw, ...next };
       await saveAthleteProfile(merged);
       await queryClient.invalidateQueries({ queryKey: ['athlete_profile'] });
     },
-    [athleteProfile, queryClient]
+    [athleteProfileRaw, queryClient]
   );
 
   const updateCycleProfile = useCallback(
