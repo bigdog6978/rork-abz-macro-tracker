@@ -11,6 +11,21 @@ struct ContentView: View {
     PhysiqTheme.color(hex: snapshot.primaryHex, fallback: PhysiqTheme.defaultAccent)
   }
 
+  /// `.tracking` is watchOS 9+; minimum deployment is 8.0.
+  @ViewBuilder
+  private func physiqWordmark(accent: Color) -> some View {
+    if #available(watchOS 9.0, *) {
+      Text("PHYSIQ")
+        .font(.system(size: 11, weight: .heavy, design: .rounded))
+        .foregroundStyle(accent)
+        .tracking(1.2)
+    } else {
+      Text("PHYSIQ")
+        .font(.system(size: 11, weight: .heavy, design: .rounded))
+        .foregroundStyle(accent)
+    }
+  }
+
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 10) {
@@ -33,10 +48,7 @@ struct ContentView: View {
 
   private var header: some View {
     VStack(alignment: .leading, spacing: 4) {
-      Text("PHYSIQ")
-        .font(.system(size: 11, weight: .heavy, design: .rounded))
-        .foregroundStyle(accent)
-        .tracking(1.2)
+      physiqWordmark(accent: accent)
       if !snapshot.firstName.isEmpty {
         Text(greetingName)
           .font(.system(size: 17, weight: .bold, design: .rounded))

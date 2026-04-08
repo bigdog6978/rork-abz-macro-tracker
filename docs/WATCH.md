@@ -3,6 +3,7 @@
 ## Compatibility
 
 - Minimum watchOS target: **8.0**
+- The **PHYSIQ** wordmark uses SwiftUI `.tracking` for letter-spacing on **watchOS 9+** only (same styling without tracking on 8.x).
 - Intended support: **watchOS 8.0 through current**
 - Final install eligibility still depends on Apple toolchain/App Store validation at build submission time.
 
