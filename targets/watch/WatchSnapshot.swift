@@ -22,6 +22,8 @@ struct WatchSnapshot {
   var fatHex: String?
   var tier: String
   var athleteSport: String
+  var syncState: String
+  var syncMessage: String
   var updatedAt: String?
 
   var hasData: Bool {
@@ -85,6 +87,8 @@ struct WatchSnapshot {
       fatHex: context["fatHex"],
       tier: context["tier"] ?? "",
       athleteSport: context["athleteSport"] ?? "",
+      syncState: context["syncState"] ?? "",
+      syncMessage: context["syncMessage"] ?? "",
       updatedAt: context["updatedAt"]
     )
   }

@@ -18,8 +18,7 @@ export default function PhysiqWatchSync() {
   const colors = useThemeColors();
   const { hydration, tierLabel, hasAthleteAccess, athleteProfile } = usePro();
 
-  const payload = useMemo((): Record<string, string> | null => {
-    if (!profile.firstName || !profile.onboardingComplete) return null;
+  const payload = useMemo((): Record<string, string> => {
     const caloriesRemaining = Math.max(macros.calories - todayTotals.calories, 0);
     const streak = getStreak();
     const eatingStyle = EATING_STYLE_LABELS[profile.eatingStyle] ?? 'Standard';
@@ -28,6 +27,17 @@ export default function PhysiqWatchSync() {
       .filter(Boolean);
     const dietLine = [eatingStyle, ...modifiers].join(' · ');
     const round1 = (n: number) => String(Math.round(n * 10) / 10);
+    const syncState = profile.onboardingComplete ? 'ready' : 'onboarding_incomplete';
+    const syncMessage = profile.onboardingComplete
+      ? ''
+      : 'Finish onboarding on iPhone to sync macro targets.';
+
+    if (__DEV__ && !profile.onboardingComplete) {
+      console.log('[PhysiqWatchSync] sending degraded payload: onboarding incomplete');
+    }
+    if (__DEV__ && !profile.firstName) {
+      console.log('[PhysiqWatchSync] payload has empty firstName');
+    }
 
     return {
       caloriesRemaining: String(Math.round(caloriesRemaining)),
@@ -52,6 +62,8 @@ export default function PhysiqWatchSync() {
       fatHex: Colors.fat,
       tier: tierLabel,
       athleteSport: hasAthleteAccess ? athleteProfile.sport : '',
+      syncState,
+      syncMessage,
     };
   }, [
     profile.firstName,
@@ -76,8 +88,7 @@ export default function PhysiqWatchSync() {
     todayEntries.length,
   ]);
 
-  const send = useCallback((data: Record<string, string> | null) => {
-    if (!data) return;
+  const send = useCallback((data: Record<string, string>) => {
     const withTime = { ...data, updatedAt: new Date().toISOString() };
     void sendProSnapshotToWatch(withTime).catch((err) => {
       if (__DEV__) {
@@ -91,7 +102,6 @@ export default function PhysiqWatchSync() {
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
-    if (!payload) return;
 
     send(payload);
     const timers = [400, 1200, 2500].map((ms) => setTimeout(() => send(payload), ms));

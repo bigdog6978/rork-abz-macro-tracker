@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  useWindowDimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -87,6 +88,7 @@ export default function OnboardingScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
+  const { height: viewportHeight, fontScale } = useWindowDimensions();
   const { completeOnboarding } = useUser();
   const {
     setEntitlement,
@@ -693,15 +695,43 @@ export default function OnboardingScreen() {
         : proProduct?.priceText ?? '$4.99';
     const ctaPriceLine = PRO_COPY.ctaPrimaryPriceHint.replace('{price}', priceAfterTrial);
     return (
-    <View style={styles.stepContainer}>
+    <View
+      style={[
+        styles.stepContainer,
+        styles.paywallStepContainer,
+        paywallCompact && styles.paywallStepContainerCompact,
+        paywallVeryCompact && styles.paywallStepContainerVeryCompact,
+      ]}
+    >
       <View style={styles.stepHeaderRow}>
-        <Text style={styles.stepTitle}>{PRO_COPY.headline}</Text>
+        <Text
+          style={[
+            styles.stepTitle,
+            styles.paywallStepTitle,
+            paywallCompact && styles.paywallStepTitleCompact,
+            paywallVeryCompact && styles.paywallStepTitleVeryCompact,
+          ]}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
+          {PRO_COPY.headline}
+        </Text>
         <TouchableOpacity style={styles.learnMoreButton} onPress={() => setProInfoVisible(true)}>
           <Info size={14} color={colors.primary} />
           <Text style={styles.learnMoreText}>Info</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.stepSubtitle}>{PRO_COPY.subheadline}</Text>
+      <Text
+        style={[
+          styles.stepSubtitle,
+          styles.paywallSubtitle,
+          paywallCompact && styles.paywallSubtitleCompact,
+          paywallVeryCompact && styles.paywallSubtitleVeryCompact,
+        ]}
+      >
+        {PRO_COPY.subheadline}
+      </Text>
 
       <View style={styles.tierToggleRow}>
         <View style={styles.tierColumnTop}>
@@ -738,16 +768,27 @@ export default function OnboardingScreen() {
         </View>
       </View>
 
-      <View style={styles.choiceList}>
+      <View style={[styles.choiceList, paywallCompact && styles.choiceListCompact]}>
         {(selectedTier === 'athlete' ? PRO_COPY.athleteFeatureBullets : PRO_COPY.featureBullets).map((line) => (
           <View key={line} style={styles.proFeatureRow}>
             <View style={styles.choiceDot} />
-            <Text style={styles.proFeatureText}>{line}</Text>
+            <Text
+              style={[
+                styles.proFeatureText,
+                paywallCompact && styles.proFeatureTextCompact,
+                paywallVeryCompact && styles.proFeatureTextVeryCompact,
+              ]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.9}
+            >
+              {line}
+            </Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.proTrialCard}>
+      <View style={[styles.proTrialCard, paywallCompact && styles.proTrialCardCompact]}>
         <Text style={styles.proTrialTitle}>{PRO_COPY.trialTitle}</Text>
         <Text style={styles.proTrialLine}>{PRO_COPY.trialLineFullAccess}</Text>
         <Text style={styles.proTrialLine}>
@@ -772,14 +813,14 @@ export default function OnboardingScreen() {
         <Text style={styles.paywallPrimaryCtaSub}>{ctaPriceLine}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.proDisclosure}>
+      <Text style={[styles.proDisclosure, paywallCompact && styles.proDisclosureCompact]}>
         Full access 3 days, then renews unless canceled. Charged to your Apple ID at confirmation.
       </Text>
 
-      {iapError ? <Text style={styles.proDisclosure}>{iapError}</Text> : null}
+      {iapError ? <Text style={[styles.proDisclosure, paywallCompact && styles.proDisclosureCompact]}>{iapError}</Text> : null}
 
-      <View style={styles.legalCopyWrap}>
-        <Text style={styles.paywallLegalText}>
+      <View style={[styles.legalCopyWrap, paywallCompact && styles.legalCopyWrapCompact]}>
+        <Text style={[styles.paywallLegalText, paywallCompact && styles.paywallLegalTextCompact]}>
           By continuing, you acknowledge our{' '}
           <Text
             style={styles.inlineLegalLink}
@@ -814,6 +855,9 @@ export default function OnboardingScreen() {
   ];
 
   const isLastStep = step === TOTAL_STEPS - 1;
+  const paywallCompact = viewportHeight < 860 || fontScale > 1.05;
+  const paywallVeryCompact = viewportHeight < 780 || fontScale > 1.16;
+  const paywallNeedsScrollFallback = viewportHeight < 700 || fontScale > 1.24;
 
   return (
     <DismissKeyboard>
@@ -834,9 +878,10 @@ export default function OnboardingScreen() {
           contentContainerStyle={[
             styles.scrollContent,
             isLastStep && styles.scrollContentPaywall,
-            { paddingBottom: Math.max(insets.bottom, 16) + (isLastStep ? 20 : 120) },
+            { paddingBottom: Math.max(insets.bottom, 16) + (isLastStep ? 24 : 120) },
           ]}
-          bounces={!isLastStep}
+          scrollEnabled={!isLastStep || paywallNeedsScrollFallback}
+          bounces={!isLastStep || paywallNeedsScrollFallback}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -1045,9 +1090,13 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
+  paywallLegalTextCompact: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
   scrollContentPaywall: {
     padding: 20,
-    paddingBottom: 28,
+    paddingBottom: 24,
   },
   paywallTrustLineInCard: {
     color: Colors.textSecondary,
@@ -1072,6 +1121,39 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 15,
     lineHeight: 22,
+  },
+  paywallStepContainer: {
+    gap: 12,
+  },
+  paywallStepContainerCompact: {
+    gap: 10,
+  },
+  paywallStepContainerVeryCompact: {
+    gap: 8,
+  },
+  paywallStepTitle: {
+    fontSize: 56,
+    lineHeight: 60,
+  },
+  paywallStepTitleCompact: {
+    fontSize: 50,
+    lineHeight: 54,
+  },
+  paywallStepTitleVeryCompact: {
+    fontSize: 44,
+    lineHeight: 48,
+  },
+  paywallSubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  paywallSubtitleCompact: {
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  paywallSubtitleVeryCompact: {
+    fontSize: 14,
+    lineHeight: 19,
   },
   learnMoreButton: {
     flexDirection: 'row',
@@ -1148,6 +1230,9 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   choiceList: {
     gap: 12,
+  },
+  choiceListCompact: {
+    gap: 8,
   },
   choiceCard: {
     flexDirection: 'row',
@@ -1343,6 +1428,14 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  proFeatureTextCompact: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  proFeatureTextVeryCompact: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
   proTrialCard: {
     backgroundColor: Colors.card,
     borderWidth: 1,
@@ -1350,6 +1443,10 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     gap: 6,
+  },
+  proTrialCardCompact: {
+    padding: 12,
+    gap: 4,
   },
   proTrialTitle: {
     color: Colors.text,
@@ -1413,6 +1510,10 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
+  proDisclosureCompact: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
   inlineLegalLink: {
     color: colors.primary,
     fontWeight: '700',
@@ -1424,6 +1525,9 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   legalCopyWrap: {
     marginTop: 10,
+  },
+  legalCopyWrapCompact: {
+    marginTop: 6,
   },
   proOutlinedCta: {
     minHeight: 58,
