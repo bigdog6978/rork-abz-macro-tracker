@@ -3,7 +3,7 @@ import SwiftUI
 import WatchConnectivity
 
 /// Watch-side WatchConnectivity: receives Pro snapshot from iPhone via `applicationContext`
-/// and sends quick actions (e.g. hydration ack) back with `sendMessage` when reachable.
+/// and immediate `sendMessage` when reachable; sends quick actions (e.g. hydration ack) back.
 final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
   static let shared = WatchConnectivityManager()
 
@@ -36,6 +36,23 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     }
   }
 
+  private func mergeSnapshot(_ raw: [String: Any]) {
+    var strings: [String: String] = [:]
+    for (k, v) in raw {
+      if let s = v as? String {
+        strings[k] = s
+      } else {
+        strings[k] = "\(v)"
+      }
+    }
+    DispatchQueue.main.async {
+      self.context.merge(strings) { _, new in new }
+      #if DEBUG
+      print("[PhysiqWatch] context merged keys: \(strings.keys.sorted().joined(separator: ", "))")
+      #endif
+    }
+  }
+
   func session(
     _ session: WCSession,
     activationDidCompleteWith activationState: WCSessionActivationState,
@@ -52,6 +69,11 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
       @unknown default:
         self.activationLabel = "Unknown"
       }
+      #if DEBUG
+      if let error {
+        print("[PhysiqWatch] activation error: \(error.localizedDescription)")
+      }
+      #endif
     }
   }
 
@@ -62,14 +84,25 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
   }
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
-    let strings = applicationContext.compactMapValues { $0 as? String }
-    DispatchQueue.main.async {
-      self.context = strings
-    }
+    #if DEBUG
+    print("[PhysiqWatch] didReceiveApplicationContext")
+    #endif
+    mergeSnapshot(applicationContext)
   }
 
   func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-    // Reserved for future phone → watch messages
-    _ = message
+    #if DEBUG
+    print("[PhysiqWatch] didReceiveMessage")
+    #endif
+    mergeSnapshot(message)
+  }
+
+  func session(
+    _ session: WCSession,
+    didReceiveMessage message: [String: Any],
+    replyHandler: @escaping ([String: Any]) -> Void
+  ) {
+    mergeSnapshot(message)
+    replyHandler(["ok": true])
   }
 }

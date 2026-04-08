@@ -13,6 +13,7 @@ import { ProProvider } from "../providers/ProProvider";
 import { ThemeProvider, useThemeColors } from "../providers/ThemeProvider";
 import AppBackground from "../components/ui/AppBackground";
 import PostProHealthFlow from "../components/ui/PostProHealthFlow";
+import PhysiqWatchSync from "../components/PhysiqWatchSync";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -198,6 +199,7 @@ export default function RootLayout() {
                   <ProProvider>
                     <AppBackground>
                       <PostProHealthFlow />
+                      <PhysiqWatchSync />
                       <AppContent />
                     </AppBackground>
                   </ProProvider>

@@ -21,9 +21,49 @@
 | Piece | Role |
 |--------|------|
 | `@bacons/apple-targets` | Generates the watchOS app target and embeds it in the iOS app (Continuous Native Generation). |
-| `targets/watch/` | SwiftUI app: `PhysiqWatchApp`, `ContentView`, `WatchConnectivityManager`. |
+| `targets/watch/` | SwiftUI app: `PhysiqWatchApp`, `ContentView`, `WatchConnectivityManager`, `PhysiqTheme`, `WatchSnapshot`, `RingGaugeView`. |
 | `physiq-watch-connectivity` | Expo module (`PhysiqWatch`) on **iPhone**: `sendProSnapshot`, events `onWatchPayload` / `onActivationChange`. |
+| `components/PhysiqWatchSync.tsx` | React: builds **dashboard-aligned** payload (same sources as the home screen) for **all** signed-in users on iOS—not Pro-gated. |
 | App Group | `group.app.rork.abz-macro-tracker` (entitlements on main app + synced to watch via apple-targets). Optional for future `ExtensionStorage` / shared files. |
+
+## Snapshot payload (phone → watch)
+
+All values are **strings** (WatchConnectivity / `updateApplicationContext`). The iPhone waits for `WCSession` activation when possible, calls **`updateApplicationContext`**, and when the watch is **reachable** also sends the same dictionary via **`sendMessage`** for faster UI updates.
+
+### Core fields (current)
+
+| Key | Meaning |
+|-----|---------|
+| `caloriesRemaining` | `max(target − consumed, 0)` (matches dashboard dial center). |
+| `caloriesTarget` | Daily calorie target. |
+| `caloriesConsumed` | Calories logged today. |
+| `proteinConsumed` / `proteinTarget` | Grams (one decimal as string). |
+| `carbsConsumed` / `carbsTarget` | Grams. |
+| `fatConsumed` / `fatTarget` | Grams. |
+| `hydrationConsumedMl` / `hydrationTargetMl` | Hydration from Pro hydration log. |
+| `hydration` | Legacy combined display, e.g. `1317/2400 ml`. |
+| `streak` | Logging streak count. |
+| `firstName` | Greeting. |
+| `eatingStyle` | Short label (e.g. Standard). |
+| `dietLine` | Eating style + dietary modifiers, e.g. `Standard · Low Glycemic`. |
+| `primaryHex` | Theme accent from `ThemeProvider` (e.g. chartreuse `#DEFF00`). |
+| `proteinHex` / `carbsHex` / `fatHex` | Macro dial colors (`constants/colors.ts`). |
+| `tier` | `core` / `pro` / `athlete` from Pro. |
+| `athleteSport` | Sport when Athlete tier; empty otherwise. |
+| `updatedAt` | ISO-8601 timestamp set at send time. |
+
+### Legacy keys (older builds)
+
+`calories`, `protein`, `carbs`, `fat` were **targets only**. The watch parser maps them when the new keys are absent.
+
+### Premium vs core
+
+- **Sync is not subscription-gated.** Any user who has finished onboarding gets a full dashboard snapshot so the Watch matches the phone.
+- Pro/Athlete-only **behavior** (dynamic targets, etc.) still lives on the phone; the Watch only displays the latest numbers pushed from the app.
+
+### Watch → phone
+
+- `sendMessage` / `updateApplicationContext` with `action: hydration_ack`; iPhone adds **250 ml** via `addHydration(250)` in `ProProvider` (listener is iOS-wide, not Pro-gated).
 
 ## Local development
 
@@ -57,17 +97,18 @@ Set **`APPLE_TEAM_ID`** in EAS secrets or `eas.json` env so `app.config.ts` can 
 2. Upload a single iOS build; the **Watch app** appears as part of the same version.
 3. On device: install the iPhone app from TestFlight, then open the **Watch** app on iPhone → **My Watch** → install the Physiq Watch app.
 
-## WCSession behavior
+## Troubleshooting
 
-- **Phone → Watch:** `updateApplicationContext` with string fields: `calories`, `protein`, `carbs`, `fat`, `hydration`, `updatedAt` (see `ProProvider`).
-- **Watch → Phone:** `sendMessage` / `updateApplicationContext` with `action: hydration_ack`; iPhone adds **250 ml** via `addHydration(250)`.
-- Athlete-aware summaries may be included (`tier`, `athleteSport`) but cycle-sensitive details are intentionally excluded from watch payloads.
-
-If the session is not reachable, `applicationContext` still updates when the watch next becomes active.
+| Symptom | Things to check |
+|--------|-----------------|
+| Watch shows “No macro data yet” | Open the **iPhone app** at least once after install; confirm onboarding is complete. Check Xcode console: `[PhysiqWatchSync]` (JS dev) and `[PhysiqWatch]` / `[PhysiqWatch iPhone]` (DEBUG native). |
+| Dashes / stale numbers | Confirm **WCSession** is activated (`Ready` on watch). Toggle the iPhone app to foreground; snapshot is resent on **AppState active** and a few seconds after load. |
+| Hydration button does nothing | Phone must process `hydration_ack` (see `ProProvider`); ensure iOS build includes `physiq-watch-connectivity`. |
+| Simulator oddities | Pair **watch + phone simulators** in Xcode’s Watch Simulator pairing; WatchConnectivity can be flaky—test on **real devices** for release sign-off. |
 
 ## Testing checklist
 
-- [ ] `WCSession` activates on iPhone (Dev Menu / logs optional).
-- [ ] Watch UI shows macro snapshot after Pro state changes on phone.
+- [ ] `WCSession` activates on iPhone (DEBUG logs in `PhysiqWatchModule.swift`).
+- [ ] Watch UI shows macro snapshot after onboarding completes on phone (core user OK).
 - [ ] Hydration button on watch increments hydration on phone when paired.
 - [ ] Archive in Xcode includes both **PhysiqMacroTracker** and **watch** targets.

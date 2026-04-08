@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppState, Platform } from 'react-native';
-import { sendProSnapshotToWatch, subscribePhysiqWatch } from 'physiq-watch-connectivity';
+import { subscribePhysiqWatch } from 'physiq-watch-connectivity';
 import { useUser } from './UserProvider';
 import {
   appendAthleteCycleLog,
@@ -420,7 +420,7 @@ export const [ProProvider, usePro] = createContextHook(() => {
   }, [syncDynamicTargets]);
 
   useEffect(() => {
-    if (Platform.OS !== 'ios' || !hasAnyPremium) return;
+    if (Platform.OS !== 'ios') return;
     const sub = subscribePhysiqWatch('onWatchPayload', (body) => {
       const payload = (body.payload as Record<string, string> | undefined) ?? {};
       if (payload.action === 'hydration_ack') {
@@ -428,33 +428,7 @@ export const [ProProvider, usePro] = createContextHook(() => {
       }
     });
     return () => sub?.remove();
-  }, [hasAnyPremium, addHydration]);
-
-  useEffect(() => {
-    if (Platform.OS !== 'ios' || !hasAnyPremium) return;
-    const t = dynamic.targets;
-    void sendProSnapshotToWatch({
-      calories: String(Math.round(t.calories)),
-      protein: String(Math.round(t.protein_g)),
-      carbs: String(Math.round(t.carbs_g)),
-      fat: String(Math.round(t.fat_g)),
-      hydration: `${Math.round(hydration.consumedMl)}/${Math.round(hydration.targetMl)} ml`,
-      tier: tierLabel,
-      athleteSport: hasAthleteAccess ? athleteProfile.sport : 'N/A',
-      updatedAt: new Date().toISOString(),
-    });
-  }, [
-    hasAnyPremium,
-    dynamic.targets.calories,
-    dynamic.targets.protein_g,
-    dynamic.targets.carbs_g,
-    dynamic.targets.fat_g,
-    hydration.consumedMl,
-    hydration.targetMl,
-    tierLabel,
-    hasAthleteAccess,
-    athleteProfile.sport,
-  ]);
+  }, [addHydration]);
 
   const enableHealthIntegration = useCallback(async (): Promise<boolean> => {
     const available = await isHealthKitAvailable();
