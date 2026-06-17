@@ -1,6 +1,9 @@
 import { ProEntitlementState } from '../features/pro/types';
 
-/** Single non-consumable lifetime unlock product. Centralized here. */
+/** Monetization removed in 1.3.2 — IAP calls are no-ops unless re-enabled. */
+export const IAP_MONETIZATION_ENABLED = false;
+
+/** Legacy lifetime product id (disabled). */
 export const LIFETIME_PRODUCT_ID = 'physiq.lifetime.unlock';
 
 export interface IapCustomerState {

@@ -33,7 +33,8 @@ export type EatingStyle =
   | 'vegetarian'
   | 'paleo'
   | 'keto'
-  | 'carnivore';
+  | 'carnivore'
+  | 'psmf';
 
 export type DietaryRestriction =
   | 'gluten_free'
@@ -43,7 +44,9 @@ export type DietaryRestriction =
   | 'soy_free'
   | 'shellfish_free'
   | 'low_glycemic'
-  | 'intermittent_fasting';
+  | 'intermittent_fasting'
+  | 'halal'
+  | 'kosher';
 
 // Compatibility alias while refactoring existing imports.
 export type DietaryModifier = DietaryRestriction;
@@ -73,6 +76,10 @@ export interface UserProfile {
   dietNotes?: string;
   measurementSystem: MeasurementSystem;
   onboardingComplete: boolean;
+  /** ISO timestamp when user acknowledged PSMF safety warnings */
+  psmfAcknowledgedAt?: string;
+  /** ISO date (YYYY-MM-DD) when user first activated PSMF eating style */
+  psmfStartDate?: string;
 }
 
 export function lbToKg(lb: number): number {
@@ -267,6 +274,7 @@ export const EATING_STYLE_LABELS: Record<EatingStyle, string> = {
   paleo: 'Paleo',
   keto: 'Keto',
   carnivore: 'Carnivore',
+  psmf: 'PSMF',
 };
 
 export const EATING_STYLE_DESCRIPTIONS: Record<EatingStyle, string> = {
@@ -277,6 +285,7 @@ export const EATING_STYLE_DESCRIPTIONS: Record<EatingStyle, string> = {
   paleo: 'Whole foods with grains and legumes removed',
   keto: 'Very low-carb eating style with fat as the primary fuel source',
   carnivore: 'Animal-based foods with trace carbs only',
+  psmf: 'Protein Sparing Modified Fast — high protein, very low carb/fat; short-term only',
 };
 
 export const DIETARY_RESTRICTION_LABELS: Record<DietaryRestriction, string> = {
@@ -288,6 +297,8 @@ export const DIETARY_RESTRICTION_LABELS: Record<DietaryRestriction, string> = {
   shellfish_free: 'Shellfish-Free',
   low_glycemic: 'Low Glycemic',
   intermittent_fasting: 'Intermittent Fasting',
+  halal: 'Halal',
+  kosher: 'Kosher',
 };
 
 export const DIETARY_RESTRICTION_DESCRIPTIONS: Record<DietaryRestriction, string> = {
@@ -299,6 +310,8 @@ export const DIETARY_RESTRICTION_DESCRIPTIONS: Record<DietaryRestriction, string
   shellfish_free: 'Avoid shellfish',
   low_glycemic: 'Prefer slower-digesting carb and fruit choices in meal plans',
   intermittent_fasting: 'Meal timing preference',
+  halal: 'Exclude pork and alcohol; verify halal certification on labels',
+  kosher: 'Exclude pork and shellfish; avoid meat-with-dairy meal combinations',
 };
 
 // Compatibility aliases for existing imports during the refactor.

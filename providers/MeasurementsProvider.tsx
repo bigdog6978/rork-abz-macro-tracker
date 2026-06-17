@@ -1,4 +1,4 @@
-import createContextHook from '@nkzw/create-context-hook';
+import { createSafeContextHook } from '../utils/createSafeContextHook';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUser } from './UserProvider';
@@ -23,7 +23,7 @@ import { computeTrends, computeGoalScore, shouldShowPrompt } from '../features/p
 
 const USER_ID = 'local_user';
 
-export const [MeasurementsProvider, useMeasurements] = createContextHook(() => {
+export const [MeasurementsProvider, useMeasurements] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
   const { profile } = useUser();
 
@@ -172,4 +172,4 @@ export const [MeasurementsProvider, useMeasurements] = createContextHook(() => {
     dismissPrompt: dismissPrompt.mutate,
     userId: USER_ID,
   };
-});
+}, 'useMeasurements', 'MeasurementsProvider');

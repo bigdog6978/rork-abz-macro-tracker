@@ -4,7 +4,6 @@ import React, { useMemo } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import Colors from "../../constants/colors";
 import { useThemeColors } from "../../providers/ThemeProvider";
-import TrialExpiredModal from "../../components/ui/TrialExpiredModal";
 
 function TabIcon({ icon: Icon, color, size, focused, activeBarColor }: {
   icon: typeof Home;
@@ -34,8 +33,6 @@ export default function TabLayout() {
   );
 
   return (
-    <>
-    <TrialExpiredModal />
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -88,7 +85,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-    </>
   );
 }
 

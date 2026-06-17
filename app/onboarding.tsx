@@ -1,12 +1,9 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Animated,
   useWindowDimensions,
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,8 +21,8 @@ import Colors from '../constants/colors';
 import { FOODS } from '../constants/foodDatabase';
 import { setDislikedFoods } from '../storage/dislikedFoodsRepo';
 import PlanDefinitionSheet from '../components/ui/PlanDefinitionSheet';
+import PsmfAcknowledgmentModal from '../components/ui/PsmfAcknowledgmentModal';
 import { useUser } from '../providers/UserProvider';
-import { usePro } from '../providers/ProProvider';
 import {
   ACTIVITY_DESCRIPTIONS,
   ACTIVITY_LABELS,
@@ -58,8 +55,11 @@ import { captureProgressPhoto } from '../utils/photos/captureProgressPhoto';
 import { addPhoto as saveProgressPhoto } from '../storage/photosRepo';
 import { upsertMeasurement } from '../storage/measurementsRepo';
 import { getTodayDateKey } from '../utils/dateKey';
+import { buildPsmfProfileUpdates } from '../utils/psmfHelpers';
+import { Radius, Spacing } from '../theme/tokens';
 
 const TOTAL_STEPS = 10;
+const FOOTER_BUTTON_HEIGHT = 52;
 
 const PROTEIN_FOOD_IDS = [
   'bacon', 'beef_jerky', 'beef_liver', 'black_beans', 'bone_broth',
@@ -95,16 +95,6 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { height: viewportHeight, fontScale } = useWindowDimensions();
   const { completeOnboarding } = useUser();
-  const {
-    setEntitlement,
-    startPurchase,
-    startTrial,
-    trialActive,
-    trialDaysRemaining,
-    lifetimeProduct,
-    iapPurchasePending,
-    iapError,
-  } = usePro();
   const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
 
   const [step, setStep] = useState(0);
@@ -127,10 +117,10 @@ export default function OnboardingScreen() {
   const [definitionSheetTitle, setDefinitionSheetTitle] = useState('');
   const [definitionSheetSections, setDefinitionSheetSections] = useState<LearnMoreSection[]>([]);
   const [proInfoVisible, setProInfoVisible] = useState(false);
-  const [legalStep, setLegalStep] = useState<'terms' | 'privacy' | null>(null);
-  const [legalSubmitPending, setLegalSubmitPending] = useState(false);
   const [baselinePhotoUri, setBaselinePhotoUri] = useState<string | null>(null);
   const [baselinePhotoSaving, setBaselinePhotoSaving] = useState(false);
+  const [psmfModalVisible, setPsmfModalVisible] = useState(false);
+  const [psmfAcknowledgedAt, setPsmfAcknowledgedAt] = useState<string | undefined>(undefined);
 
   const animateProgress = useCallback(
     (nextStep: number) => {
@@ -215,6 +205,7 @@ export default function OnboardingScreen() {
       dietModifiers,
       dietNotes: dietNotes.trim(),
       measurementSystem,
+      psmfAcknowledgedAt: eatingStyle === 'psmf' ? psmfAcknowledgedAt : undefined,
     };
   }, [
     activityLevel,
@@ -228,6 +219,7 @@ export default function OnboardingScreen() {
     heightFt,
     heightIn,
     measurementSystem,
+    psmfAcknowledgedAt,
     sex,
     weightKg,
     weightLb,
@@ -261,57 +253,36 @@ export default function OnboardingScreen() {
       bodyFatPercent: draftProfile.bodyFatPercent,
       isBaseline: true,
     });
-    completeOnboarding(draftProfile);
+    completeOnboarding({
+      ...draftProfile,
+      ...buildPsmfProfileUpdates(
+        { ...draftProfile, eatingStyle: 'standard', onboardingComplete: false },
+        draftProfile.eatingStyle,
+        draftProfile.eatingStyle === 'psmf' ? psmfAcknowledgedAt ?? new Date().toISOString() : undefined
+      ),
+    });
     router.replace('/(tabs)' as never);
-  }, [completeOnboarding, draftProfile, dislikedFoodIds, baselinePhotoUri]);
+  }, [completeOnboarding, draftProfile, dislikedFoodIds, baselinePhotoUri, psmfAcknowledgedAt]);
 
-  const executePurchase = useCallback(() => {
-    const run = async () => {
-      setLegalSubmitPending(true);
-      try {
-        const purchased = await startPurchase();
-        if (purchased) {
-          void handleComplete();
-          return;
-        }
-        setEntitlement('core');
-        Alert.alert(
-          'Continuing with free access',
-          'The purchase is unavailable right now. You can continue with core features and try again later in Settings.'
-        );
-        void handleComplete();
-      } finally {
-        setLegalSubmitPending(false);
-        setLegalStep(null);
-      }
-    };
-    void run();
-  }, [handleComplete, setEntitlement, startPurchase]);
-
-  const beginUnlock = useCallback(() => {
-    setLegalStep('terms');
+  const handleEatingStyleSelect = useCallback((value: EatingStyle) => {
+    if (value === 'psmf') {
+      setPsmfModalVisible(true);
+      return;
+    }
+    setEatingStyle(value);
+    setPsmfAcknowledgedAt(undefined);
   }, []);
 
-  const beginTrial = useCallback(() => {
-    const run = async () => {
-      await startTrial();
-      void handleComplete();
-    };
-    void run();
-  }, [handleComplete, startTrial]);
+  const confirmPsmfSelection = useCallback(() => {
+    const acknowledgedAt = new Date().toISOString();
+    setPsmfAcknowledgedAt(acknowledgedAt);
+    setEatingStyle('psmf');
+    setPsmfModalVisible(false);
+  }, []);
 
-  const continueFree = useCallback(() => {
-    setEntitlement('core');
+  const finishOnboarding = useCallback(() => {
     void handleComplete();
-  }, [handleComplete, setEntitlement]);
-
-  const acknowledgeTerms = useCallback(() => {
-    setLegalStep('privacy');
-  }, []);
-
-  const acknowledgePrivacy = useCallback(() => {
-    executePurchase();
-  }, [executePurchase]);
+  }, [handleComplete]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -552,7 +523,7 @@ export default function OnboardingScreen() {
     <View style={styles.stepContainer}>
       {renderStepHeader(
         'Eating Style',
-        'Eating style shapes your meal plan foods and, for keto/carnivore, the carb-fat split of your macros.',
+        'Eating style shapes your meal plan foods and, for keto/carnivore/psmf, the macro split of your targets.',
         () =>
           openDefinitionSheet(
             'Eating Style Definitions',
@@ -566,9 +537,35 @@ export default function OnboardingScreen() {
           )
       )}
       <View style={styles.choiceList}>
-        {(Object.keys(EATING_STYLE_LABELS) as EatingStyle[]).map((value) =>
-          renderChoice(value, eatingStyle, setEatingStyle, EATING_STYLE_LABELS[value], EATING_STYLE_DESCRIPTIONS[value])
-        )}
+        {(Object.keys(EATING_STYLE_LABELS) as EatingStyle[]).map((value) => {
+          const selected = value === eatingStyle;
+          const isPsmf = value === 'psmf';
+          return (
+            <TouchableOpacity
+              key={value}
+              style={[styles.choiceCard, selected && styles.choiceCardSelected]}
+              onPress={() => handleEatingStyleSelect(value)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.choiceCopy}>
+                <View style={styles.choiceTitleRow}>
+                  <Text style={[styles.choiceTitle, selected && styles.choiceTitleSelected]}>
+                    {EATING_STYLE_LABELS[value]}
+                  </Text>
+                  {isPsmf ? (
+                    <View style={styles.psmfBadge}>
+                      <Text style={styles.psmfBadgeText}>Advanced / Short-term</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={[styles.choiceDescription, selected && styles.choiceDescriptionSelected]}>
+                  {EATING_STYLE_DESCRIPTIONS[value]}
+                </Text>
+              </View>
+              {selected ? <View style={styles.choiceDot} /> : null}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -668,9 +665,7 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderProUpsellStep = () => {
-    const priceText = lifetimeProduct?.priceText ?? PRO_COPY.priceFallback;
-    return (
+  const renderPremiumFeaturesStep = () => (
     <View
       style={[
         styles.stepContainer,
@@ -730,66 +725,11 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={[styles.proTrialCard, paywallCompact && styles.proTrialCardCompact]}>
-        <Text style={styles.proTrialTitle}>
-          {trialActive ? PRO_COPY.trialDaysLeft.replace('{n}', String(trialDaysRemaining)) : PRO_COPY.trialTitle}
-        </Text>
-        <Text style={styles.proTrialLine}>{PRO_COPY.oneTimeLine}</Text>
-        <Text style={styles.paywallTrustLineInCard}>{priceText}</Text>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.paywallPrimaryCta, iapPurchasePending && styles.paywallPrimaryCtaDisabled]}
-        disabled={iapPurchasePending}
-        onPress={beginTrial}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel={PRO_COPY.trialCta}
-      >
-        <Text style={styles.paywallPrimaryCtaTitle}>{PRO_COPY.trialCta}</Text>
-        <Text style={styles.paywallPrimaryCtaSub}>{PRO_COPY.trialDisclosure}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.paywallSecondaryCta, iapPurchasePending && styles.paywallPrimaryCtaDisabled]}
-        disabled={iapPurchasePending}
-        onPress={beginUnlock}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel={PRO_COPY.ctaUnlock}
-      >
-        <Text style={styles.paywallSecondaryCtaText}>
-          {iapPurchasePending ? 'Processing…' : PRO_COPY.ctaUnlockLifetimePrice.replace('{price}', priceText)}
-        </Text>
-      </TouchableOpacity>
-
-      <Text style={[styles.proDisclosure, paywallCompact && styles.proDisclosureCompact]}>
-        {PRO_COPY.oneTimeDisclosure}
-      </Text>
-
-      {iapError ? <Text style={[styles.proDisclosure, paywallCompact && styles.proDisclosureCompact]}>{iapError}</Text> : null}
-
-      <View style={[styles.legalCopyWrap, paywallCompact && styles.legalCopyWrapCompact]}>
-        <Text style={[styles.paywallLegalText, paywallCompact && styles.paywallLegalTextCompact]}>
-          By continuing, you acknowledge our{' '}
-          <Text
-            style={styles.inlineLegalLink}
-            onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}
-          >
-            Terms of Use
-          </Text>{' '}
-          and{' '}
-          <Text
-            style={styles.inlineLegalLink}
-            onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}
-          >
-            Privacy Policy
-          </Text>
-          .
-        </Text>
+        <Text style={styles.proTrialTitle}>{PRO_COPY.includedTitle}</Text>
+        <Text style={styles.proTrialLine}>{PRO_COPY.includedLine}</Text>
       </View>
     </View>
-    );
-  };
+  );
 
   const handleBaselineCapture = useCallback(async (source: 'camera' | 'library') => {
     setBaselinePhotoSaving(true);
@@ -817,20 +757,22 @@ export default function OnboardingScreen() {
       )}
       <View style={styles.baselineActions}>
         <TouchableOpacity
-          style={[styles.footerButton, styles.primaryButton]}
+          style={styles.baselinePrimaryBtn}
           disabled={baselinePhotoSaving}
           onPress={() => void handleBaselineCapture('camera')}
+          activeOpacity={0.85}
         >
           <Camera size={16} color={colors.onPrimary ?? Colors.white} />
-          <Text style={styles.primaryButtonText}>{baselinePhotoSaving ? 'Opening…' : 'Take Photo'}</Text>
+          <Text style={styles.baselinePrimaryBtnText}>{baselinePhotoSaving ? 'Opening…' : 'Take Photo'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.footerButton, styles.secondaryButton]}
+          style={styles.baselineSecondaryBtn}
           disabled={baselinePhotoSaving}
           onPress={() => void handleBaselineCapture('library')}
+          activeOpacity={0.85}
         >
           <ImageIcon size={16} color={colors.primary} />
-          <Text style={styles.secondaryButtonText}>Choose from Library</Text>
+          <Text style={styles.baselineSecondaryBtnText}>Choose from Library</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity onPress={goNext} style={styles.skipLink}>
@@ -849,13 +791,15 @@ export default function OnboardingScreen() {
     renderCarbDislikesStep,
     renderFatDislikesStep,
     renderRestrictionStep,
-    renderProUpsellStep,
+    renderPremiumFeaturesStep,
   ];
 
   const isLastStep = step === TOTAL_STEPS - 1;
   const paywallCompact = viewportHeight < 860 || fontScale > 1.05;
   const paywallVeryCompact = viewportHeight < 780 || fontScale > 1.16;
   const paywallNeedsScrollFallback = viewportHeight < 700 || fontScale > 1.24;
+  const footerBottomInset = Math.max(insets.bottom, Spacing.md);
+  const footerBarHeight = FOOTER_BUTTON_HEIGHT + Spacing.md + footerBottomInset + Spacing.md;
 
   return (
     <DismissKeyboard>
@@ -876,7 +820,7 @@ export default function OnboardingScreen() {
           contentContainerStyle={[
             styles.scrollContent,
             isLastStep && styles.scrollContentPaywall,
-            { paddingBottom: Math.max(insets.bottom, 16) + (isLastStep ? 24 : 120) },
+            { paddingBottom: (isLastStep ? footerBottomInset + Spacing.xxl : footerBarHeight) + Spacing.lg },
           ]}
           scrollEnabled={!isLastStep || paywallNeedsScrollFallback}
           bounces={!isLastStep || paywallNeedsScrollFallback}
@@ -889,31 +833,30 @@ export default function OnboardingScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <TouchableOpacity
-          style={[styles.footerButton, step === 0 && styles.footerButtonGhost]}
-          onPress={goBack}
-          disabled={step === 0}
-          activeOpacity={0.8}
-        >
-          {step > 0 ? <ChevronLeft size={18} color={Colors.textSecondary} /> : null}
-          <Text style={[styles.footerButtonText, step === 0 && styles.footerButtonTextGhost]}>Back</Text>
-        </TouchableOpacity>
-
-        {!isLastStep ? (
-          <TouchableOpacity style={[styles.footerButton, styles.primaryButton]} onPress={goNext} activeOpacity={0.85}>
-            <Text style={styles.primaryButtonText}>Continue</Text>
-            <ChevronRight size={18} color={colors.onPrimary} />
-          </TouchableOpacity>
-        ) : (
+      <View style={[styles.footerBar, { paddingBottom: footerBottomInset }]}>
+        <View style={styles.footerRow}>
           <TouchableOpacity
-            style={[styles.footerButton, styles.footerButtonSkip]}
-            onPress={continueFree}
-            activeOpacity={0.85}
+            style={[styles.footerBackButton, step === 0 && styles.footerBackButtonDisabled]}
+            onPress={goBack}
+            disabled={step === 0}
+            activeOpacity={0.8}
           >
-            <Text style={styles.footerButtonSkipText}>{PRO_COPY.ctaSkipFooter}</Text>
+            {step > 0 ? <ChevronLeft size={16} color={Colors.textSecondary} /> : null}
+            <Text style={[styles.footerBackText, step === 0 && styles.footerBackTextDisabled]}>Back</Text>
           </TouchableOpacity>
-        )}
+
+          {!isLastStep ? (
+            <TouchableOpacity style={styles.footerContinueButton} onPress={goNext} activeOpacity={0.85}>
+              <Text style={styles.footerContinueText}>Continue</Text>
+              <ChevronRight size={16} color={colors.onPrimary} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.footerContinueButton} onPress={finishOnboarding} activeOpacity={0.85}>
+              <Text style={styles.footerContinueText}>Continue</Text>
+              <ChevronRight size={16} color={colors.onPrimary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <PlanDefinitionSheet
@@ -922,74 +865,16 @@ export default function OnboardingScreen() {
         sections={definitionSheetSections}
         onClose={() => setDefinitionSheetVisible(false)}
       />
+      <PsmfAcknowledgmentModal
+        visible={psmfModalVisible}
+        profile={draftProfile}
+        onClose={() => setPsmfModalVisible(false)}
+        onAcknowledge={confirmPsmfSelection}
+      />
       <ProInfoModal
         visible={proInfoVisible}
         onClose={() => setProInfoVisible(false)}
       />
-      <Modal
-        visible={legalStep !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          if (legalSubmitPending) return;
-          setLegalStep(null);
-        }}
-      >
-        <Pressable
-          style={styles.legalBackdrop}
-          onPress={() => {
-            if (legalSubmitPending) return;
-            setLegalStep(null);
-          }}
-        >
-          <Pressable style={styles.legalSheet} onPress={() => {}}>
-            <ScrollView
-              style={styles.legalScroll}
-              contentContainerStyle={styles.legalScrollContent}
-              showsVerticalScrollIndicator={false}
-              bounces={false}
-            >
-              <Text style={styles.legalTitle}>
-                {legalStep === 'terms' ? 'Acknowledge Terms of Use' : 'Acknowledge Privacy Policy'}
-              </Text>
-              <Text style={styles.legalBody}>
-                {legalStep === 'terms'
-                  ? 'Please review and acknowledge the Terms of Use before unlocking.'
-                  : 'Please review and acknowledge the Privacy Policy before unlocking.'}
-              </Text>
-              <View style={styles.legalActionStack}>
-                <TouchableOpacity
-                  style={[styles.proOutlinedCta, styles.legalSecondaryCta]}
-                  disabled={legalSubmitPending}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/legal-document' as any,
-                      params: { type: legalStep === 'terms' ? 'terms' : 'privacy' },
-                    })
-                  }
-                >
-                  <Text style={styles.proOutlinedCtaText}>
-                    {legalStep === 'terms' ? 'View Terms of Use' : 'View Privacy Policy'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.proOutlinedCta, styles.proOutlinedCtaActive, styles.legalPrimaryCta]}
-                  disabled={legalSubmitPending}
-                  onPress={legalStep === 'terms' ? acknowledgeTerms : acknowledgePrivacy}
-                >
-                  <Text style={[styles.proOutlinedCtaText, styles.proOutlinedCtaTextActive]}>
-                    {legalSubmitPending
-                      ? 'Processing...'
-                      : legalStep === 'terms'
-                        ? 'I Acknowledge Terms'
-                        : 'I Acknowledge Privacy'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
     </DismissKeyboard>
   );
@@ -1264,6 +1149,24 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   choiceCopy: {
     flex: 1,
   },
+  choiceTitleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  psmfBadge: {
+    backgroundColor: Colors.warningMuted,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  psmfBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.warning,
+    textTransform: 'uppercase',
+  },
   choiceTitle: {
     color: Colors.text,
     fontSize: 16,
@@ -1350,62 +1253,107 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
-  footer: {
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    gap: 12,
+  footerBar: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.cardBorder,
+    backgroundColor: Colors.background,
+    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
-  footerButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 16,
+  footerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
+    gap: Spacing.md,
   },
-  footerButtonSkip: {
-    flex: 1,
-    height: 56,
-    borderRadius: 16,
+  footerBackButton: {
+    height: FOOTER_BUTTON_HEIGHT,
+    minWidth: 96,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  footerBackButtonDisabled: {
+    opacity: 0.4,
+  },
+  footerBackText: {
+    color: Colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  footerBackTextDisabled: {
+    color: Colors.textTertiary,
+  },
+  footerContinueButton: {
+    flex: 1,
+    height: FOOTER_BUTTON_HEIGHT,
+    borderRadius: Radius.md,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  footerContinueText: {
+    color: colors.onPrimary,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  footerSkipButton: {
+    flex: 1,
+    height: FOOTER_BUTTON_HEIGHT,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  footerButtonSkipText: {
+  footerSkipText: {
     color: Colors.textSecondary,
     fontSize: 16,
     fontWeight: '700',
   },
-  footerButtonGhost: {
-    opacity: 0.45,
-  },
-  footerButtonText: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  footerButtonTextGhost: {
-    color: Colors.textTertiary,
-  },
-  primaryButton: {
+  baselinePrimaryBtn: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: Radius.md,
     backgroundColor: colors.primary,
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
-  secondaryButton: {
-    backgroundColor: colors.primaryMuted,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  secondaryButtonText: {
-    color: colors.primary,
+  baselinePrimaryBtnText: {
+    color: colors.onPrimary,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
+  },
+  baselineSecondaryBtn: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.card,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+  baselineSecondaryBtnText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
   baselinePreview: {
     width: '100%',
@@ -1430,7 +1378,8 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 14,
   },
   baselineActions: {
-    gap: 10,
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   skipLink: {
     alignItems: 'center',
@@ -1440,11 +1389,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 15,
     fontWeight: '600',
-  },
-  primaryButtonText: {
-    color: colors.onPrimary,
-    fontSize: 16,
-    fontWeight: '800',
   },
   foodGrid: {
     flexDirection: 'row',

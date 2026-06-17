@@ -2,7 +2,6 @@ import {
   ACTIVITY_LABELS,
   ActivityLevel,
   EATING_STYLE_LABELS,
-  EatingStyle,
   GOAL_LABELS,
   Goal,
   MacroCalculationDetails,
@@ -10,6 +9,23 @@ import {
   UserProfile,
 } from '../types';
 import { getTodayDateKey } from './dateKey';
+import {
+  PSMF_CARBS_G,
+  PSMF_FAT_G_FEMALE,
+  PSMF_FAT_G_MALE,
+  PSMF_MAX_DEFICIT_FACTOR,
+  PSMF_PROTEIN_G_PER_LB_BW_FLOOR,
+  PSMF_PROTEIN_G_PER_LB_LEAN,
+} from './psmfHelpers';
+
+export {
+  PSMF_CARBS_G,
+  PSMF_FAT_G_FEMALE,
+  PSMF_FAT_G_MALE,
+  PSMF_MAX_DEFICIT_FACTOR,
+  PSMF_PROTEIN_G_PER_LB_BW_FLOOR,
+  PSMF_PROTEIN_G_PER_LB_LEAN,
+} from './psmfHelpers';
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
@@ -41,6 +57,9 @@ const PROTEIN_FROM_ACTIVITY: Record<ActivityLevel, number> = {
 
 const MIN_PLAUSIBLE_BODY_FAT_PERCENT = 3;
 const MAX_PLAUSIBLE_BODY_FAT_PERCENT = 70;
+
+const PSMF_EATING_STYLE_LABEL = 'PSMF (Protein Sparing Modified Fast)';
+const PSMF_PROTEIN_RULE_LABEL = 'PSMF: 1.25 g/lb lean mass (min 1.0 g/lb body weight)';
 
 function getSafeWeightLb(profile: UserProfile): number {
   return Number.isFinite(profile.weightLb) && profile.weightLb > 0 ? profile.weightLb : 1;
@@ -124,6 +143,20 @@ function calculateProteinTarget(profile: UserProfile): number {
   return Math.max(bodyWeightProteinAnchor, weightLb * 0.7);
 }
 
+function calculatePsmfProtein(profile: UserProfile, baseProtein: number): number {
+  const weightLb = getSafeWeightLb(profile);
+  const validBodyFat = getValidBodyFatPercent(profile);
+  let psmfProtein: number;
+  if (validBodyFat != null) {
+    const leanMassLb = getLeanMassLb(profile);
+    psmfProtein = Math.round(leanMassLb * PSMF_PROTEIN_G_PER_LB_LEAN);
+    psmfProtein = Math.max(psmfProtein, Math.round(weightLb * PSMF_PROTEIN_G_PER_LB_BW_FLOOR));
+  } else {
+    psmfProtein = Math.round(weightLb * PSMF_PROTEIN_G_PER_LB_BW_FLOOR);
+  }
+  return Math.max(psmfProtein, Math.round(baseProtein));
+}
+
 function calculateFatTarget(profile: UserProfile): number {
   const weightLb = getSafeWeightLb(profile);
   const baseFat = weightLb * 0.3;
@@ -133,10 +166,21 @@ function calculateFatTarget(profile: UserProfile): number {
   if (profile.eatingStyle === 'carnivore') {
     return Math.max(baseFat, weightLb * 0.45);
   }
+  if (profile.eatingStyle === 'psmf') {
+    return profile.sex === 'female' ? PSMF_FAT_G_FEMALE : PSMF_FAT_G_MALE;
+  }
   return baseFat;
 }
 
 function getGoalAdjustmentInfo(profile: UserProfile, estimatedTdee: number) {
+  if (profile.eatingStyle === 'psmf') {
+    return {
+      goalLabel: GOAL_LABELS[profile.goal],
+      calorieAdjustmentLabel: 'PSMF macro-derived calories',
+      calorieAdjustmentValue: 0,
+    };
+  }
+
   switch (profile.goal) {
     case 'cut':
       return {
@@ -170,6 +214,9 @@ function getGoalAdjustmentInfo(profile: UserProfile, estimatedTdee: number) {
 }
 
 function getProteinRuleLabel(profile: UserProfile): string {
+  if (profile.eatingStyle === 'psmf') {
+    return PSMF_PROTEIN_RULE_LABEL;
+  }
   if (getValidBodyFatPercent(profile) != null) {
     return `${PROTEIN_FROM_LEAN_MASS[profile.goal]} g/lb lean mass, floored by ${PROTEIN_FROM_ACTIVITY[profile.activityLevel]} g/lb body weight`;
   }
@@ -197,7 +244,8 @@ function buildCalculationDetails(
     goalLabel,
     calorieAdjustmentLabel,
     calorieAdjustmentValue,
-    eatingStyleLabel: EATING_STYLE_LABELS[profile.eatingStyle],
+    eatingStyleLabel:
+      profile.eatingStyle === 'psmf' ? PSMF_EATING_STYLE_LABEL : EATING_STYLE_LABELS[profile.eatingStyle],
     proteinRuleLabel: getProteinRuleLabel(profile),
     proteinTargetGrams: targets.protein_g,
     carbTargetGrams: targets.carbs_g,
@@ -205,10 +253,37 @@ function buildCalculationDetails(
   };
 }
 
+function applyPsmfOverrides(profile: UserProfile, baseProtein: number): MacroTargets {
+  let protein_g = calculatePsmfProtein(profile, baseProtein);
+  const fat_g = profile.sex === 'female' ? PSMF_FAT_G_FEMALE : PSMF_FAT_G_MALE;
+  const carbs_g = PSMF_CARBS_G;
+
+  let calories = protein_g * 4 + carbs_g * 4 + fat_g * 9;
+  const tdee = calculateTDEE(profile);
+  const minAggressive = Math.round(tdee * PSMF_MAX_DEFICIT_FACTOR);
+  const calorieFloor = Math.max(MIN_CALORIES[profile.sex], minAggressive);
+
+  if (calories < calorieFloor) {
+    const extraCalories = calorieFloor - calories;
+    protein_g += Math.round(extraCalories / 4);
+    calories = protein_g * 4 + carbs_g * 4 + fat_g * 9;
+  }
+
+  const targets = { calories, protein_g, carbs_g, fat_g };
+  return {
+    ...targets,
+    calculationDetails: buildCalculationDetails(profile, targets),
+  };
+}
+
 export function applyEatingStyleOverrides(
   profile: UserProfile,
   base: Omit<MacroTargets, 'calories'>
 ): MacroTargets {
+  if (profile.eatingStyle === 'psmf') {
+    return applyPsmfOverrides(profile, base.protein_g);
+  }
+
   const targetCalories = calculateCalorieTarget(profile);
   let protein_g = Math.round(base.protein_g);
   let fat_g = Math.max(0, Math.round(base.fat_g));

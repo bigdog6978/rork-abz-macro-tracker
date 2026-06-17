@@ -1,4 +1,4 @@
-import createContextHook from '@nkzw/create-context-hook';
+import { createSafeContextHook } from '../utils/createSafeContextHook';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { ProgressPhoto } from '../features/progress/photoTypes';
@@ -14,7 +14,7 @@ import { captureProgressPhoto, PhotoCaptureSource } from '../utils/photos/captur
 
 const USER_ID = 'local_user';
 
-export const [PhotosProvider, usePhotos] = createContextHook(() => {
+export const [PhotosProvider, usePhotos] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
 
   const photosQuery = useQuery({
@@ -103,6 +103,6 @@ export const [PhotosProvider, usePhotos] = createContextHook(() => {
     deletePhoto: (photoId: string) => deleteMutation.mutateAsync(photoId),
     userId: USER_ID,
   };
-});
+}, 'usePhotos', 'PhotosProvider');
 
 export type { ProgressPhoto };

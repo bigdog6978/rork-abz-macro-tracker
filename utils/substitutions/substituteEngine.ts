@@ -3,6 +3,7 @@ import { FOODS, formatPortionLabel } from '../../constants/foodDatabase';
 import { SUBSTITUTE_CATALOG } from './substituteCatalog';
 import { SubstituteCatalogItem, SubstituteResult } from './types';
 import { MealType, MEAL_TYPE_FOOD_IDS } from '../../constants/mealSwapCatalog';
+import { isFoodBlockedByDietaryModifiers } from '../dietaryFilters';
 
 interface SubstituteOptions {
   eatingStyle: EatingStyle;
@@ -54,6 +55,16 @@ function isItemAllowedByDiet(
 
   if (eatingStyle === 'keto') {
     if (item.macrosPerServing.carbs_g > KETO_MAX_CARB_PER_SERVING) return false;
+  }
+
+  if (eatingStyle === 'psmf') {
+    if (item.macrosPerServing.carbs_g > 15) return false;
+    if (item.tags.includes('high_fat')) return false;
+  }
+
+  const catalogFood = FOODS[item.foodId];
+  if (catalogFood && isFoodBlockedByDietaryModifiers(catalogFood, modifiers, eatingStyle)) {
+    return false;
   }
 
   return true;

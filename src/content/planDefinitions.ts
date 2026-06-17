@@ -303,6 +303,40 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
       },
     ],
   },
+  psmf: {
+    id: 'psmf',
+    title: 'PSMF (Protein Sparing Modified Fast)',
+    shortDescription:
+      'Aggressive short-term fat loss: very high protein, minimal carbs and fat. Not a lifestyle diet.',
+    preview: 'High protein • ~25 g carbs • ~20–25 g fat • Short-term only',
+    learnMore: [
+      {
+        heading: 'What it is',
+        body:
+          'PSMF (Protein Sparing Modified Fast) is a short-term, aggressive fat-loss protocol — not intermittent fasting. It uses very high protein to preserve lean mass while keeping carbohydrates and fats very low.',
+      },
+      {
+        heading: 'How macros are calculated',
+        body:
+          'Protein is set to ~1.25 g per lb of lean body mass (minimum 1.0 g/lb body weight). Fat is fixed at essential levels (~20 g women / 25 g men). Carbs are capped at ~25 g from non-starchy vegetables. Total calories are derived from those macros.',
+      },
+      {
+        heading: 'Duration & safety',
+        body:
+          'Intended for 10–14 days maximum for most adults. Not recommended beyond 2 weeks without medical supervision. Requires hydration, electrolytes, and a multivitamin. Consult a qualified professional before starting.',
+      },
+      {
+        heading: 'Who should avoid',
+        body:
+          'Not appropriate if pregnant or nursing, under 18, with a history of eating disorders, below normal BMI, or without adequate micronutrient planning. Lean individuals should use extra caution.',
+      },
+      {
+        heading: 'References',
+        body:
+          'Lyle McDonald, The Rapid Fat Loss Handbook. Layman DK — protein during energy restriction. Jager R et al., ISSN Position Stand: Protein and Exercise (2017). Hall et al. — body-composition effects of deficit magnitude.',
+      },
+    ],
+  },
 };
 
 export function getGoalDefinition(goal: Goal): GoalDefinition {

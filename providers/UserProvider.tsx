@@ -1,4 +1,4 @@
-import createContextHook from '@nkzw/create-context-hook';
+import { createSafeContextHook } from '../utils/createSafeContextHook';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserProfile, MacroTargets } from '../types';
@@ -12,7 +12,7 @@ function mergeDefined<T extends object>(base: T, updates: Partial<T>): T {
   return { ...base, ...Object.fromEntries(definedEntries) as Partial<T> };
 }
 
-export const [UserProvider, useUser] = createContextHook(() => {
+export const [UserProvider, useUser] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [customMacros, setCustomMacrosState] = useState<MacroTargets | null>(null);
@@ -129,4 +129,4 @@ export const [UserProvider, useUser] = createContextHook(() => {
     completeOnboarding,
     resetProfile,
   };
-});
+}, 'useUser', 'UserProvider');

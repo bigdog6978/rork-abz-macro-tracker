@@ -1,19 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Platform } from 'react-native';
+import { useUser } from '../../providers/UserProvider';
 import { usePro } from '../../providers/ProProvider';
 import { PRO_COPY } from '../../src/content/proMicrocopy';
 import HealthPermissionModal from './HealthPermissionModal';
 import ProHealthEducationModal from './ProHealthEducationModal';
 
 /**
- * Option A: After activating Pro (trial/subscribe), prompt iOS users to connect Apple Health,
- * then chain to the existing Health permission modal + enableHealthIntegration().
+ * After onboarding, prompt iOS users who have not connected Apple Health yet.
  */
 export default function PostProHealthFlow() {
+  const { profile } = useUser();
   const {
-    postProHealthEducationPending,
-    clearPostProHealthEducation,
     enableHealthIntegration,
+    updateSettings,
     settings: proSettings,
     healthConnectionStatus,
     healthKitAvailable,
@@ -24,50 +24,50 @@ export default function PostProHealthFlow() {
   const [healthPermissionVisible, setHealthPermissionVisible] = useState(false);
 
   useEffect(() => {
-    if (!postProHealthEducationPending || Platform.OS !== 'ios') return;
+    if (!profile.onboardingComplete || Platform.OS !== 'ios') return;
     if (!healthKitAvailabilityReady) return;
-    if (!healthKitAvailable) {
-      clearPostProHealthEducation();
-      return;
-    }
-    if (proSettings.healthIntegrationEnabled && healthConnectionStatus === 'connected') {
-      clearPostProHealthEducation();
-      return;
-    }
+    if (!healthKitAvailable) return;
+    if (proSettings.healthEducationDismissed) return;
+    if (proSettings.healthIntegrationEnabled && healthConnectionStatus === 'connected') return;
     setEducationVisible(true);
   }, [
-    postProHealthEducationPending,
+    profile.onboardingComplete,
     healthKitAvailabilityReady,
     healthKitAvailable,
+    proSettings.healthEducationDismissed,
     proSettings.healthIntegrationEnabled,
     healthConnectionStatus,
-    clearPostProHealthEducation,
   ]);
+
+  const dismissEducation = useCallback(() => {
+    updateSettings({ healthEducationDismissed: true });
+  }, [updateSettings]);
 
   const onNotNowEducation = useCallback(() => {
     setEducationVisible(false);
-    clearPostProHealthEducation();
+    dismissEducation();
     Alert.alert(PRO_COPY.postProHealthNotNowTitle, PRO_COPY.postProHealthNotNowBody, [
       { text: 'OK', style: 'default' },
     ]);
-  }, [clearPostProHealthEducation]);
+  }, [dismissEducation]);
 
   const onContinueEducation = useCallback(() => {
     setEducationVisible(false);
-    clearPostProHealthEducation();
+    dismissEducation();
     setHealthPermissionVisible(true);
-  }, [clearPostProHealthEducation]);
+  }, [dismissEducation]);
 
   const completeHealthConnect = useCallback(async () => {
     setHealthPermissionVisible(false);
+    dismissEducation();
     const ok = await enableHealthIntegration();
     if (!ok) {
-      Alert.alert('Apple Health access needed', 'To use adaptive Pro targets, enable Apple Health access in Settings.', [
+      Alert.alert('Apple Health access needed', 'To use adaptive targets, enable Apple Health access in Settings.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Open Settings', onPress: () => Linking.openSettings() },
       ]);
     }
-  }, [enableHealthIntegration]);
+  }, [dismissEducation, enableHealthIntegration]);
 
   return (
     <>
@@ -79,7 +79,10 @@ export default function PostProHealthFlow() {
       <HealthPermissionModal
         visible={healthPermissionVisible}
         onContinue={() => void completeHealthConnect()}
-        onNotNow={() => setHealthPermissionVisible(false)}
+        onNotNow={() => {
+          setHealthPermissionVisible(false);
+          dismissEducation();
+        }}
       />
     </>
   );

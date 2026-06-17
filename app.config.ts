@@ -13,7 +13,7 @@ const PHOTO_LIBRARY_USAGE =
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.3.1',
+  version: '1.3.2',
   orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
@@ -27,7 +27,7 @@ export default (): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'app.rork.abz-macro-tracker',
-    buildNumber: '12',
+    buildNumber: '13',
     // Apple Developer Team ID (10 chars). Set APPLE_TEAM_ID in env for prebuild/EAS, or add here.
     ...(process.env.APPLE_TEAM_ID ? { appleTeamId: process.env.APPLE_TEAM_ID } : {}),
     entitlements: {
@@ -46,7 +46,7 @@ export default (): ExpoConfig => ({
       backgroundColor: '#ffffff',
     },
     package: 'app.rork.abz_macro_tracker',
-    versionCode: 11,
+    versionCode: 12,
     permissions: ['CAMERA'],
   },
   web: {

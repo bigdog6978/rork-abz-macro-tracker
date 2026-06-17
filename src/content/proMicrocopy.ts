@@ -1,6 +1,6 @@
 export const PRO_COPY = {
-  /** Onboarding paywall headline */
-  headline: 'Stop guessing. Start fueling.',
+  /** Onboarding + settings feature overview headline */
+  headline: 'Adaptive fueling, built in',
   subheadline:
     'Your macros adjust automatically based on your activity, training, and goals.',
   featureBullets: [
@@ -10,32 +10,12 @@ export const PRO_COPY = {
     'Sport, season, and training-schedule fueling strategy',
     'Weekly progress report with your Physiq Score',
   ],
-  /** One-time purchase framing */
-  oneTimeTitle: 'Unlock everything',
-  oneTimeLine: 'One-time purchase, yours forever.',
-  priceFallback: '$24.99',
-  ctaUnlock: 'Unlock Everything',
-  ctaPriceHint: 'One-time purchase of {price}. Yours forever.',
-  /** Free trial framing */
-  trialTitle: 'Try everything free for 5 days',
-  trialCta: 'Start 5-day free trial',
-  trialDisclosure:
-    'Full premium access for 5 days. No payment required to start. One-time purchase available anytime.',
-  trialDaysLeft: '{n} days left in your trial',
-  trialOneDayLeft: '1 day left in your trial',
-  trialEndedTitle: 'Your trial has ended',
-  trialEndedBody:
-    'Unlock lifetime access to keep dynamic macros, athlete mode, and more.',
-  ctaUnlockLifetimePrice: 'Unlock lifetime — {price}',
-  /** Footer escape on paywall step */
-  ctaSkipFooter: 'Skip for now',
-  ctaRestore: 'Restore Purchases',
-  oneTimeDisclosure:
-    'One-time purchase. No subscription and no auto-renewal. Charged once to your Apple ID at confirmation.',
+  includedTitle: 'Included with Physiq',
+  includedLine: 'All adaptive features are included — no upgrade required.',
   infoTitle: 'Physiq Premium overview',
   infoBody:
     'Physiq Premium adapts macro and hydration guidance to your activity and Apple Health signals. It is designed for automated nutrition support without changing your core tracking workflow.',
-  infoIncludedTitle: 'Included with Premium',
+  infoIncludedTitle: 'Included features',
   infoIncludedBullets: [
     'Dynamic macro adjustments',
     'Activity-aware day type detection',
@@ -47,7 +27,7 @@ export const PRO_COPY = {
     'Optional cycle-aware adjustments with consent controls',
   ],
   watchRequiredNote: 'Apple Watch is required for full activity-driven automation.',
-  watchOptionalNote: 'You can still use basic premium features without Apple Watch.',
+  watchOptionalNote: 'You can still use adaptive features without Apple Watch.',
   /** Adaptive behavior requires Apple Health on iPhone */
   athleteLabel: 'Athlete-style adaptive targets',
   postProHealthTitle: 'Connect Apple Health',

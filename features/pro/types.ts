@@ -15,6 +15,8 @@ export interface ProSettings {
   healthIntegrationEnabled: boolean;
   electrolyteNudgesEnabled: boolean;
   healthPermissionStatus?: HealthConnectionStatus;
+  /** User dismissed the one-time Apple Health education prompt. */
+  healthEducationDismissed?: boolean;
 }
 
 export type AthleteUserType = 'casual_data_driven' | 'performance_intermediate' | 'advanced_athlete';

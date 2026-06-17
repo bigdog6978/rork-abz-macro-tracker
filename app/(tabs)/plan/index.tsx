@@ -120,6 +120,7 @@ import { getQuantityInfo, scaleMacros, formatQuantityDisplay } from '../../../ut
 import EditQuantitySheet from '../../../components/ui/EditQuantitySheet';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import TabScreenTitle from '../../../components/ui/TabScreenTitle';
+import PsmfDurationBanner from '../../../components/ui/PsmfDurationBanner';
 import ResponsiveContainer from '../../../components/ui/ResponsiveContainer';
 import MealPlanMethodologyCard from '../../../components/ui/MealPlanMethodologyCard';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
@@ -1619,6 +1620,9 @@ export default function PlanScreen() {
         <ResponsiveContainer>
         <DashboardBrandHeader />
         <TabScreenTitle title="Meal Plan" />
+        {profile.eatingStyle === 'psmf' ? (
+          <PsmfDurationBanner psmfStartDate={profile.psmfStartDate} />
+        ) : null}
         <View style={styles.headerCard}>
           <View style={styles.headerTopRow}>
             <View style={styles.headerTitleArea}>

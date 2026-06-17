@@ -1,7 +1,9 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import Purchases, { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
-import { IapCustomerState, LIFETIME_PRODUCT_ID, mapOwnedProductsToEntitlement } from './iapMapping';
+import { IapCustomerState, IAP_MONETIZATION_ENABLED, LIFETIME_PRODUCT_ID, mapOwnedProductsToEntitlement } from './iapMapping';
+
+export { IAP_MONETIZATION_ENABLED } from './iapMapping';
 
 export interface IapProductView {
   productId: string;
@@ -44,6 +46,7 @@ export function mapCustomerInfoToState(info: CustomerInfo): IapCustomerState {
 }
 
 export async function initIAP(): Promise<void> {
+  if (!IAP_MONETIZATION_ENABLED) return;
   if (Platform.OS !== 'ios' || isConfigured) return;
   const key = getRevenueCatKey();
   if (!key) {
@@ -60,7 +63,7 @@ async function getCurrentOffering(): Promise<PurchasesOffering | null> {
 }
 
 export async function getProducts(): Promise<IapProductView[]> {
-  if (Platform.OS !== 'ios') return [];
+  if (!IAP_MONETIZATION_ENABLED || Platform.OS !== 'ios') return [];
   const offering = await getCurrentOffering();
   if (!offering) return [];
   return offering.availablePackages
@@ -75,6 +78,9 @@ async function getLifetimePackage(): Promise<PurchasesPackage | null> {
 }
 
 export async function purchaseLifetime(): Promise<IapCustomerState> {
+  if (!IAP_MONETIZATION_ENABLED) {
+    return { entitlement: 'unlocked', activeProductIds: [] };
+  }
   await initIAP();
   const pkg = await getLifetimePackage();
   if (!pkg) throw new Error('Product not available: lifetime');
@@ -83,12 +89,18 @@ export async function purchaseLifetime(): Promise<IapCustomerState> {
 }
 
 export async function restorePurchases(): Promise<IapCustomerState> {
+  if (!IAP_MONETIZATION_ENABLED) {
+    return { entitlement: 'unlocked', activeProductIds: [] };
+  }
   await initIAP();
   const info = await Purchases.restorePurchases();
   return mapCustomerInfoToState(info);
 }
 
 export async function getCustomerState(): Promise<IapCustomerState> {
+  if (!IAP_MONETIZATION_ENABLED) {
+    return { entitlement: 'unlocked', activeProductIds: [] };
+  }
   await initIAP();
   const info = await Purchases.getCustomerInfo();
   return mapCustomerInfoToState(info);

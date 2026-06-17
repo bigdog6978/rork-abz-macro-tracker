@@ -31,6 +31,10 @@ export type LegacyUserProfile = {
   diet_notes?: string;
   measurement_system?: 'metric' | 'us';
   measurementSystem?: 'metric' | 'us';
+  psmfAcknowledgedAt?: string;
+  psmf_start_date?: string;
+  psmfStartDate?: string;
+  psmf_acknowledged_at?: string;
   onboarding_complete?: boolean;
   onboardingComplete?: boolean;
 };
@@ -104,6 +108,8 @@ function normalizeDietModifiers(raw: string[] | undefined): DietaryModifier[] {
     'shellfish_free',
     'low_glycemic',
     'intermittent_fasting',
+    'halal',
+    'kosher',
   ]);
   return (raw ?? []).filter((value): value is DietaryModifier => valid.has(value as DietaryModifier));
 }
@@ -151,5 +157,7 @@ export function normalizeStoredProfile(stored: LegacyUserProfile | null | undefi
     measurementSystem,
     onboardingComplete:
       stored.onboardingComplete ?? stored.onboarding_complete ?? DEFAULT_PROFILE.onboardingComplete,
+    psmfAcknowledgedAt: stored.psmfAcknowledgedAt ?? stored.psmf_acknowledged_at,
+    psmfStartDate: stored.psmfStartDate ?? stored.psmf_start_date,
   };
 }

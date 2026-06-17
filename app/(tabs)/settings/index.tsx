@@ -26,6 +26,7 @@ import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { usePro } from '../../../providers/ProProvider';
 import ProInfoModal from '../../../components/ui/ProInfoModal';
+import PsmfAcknowledgmentModal from '../../../components/ui/PsmfAcknowledgmentModal';
 import HealthPermissionModal from '../../../components/ui/HealthPermissionModal';
 import { PRO_COPY } from '../../../src/content/proMicrocopy';
 import { getAllergies } from '../../../storage/allergiesRepo';
@@ -45,6 +46,7 @@ import {
   lbToKg,
   MeasurementSystem,
 } from '../../../types';
+import { buildPsmfProfileUpdates, hasValidPsmfAcknowledgment } from '../../../utils/psmfHelpers';
 
 type EditMode = 'none' | 'profile' | 'nutrition';
 
@@ -53,11 +55,6 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { profile, macros, updateProfile, resetProfile } = useUser();
   const {
-    hasPremium,
-    trialActive,
-    trialExpired,
-    trialDaysRemaining,
-    startTrial,
     settings: proSettings,
     healthConnectionStatus,
     dynamicReason,
@@ -77,12 +74,6 @@ export default function SettingsScreen() {
     updateCycleProfile,
     addCycleLog,
     clearCycleData,
-    startPurchase,
-    restoreActivePurchases,
-    lifetimeProduct,
-    iapPurchasePending,
-    iapRestorePending,
-    iapError,
   } = usePro();
   const { clearAll } = useDailyLog();
   const colors = useThemeColors();
@@ -105,11 +96,9 @@ export default function SettingsScreen() {
   const [dietNotes, setDietNotes] = useState(profile.dietNotes ?? '');
   const [proInfoVisible, setProInfoVisible] = useState(false);
   const [healthPermissionVisible, setHealthPermissionVisible] = useState(false);
-  const [proExpanded, setProExpanded] = useState(hasPremium);
-
-  useEffect(() => {
-    setProExpanded(hasPremium);
-  }, [hasPremium]);
+  const [proExpanded, setProExpanded] = useState(true);
+  const [psmfModalVisible, setPsmfModalVisible] = useState(false);
+  const [pendingPsmfAckAt, setPendingPsmfAckAt] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setMeasurementSystem(profile.measurementSystem);
@@ -169,18 +158,68 @@ export default function SettingsScreen() {
   }, [bodyFatPercent, heightCm, heightFt, heightIn, measurementSystem, profile.heightCm, profile.weightLb, updateProfile, weightKg, weightLb]);
 
   const handleSaveNutrition = useCallback(() => {
+    if (
+      eatingStyle === 'psmf' &&
+      !hasValidPsmfAcknowledgment({
+        eatingStyle,
+        psmfAcknowledgedAt: pendingPsmfAckAt ?? profile.psmfAcknowledgedAt,
+      })
+    ) {
+      setPsmfModalVisible(true);
+      return;
+    }
+
+    const ackAt =
+      eatingStyle === 'psmf'
+        ? pendingPsmfAckAt ?? profile.psmfAcknowledgedAt ?? new Date().toISOString()
+        : undefined;
+
     updateProfile({
       goal,
       activityLevel,
       eatingStyle,
       dietModifiers,
       dietNotes: dietNotes.trim(),
+      ...(eatingStyle === 'psmf' ? { psmfAcknowledgedAt: ackAt } : { psmfAcknowledgedAt: undefined }),
+      ...buildPsmfProfileUpdates(profile, eatingStyle, ackAt),
     });
+    setPendingPsmfAckAt(undefined);
     setEditMode('none');
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [activityLevel, dietModifiers, dietNotes, eatingStyle, goal, updateProfile]);
+  }, [
+    activityLevel,
+    dietModifiers,
+    dietNotes,
+    eatingStyle,
+    goal,
+    pendingPsmfAckAt,
+    profile,
+    updateProfile,
+  ]);
+
+  const handleEatingStyleSelect = useCallback(
+    (value: EatingStyle) => {
+      if (value === 'psmf') {
+        if (profile.psmfAcknowledgedAt || pendingPsmfAckAt) {
+          setEatingStyle('psmf');
+          return;
+        }
+        setPsmfModalVisible(true);
+        return;
+      }
+      setEatingStyle(value);
+    },
+    [pendingPsmfAckAt, profile.psmfAcknowledgedAt]
+  );
+
+  const confirmPsmfInSettings = useCallback(() => {
+    const acknowledgedAt = new Date().toISOString();
+    setPendingPsmfAckAt(acknowledgedAt);
+    setEatingStyle('psmf');
+    setPsmfModalVisible(false);
+  }, []);
 
   const toggleModifier = useCallback((modifier: DietaryModifier) => {
     setDietModifiers((current) =>
@@ -221,31 +260,6 @@ export default function SettingsScreen() {
       Haptics.selectionAsync();
     }
   }, [setAccentTheme]);
-
-  const premiumPriceText = lifetimeProduct?.priceText ?? PRO_COPY.priceFallback;
-
-  const unlockLifetime = useCallback(() => {
-    Alert.alert(
-      'Unlock Physiq Premium',
-      `${premiumPriceText} — one-time purchase, yours forever. No subscription and no auto-renewal.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unlock',
-          onPress: async () => {
-            const ok = await startPurchase();
-            if (!ok) {
-              Alert.alert('Purchase not completed', 'Unable to complete the purchase right now. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  }, [premiumPriceText, startPurchase]);
-
-  const startFreeTrial = useCallback(() => {
-    void startTrial();
-  }, [startTrial]);
 
   const completeHealthConnect = useCallback(async () => {
     setHealthPermissionVisible(false);
@@ -312,15 +326,8 @@ export default function SettingsScreen() {
         : healthConnectionStatus === 'not_available'
           ? 'Unavailable'
           : 'Connect';
-  const purchasedLifetime = hasPremium && !trialActive;
   const selectedProductTitle = 'Physiq Premium';
-  const selectedProductSubtitle = purchasedLifetime
-    ? 'Lifetime access unlocked'
-    : trialActive
-      ? PRO_COPY.trialDaysLeft.replace('{n}', String(trialDaysRemaining))
-      : trialExpired
-        ? PRO_COPY.trialEndedTitle
-        : PRO_COPY.subheadline;
+  const selectedProductSubtitle = PRO_COPY.includedLine;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -389,7 +396,7 @@ export default function SettingsScreen() {
                   </View>
                 </View>
               </View>
-              {hasPremium && Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
+              {Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
                 <View style={styles.healthBanner}>
                   <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
                   <Text style={styles.healthBannerBody}>{PRO_COPY.healthRequiredBannerBody}</Text>
@@ -407,83 +414,11 @@ export default function SettingsScreen() {
                 style={styles.proCollapsedCta}
                 onPress={() => setProExpanded(true)}
               >
-                <Text style={styles.proCollapsedCtaText}>
-                  {hasPremium ? 'Expand' : 'View Premium options'}
-                </Text>
+                <Text style={styles.proCollapsedCtaText}>Expand</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.editor}>
-            {!hasPremium ? (
-              <>
-                {trialExpired ? (
-                  <Text style={styles.proDisclosureText}>
-                    {PRO_COPY.trialEndedTitle}. {PRO_COPY.trialEndedBody}
-                  </Text>
-                ) : (
-                  <Text style={styles.proDisclosureText}>
-                    Unlock everything with a single one-time purchase of {premiumPriceText} — yours forever. No subscription and no auto-renewal.
-                  </Text>
-                )}
-                {iapError ? <Text style={styles.proDisclosureText}>{iapError}</Text> : null}
-                {!trialExpired ? (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.proOutlineBtn, styles.proOutlineBtnSelected, { borderColor: colors.primary }]}
-                      onPress={startFreeTrial}
-                    >
-                      <Text style={[styles.proOutlineBtnText, { color: colors.primary }]}>{PRO_COPY.trialCta}</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.proDisclosureText}>{PRO_COPY.trialDisclosure}</Text>
-                  </>
-                ) : null}
-                <View style={styles.proActionRow}>
-                  <TouchableOpacity
-                    style={[styles.proOutlineBtn, styles.proOutlineBtnSelected, { borderColor: colors.primary }]}
-                    onPress={unlockLifetime}
-                    disabled={iapPurchasePending}
-                  >
-                    <Text style={[styles.proOutlineBtnText, { color: colors.primary }]}>
-                      {iapPurchasePending ? 'Processing…' : PRO_COPY.ctaUnlock}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.proLegalLinks}>
-                  <TouchableOpacity onPress={() => void restoreActivePurchases()}>
-                    <Text style={styles.proLegalLinkText}>{iapRestorePending ? 'Restoring…' : PRO_COPY.ctaRestore}</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.proLegalLinks}>
-                  <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
-                    <Text style={styles.proLegalLinkText}>Terms of Use</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
-                    <Text style={styles.proLegalLinkText}>Privacy Policy</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <>
-                {trialActive ? (
-                  <View style={styles.healthBanner}>
-                    <Text style={styles.healthBannerTitle}>
-                      {PRO_COPY.trialDaysLeft.replace('{n}', String(trialDaysRemaining))}
-                    </Text>
-                    <Text style={styles.healthBannerBody}>
-                      You have full premium access during your trial. {PRO_COPY.trialEndedBody}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.healthBannerCta}
-                      onPress={unlockLifetime}
-                      disabled={iapPurchasePending}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.healthBannerCtaText}>
-                        {iapPurchasePending ? 'Processing…' : PRO_COPY.ctaUnlockLifetimePrice.replace('{price}', premiumPriceText)}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : null}
                 {Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
                   <View style={styles.healthBanner}>
                     <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
@@ -669,11 +604,6 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 </View>
                 <View style={styles.proLegalLinks}>
-                  <TouchableOpacity onPress={() => void restoreActivePurchases()}>
-                    <Text style={styles.proLegalLinkText}>{iapRestorePending ? 'Restoring…' : PRO_COPY.ctaRestore}</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.proLegalLinks}>
                   <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
                     <Text style={styles.proLegalLinkText}>Terms of Use</Text>
                   </TouchableOpacity>
@@ -681,8 +611,6 @@ export default function SettingsScreen() {
                     <Text style={styles.proLegalLinkText}>Privacy Policy</Text>
                   </TouchableOpacity>
                 </View>
-              </>
-            )}
           </View>
           )}
         </View>
@@ -827,8 +755,8 @@ export default function SettingsScreen() {
                   <Chip
                     key={value}
                     active={eatingStyle === value}
-                    label={EATING_STYLE_LABELS[value]}
-                    onPress={() => setEatingStyle(value)}
+                    label={value === 'psmf' ? `${EATING_STYLE_LABELS[value]} ⚠` : EATING_STYLE_LABELS[value]}
+                    onPress={() => handleEatingStyleSelect(value)}
                     colors={colors}
                     styles={styles}
                   />
@@ -996,6 +924,17 @@ export default function SettingsScreen() {
         </ResponsiveContainer>
       </ScrollView>
       <ProInfoModal visible={proInfoVisible} onClose={() => setProInfoVisible(false)} />
+      <PsmfAcknowledgmentModal
+        visible={psmfModalVisible}
+        profile={{
+          sex: profile.sex,
+          bodyFatPercent: profile.bodyFatPercent,
+          weightLb: profile.weightLb,
+          heightCm: profile.heightCm,
+        }}
+        onClose={() => setPsmfModalVisible(false)}
+        onAcknowledge={confirmPsmfInSettings}
+      />
       <HealthPermissionModal
         visible={healthPermissionVisible}
         onContinue={() => void completeHealthConnect()}

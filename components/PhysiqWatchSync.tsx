@@ -16,7 +16,7 @@ export default function PhysiqWatchSync() {
   const { profile, macros } = useUser();
   const { todayTotals, todayEntries, getStreak } = useDailyLog();
   const colors = useThemeColors();
-  const { hydration, hasPremium, trialActive, athleteProfile } = usePro();
+  const { hydration, athleteProfile } = usePro();
 
   const payload = useMemo((): Record<string, string> => {
     const caloriesRemaining = Math.max(macros.calories - todayTotals.calories, 0);
@@ -60,7 +60,7 @@ export default function PhysiqWatchSync() {
       proteinHex: Colors.protein,
       carbsHex: Colors.carbs,
       fatHex: Colors.fat,
-      tier: trialActive ? 'trial' : hasPremium ? 'unlocked' : 'core',
+      tier: 'unlocked',
       athleteSport: athleteProfile.enabled ? athleteProfile.sport : '',
       syncState,
       syncMessage,
@@ -81,8 +81,6 @@ export default function PhysiqWatchSync() {
     colors.primary,
     hydration.consumedMl,
     hydration.targetMl,
-    hasPremium,
-    trialActive,
     athleteProfile.enabled,
     athleteProfile.sport,
     getStreak,

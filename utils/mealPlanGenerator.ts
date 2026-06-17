@@ -1,6 +1,7 @@
 import { FOODS, FoodItemData, computeMacros, formatPortionLabel } from '../constants/foodDatabase';
 import { MacroTargets, DietaryModifier, DayPlan, WeekPlan, MealSlot, MealSuggestion, MeasurementSystem, FoodCategory, UserAllergy, EatingStyle, getWeekDayLabel } from '../types';
 import { isFoodBlockedByAllergies } from './allergyFilter';
+import { isFoodBlockedByDietaryModifiers, resolveKosherFoodId } from './dietaryFilters';
 
 interface MealFoodRef {
   foodId: string;
@@ -108,6 +109,12 @@ const VEGETARIAN_HP_SNACKS: SnackSet = {
   morning: [{ foodId: 'greek_yogurt', role: 'protein' }, { foodId: 'berries', role: 'carb' }],
   afternoon: [{ foodId: 'whey_protein', role: 'protein' }, { foodId: 'edamame', role: 'protein' }],
   evening: [{ foodId: 'cottage_cheese', role: 'protein' }, { foodId: 'almonds', role: 'fat' }],
+};
+
+const PSMF_SNACKS: SnackSet = {
+  morning: [{ foodId: 'whey_protein', role: 'protein' }, { foodId: 'spinach_cooked', role: 'veggie' }],
+  afternoon: [{ foodId: 'turkey_breast', role: 'protein' }, { foodId: 'cucumber', role: 'veggie' }],
+  evening: [{ foodId: 'cod', role: 'protein' }, { foodId: 'broccoli', role: 'veggie' }],
 };
 
 // ─── Calorie-aware snack slot builder ────────────────────────────────────────
@@ -315,6 +322,24 @@ const VEGETARIAN_HP_MAIN: MealBlueprint[] = [
     foods: [{ foodId: 'tempeh', role: 'protein' }, { foodId: 'quinoa', role: 'carb' }, { foodId: 'broccoli', role: 'veggie' }] },
 ];
 
+const PSMF_MAIN: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'eggs', role: 'protein' }, { foodId: 'spinach_cooked', role: 'veggie' }, { foodId: 'asparagus', role: 'veggie' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'broccoli', role: 'veggie' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'cod', role: 'protein' }, { foodId: 'asparagus', role: 'veggie' }, { foodId: 'green_beans', role: 'veggie' }] },
+];
+
+const PSMF_MAIN_ALT: MealBlueprint[] = [
+  { name: 'Breakfast', icon: 'sunrise', percentage: 0.25,
+    foods: [{ foodId: 'turkey_breast', role: 'protein' }, { foodId: 'spinach_cooked', role: 'veggie' }, { foodId: 'cucumber', role: 'veggie' }] },
+  { name: 'Lunch', icon: 'sun', percentage: 0.35,
+    foods: [{ foodId: 'tuna_canned', role: 'protein' }, { foodId: 'cauliflower', role: 'veggie' }, { foodId: 'mixed_greens', role: 'veggie' }] },
+  { name: 'Dinner', icon: 'moon', percentage: 0.30,
+    foods: [{ foodId: 'chicken_breast', role: 'protein' }, { foodId: 'broccoli', role: 'veggie' }, { foodId: 'zucchini', role: 'veggie' }] },
+];
+
 // ─── Food swap tables ────────────────────────────────────────────────────────
 
 const MEAT_TAGS = ['meat', 'fish'];
@@ -397,7 +422,7 @@ const LOW_GLYCEMIC_SWAPS: Record<string, string> = {
 
 function applyFoodSwaps(
   foodId: string,
-  modifiers: string[]
+  modifiers: MealPlanModifier[]
 ): string {
   let current = foodId;
   const food = FOODS[current];
@@ -485,6 +510,11 @@ function selectMainConfig(
       return {
         main: pickVariant([CARNIVORE_MAIN, CARNIVORE_MAIN_ALT], generationSeed),
         snacks: CARNIVORE_SNACKS,
+      };
+    case 'psmf':
+      return {
+        main: pickVariant([PSMF_MAIN, PSMF_MAIN_ALT], generationSeed),
+        snacks: PSMF_SNACKS,
       };
     case 'paleo':
     case 'standard':
@@ -698,11 +728,35 @@ const ROLE_FALLBACK_FOODS: Record<MealFoodRef['role'], string[]> = {
   complete: ['lentils', 'black_beans', 'chickpeas', 'tofu'],
 };
 
+type MealPlanModifier = DietaryModifier | 'paleo';
+
+function prepareBlueprintForDiet(
+  blueprint: MealBlueprint,
+  modifiers: MealPlanModifier[],
+  eatingStyle: EatingStyle
+): MealBlueprint {
+  let foods = blueprint.foods.map((ref) => ({
+    ...ref,
+    foodId: applyFoodSwaps(ref.foodId, modifiers),
+  }));
+
+  if (modifiers.includes('kosher')) {
+    const mealFoodIds = foods.map((ref) => ref.foodId);
+    foods = foods.map((ref) => ({
+      ...ref,
+      foodId: resolveKosherFoodId(ref.foodId, mealFoodIds, DAIRY_FREE_SWAPS),
+    }));
+  }
+
+  return { ...blueprint, foods };
+}
+
 function appendFallbackFoods(
   resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[],
   blueprint: MealBlueprint,
   mealTarget: MacroTargets,
-  modifiers: string[],
+  modifiers: MealPlanModifier[],
+  eatingStyle: EatingStyle,
   allergies: UserAllergy[],
   dislikedFoodIds: string[],
   seenIds: Set<string>
@@ -724,6 +778,7 @@ function appendFallbackFoods(
       const food = FOODS[foodId];
       if (!food || seenIds.has(foodId)) continue;
       if (isFoodBlockedByAllergies(food, allergies)) continue;
+      if (isFoodBlockedByDietaryModifiers(food, modifiers as DietaryModifier[], eatingStyle)) continue;
       if (dislikedFoodIds.includes(foodId)) continue;
       seenIds.add(foodId);
       resolvedFoods.push({ food, ref: { foodId, role } });
@@ -735,19 +790,22 @@ function appendFallbackFoods(
 function buildMealToTarget(
   blueprint: MealBlueprint,
   mealTarget: MacroTargets,
-  modifiers: string[],
+  modifiers: MealPlanModifier[],
+  eatingStyle: EatingStyle,
   measurementSystem: MeasurementSystem = 'us',
   allergies: UserAllergy[] = [],
   dislikedFoodIds: string[] = []
 ): MealSlot {
+  const prepared = prepareBlueprintForDiet(blueprint, modifiers, eatingStyle);
   const resolvedFoods: { food: FoodItemData; ref: MealFoodRef }[] = [];
   const seenIds = new Set<string>();
 
-  for (const ref of blueprint.foods) {
-    let foodId = applyFoodSwaps(ref.foodId, modifiers);
+  for (const ref of prepared.foods) {
+    const foodId = ref.foodId;
     const food = FOODS[foodId];
     if (!food || seenIds.has(foodId)) continue;
     if (isFoodBlockedByAllergies(food, allergies)) continue;
+    if (isFoodBlockedByDietaryModifiers(food, modifiers as DietaryModifier[], eatingStyle)) continue;
     if (dislikedFoodIds.includes(foodId)) continue;
     seenIds.add(foodId);
     resolvedFoods.push({ food, ref: { ...ref, foodId } });
@@ -755,9 +813,10 @@ function buildMealToTarget(
 
   appendFallbackFoods(
     resolvedFoods,
-    blueprint,
+    prepared,
     mealTarget,
     modifiers,
+    eatingStyle,
     allergies,
     dislikedFoodIds,
     seenIds
@@ -805,7 +864,8 @@ function buildMealToTarget(
 function scaleMealToTargets(
   blueprint: MealBlueprint,
   dailyMacros: MacroTargets,
-  modifiers: string[],
+  modifiers: MealPlanModifier[],
+  eatingStyle: EatingStyle,
   measurementSystem: MeasurementSystem = 'us',
   allergies: UserAllergy[] = [],
   dislikedFoodIds: string[] = []
@@ -814,6 +874,7 @@ function scaleMealToTargets(
     blueprint,
     getMealTargets(dailyMacros, blueprint.percentage),
     modifiers,
+    eatingStyle,
     measurementSystem,
     allergies,
     dislikedFoodIds
@@ -1158,7 +1219,9 @@ function getCloseGapMacroOrder(
     const baseOrder: MacroKey[] =
       eatingStyle === 'keto' || eatingStyle === 'carnivore'
         ? ['fat_g', 'protein_g', 'carbs_g']
-        : ['carbs_g', 'protein_g', 'fat_g'];
+        : eatingStyle === 'psmf'
+          ? ['protein_g', 'carbs_g', 'fat_g']
+          : ['carbs_g', 'protein_g', 'fat_g'];
 
     return [...baseOrder].sort((a, b) => {
       if (energyByMacro[a] !== energyByMacro[b]) {
@@ -1343,7 +1406,7 @@ function recoverRemainingCalorieGap(
           const nextTotals = getDailyTotals(nextMeals);
           if (nextTotals.calories > dailyTarget.calories + 60) continue;
           if (
-            (eatingStyle === 'keto' || eatingStyle === 'carnivore') &&
+            (eatingStyle === 'keto' || eatingStyle === 'carnivore' || eatingStyle === 'psmf') &&
             nextTotals.carbs_g > dailyTarget.carbs_g + 10
           ) {
             continue;
@@ -1383,7 +1446,8 @@ export function generateMealPlan(
     wasNormalized,
     deltaCalories,
   } = normalizeMacroTargetsForPlanning(macros);
-  const effectiveModifiers = eatingStyle === 'paleo' ? [...modifiers, 'paleo'] : modifiers;
+  const effectiveModifiers: MealPlanModifier[] =
+    eatingStyle === 'paleo' ? [...modifiers, 'paleo'] : modifiers;
   const isIF = effectiveModifiers.includes('intermittent_fasting');
 
   const config = selectMainConfig(eatingStyle, normalizedTargets, generationSeed);
@@ -1399,6 +1463,7 @@ export function generateMealPlan(
       mb,
       normalizedTargets,
       effectiveModifiers,
+      eatingStyle,
       measurementSystem,
       allergies,
       dislikedFoodIds

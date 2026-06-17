@@ -96,17 +96,9 @@ Barcode lookup databases
 
 Physiq does not control these sources and is not responsible for inaccuracies in third-party data.
 
-8. Purchases and Pricing
+8. Premium Features
 
-Physiq may offer:
-
-Paid apps
-An optional 5-day free trial of premium features (no payment required to start, no auto-renewal)
-Premium features unlocked by a single one-time purchase (no subscription and no auto-renewal)
-
-All purchases made through the Apple App Store or Google Play Store are processed through those platforms and subject to their payment policies.
-
-We do not store payment information.
+Physiq includes adaptive macro, hydration, athlete mode, Apple Health integration, and related premium features at no additional cost. There is no in-app purchase, subscription, or trial required to access these features.
 
 9. Limitation of Liability
 

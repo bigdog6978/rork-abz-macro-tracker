@@ -53,7 +53,8 @@ export const NUTRITION_SCIENCE_SECTIONS: NutritionScienceSection[] = [
     title: 'Macro Distribution Strategy',
     body: [
       'After calories and protein are determined, carbohydrates and fats are adjusted based on the selected eating style.',
-      'In the current Physiq engine, keto and carnivore materially change macro distribution, while the other eating styles primarily guide meal planning and food selection.',
+      'Keto, carnivore, and PSMF materially change macro distribution. Other eating styles primarily guide meal planning and food selection.',
+      'PSMF is a short-term protocol (10–14 days max for most adults) with very high protein, ~25 g carbs, and essential fat only.',
     ],
   },
 ];
@@ -85,13 +86,20 @@ export const MEAL_PLAN_METHODOLOGY_SECTIONS: NutritionScienceSection[] = [
   {
     title: 'Eating Style Adaptation',
     body: [
-      'Food selection is adapted to your chosen eating style: Standard, Mediterranean, Vegan, Vegetarian, Paleo, Keto, or Carnivore. Most styles change which foods are suggested. Keto and Carnivore also adjust macro distribution by lowering carbohydrates and increasing fat.',
+      'Food selection is adapted to your chosen eating style: Standard, Mediterranean, Vegan, Vegetarian, Paleo, Keto, Carnivore, or PSMF. Most styles change which foods are suggested. Keto, Carnivore, and PSMF also adjust macro distribution.',
+      'PSMF (Protein Sparing Modified Fast) uses ~1.25 g protein per lb lean mass, ~25 g carbs, and essential fat only. It is intended as a short-term protocol (10–14 days maximum for most adults).',
+    ],
+    reference: [
+      'McDonald L. The Rapid Fat Loss Handbook.',
+      'Jager R et al. International Society of Sports Nutrition Position Stand: Protein and Exercise. Journal of the International Society of Sports Nutrition, 2017.',
     ],
   },
   {
     title: 'Dietary Restrictions',
     body: [
-      'When dietary restrictions are active (Gluten-Free, Dairy-Free, Nut-Free, Egg-Free, Soy-Free, Shellfish-Free, Low Glycemic, Intermittent Fasting), foods in restricted categories are excluded from meal suggestions. Restriction filters are based on common food allergen categories. Always verify individual food labels for safety.',
+      'When dietary restrictions are active (Gluten-Free, Dairy-Free, Nut-Free, Egg-Free, Soy-Free, Shellfish-Free, Low Glycemic, Intermittent Fasting, Halal, Kosher), foods in restricted categories are excluded from meal suggestions.',
+      'Halal filtering excludes pork and alcohol. Kosher filtering excludes pork and shellfish and avoids mammalian meat combined with dairy in the same meal. The app does not verify halal or kosher certification — always check product labels.',
+      'Restriction filters are based on common food allergen and religious dietary categories. Always verify individual food labels for safety.',
     ],
   },
   {

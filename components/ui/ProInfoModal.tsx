@@ -13,29 +13,24 @@ type Props = {
 export default function ProInfoModal({ visible, onClose }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const infoTitle = PRO_COPY.infoTitle;
-  const infoBody = PRO_COPY.infoBody;
-  const infoIncludedTitle = PRO_COPY.infoIncludedTitle;
-  const infoIncludedBullets = PRO_COPY.infoIncludedBullets;
-  const disclosure = PRO_COPY.oneTimeDisclosure;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>{infoTitle}</Text>
+            <Text style={styles.title}>{PRO_COPY.infoTitle}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <X size={16} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.body}>{infoBody}</Text>
-            <Text style={styles.subtitle}>{infoIncludedTitle}</Text>
-            {infoIncludedBullets.map((line) => (
+            <Text style={styles.body}>{PRO_COPY.infoBody}</Text>
+            <Text style={styles.subtitle}>{PRO_COPY.infoIncludedTitle}</Text>
+            {PRO_COPY.infoIncludedBullets.map((line) => (
               <Text key={line} style={styles.bullet}>- {line}</Text>
             ))}
-            <Text style={styles.disclosure}>{disclosure}</Text>
+            <Text style={styles.includedNote}>{PRO_COPY.includedLine}</Text>
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -97,8 +92,8 @@ const createStyles = (colors: AppColors) =>
       fontSize: 14,
       marginBottom: 6,
     },
-    disclosure: {
-      color: colors.primary,
+    includedNote: {
+      color: Colors.textSecondary,
       fontSize: 12,
       lineHeight: 18,
       marginTop: 12,

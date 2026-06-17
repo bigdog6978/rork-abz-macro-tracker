@@ -1,4 +1,4 @@
-import createContextHook from '@nkzw/create-context-hook';
+import { createSafeContextHook } from '../utils/createSafeContextHook';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppState } from 'react-native';
@@ -44,7 +44,7 @@ function ensureEntryMacros(entry: FoodEntry): FoodEntry {
   };
 }
 
-export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
+export const [DailyLogProvider, useDailyLog] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
   const [logs, setLogs] = useState<StoredLogs>({});
   const [today, setToday] = useState(getTodayDateKey());
@@ -283,4 +283,4 @@ export const [DailyLogProvider, useDailyLog] = createContextHook(() => {
     logs,
     isLoading: logsQuery.isLoading,
   };
-});
+}, 'useDailyLog', 'DailyLogProvider');

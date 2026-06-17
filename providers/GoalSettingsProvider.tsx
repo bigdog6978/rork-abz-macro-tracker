@@ -1,4 +1,4 @@
-import createContextHook from '@nkzw/create-context-hook';
+import { createSafeContextHook } from '../utils/createSafeContextHook';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useUser } from './UserProvider';
@@ -17,7 +17,7 @@ import { getTodayDateKey } from '../utils/dateKey';
 
 const QUERY_KEY = ['goal_settings'];
 
-export const [GoalSettingsProvider, useGoalSettings] = createContextHook(() => {
+export const [GoalSettingsProvider, useGoalSettings] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
   const { profile } = useUser();
   const { latest } = useMeasurements();
@@ -81,4 +81,4 @@ export const [GoalSettingsProvider, useGoalSettings] = createContextHook(() => {
     syncGoalFromProfile,
     isLoading: query.isLoading,
   };
-});
+}, 'useGoalSettings', 'GoalSettingsProvider');
