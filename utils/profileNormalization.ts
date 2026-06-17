@@ -23,6 +23,8 @@ export type LegacyUserProfile = {
   goal_rate?: string;
   preference?: string;
   macro_strategy?: string;
+  eatingStyle?: UserProfile['eatingStyle'];
+  eating_style?: UserProfile['eatingStyle'];
   dietary_modifiers?: string[];
   dietModifiers?: string[];
   dietNotes?: string;
@@ -140,7 +142,10 @@ export function normalizeStoredProfile(stored: LegacyUserProfile | null | undefi
     ),
     goal: stored.goal ?? DEFAULT_PROFILE.goal,
     activityLevel: normalizeLegacyActivityLevel(stored.activityLevel ?? stored.activity_level),
-    eatingStyle: deriveEatingStyle(stored),
+    eatingStyle:
+      stored.eatingStyle ??
+      stored.eating_style ??
+      deriveEatingStyle(stored),
     dietModifiers: normalizeDietModifiers(stored.dietModifiers ?? stored.dietary_modifiers),
     dietNotes: stored.dietNotes ?? stored.diet_notes ?? DEFAULT_PROFILE.dietNotes,
     measurementSystem,

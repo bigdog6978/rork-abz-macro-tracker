@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Stack, router } from 'expo-router';
 import Colors from '../constants/colors';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { useMeasurements } from '../providers/MeasurementsProvider';
@@ -83,6 +83,9 @@ export default function ProReportScreen() {
         {dynamicExplainability?.map((item: string) => (
           <Card key={item} label="Why targets changed" value={item} styles={styles} />
         ))}
+        <TouchableOpacity style={styles.shareBtn} onPress={() => router.push('/share-progress' as never)}>
+          <Text style={styles.shareBtnText}>Share your progress</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -120,6 +123,16 @@ function createStyles() {
     },
     cardLabel: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600' },
     cardValue: { color: Colors.text, fontSize: 22, fontWeight: '800', marginTop: 4 },
+    shareBtn: {
+      marginTop: 8,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: Colors.primary,
+      backgroundColor: Colors.primaryMuted,
+    },
+    shareBtnText: { color: Colors.primary, fontSize: 16, fontWeight: '800' },
   });
 }
 

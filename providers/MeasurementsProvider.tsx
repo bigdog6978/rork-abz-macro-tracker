@@ -65,16 +65,22 @@ export const [MeasurementsProvider, useMeasurements] = createContextHook(() => {
 
   const addMeasurementMutation = useMutation({
     mutationFn: async (record: MeasurementRecord) => {
-      await repoUpsert(record);
+      const existing = await repoGetAll(USER_ID);
+      const hasBaseline = existing.some((r) => r.isBaseline);
+      const enriched: MeasurementRecord =
+        !hasBaseline && existing.length === 0 && !record.isBaseline
+          ? { ...record, isBaseline: true }
+          : record;
+      await repoUpsert(enriched);
       const settings = await repoGetPromptSettings(USER_ID);
       if (settings) {
         await repoSetPromptSettings(USER_ID, {
           ...settings,
-          lastRecordedAt: record.recordedAt,
+          lastRecordedAt: enriched.recordedAt,
           dismissCount: 0,
         });
       }
-      return record;
+      return enriched;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['measurements', USER_ID] });

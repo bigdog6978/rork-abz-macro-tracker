@@ -18,7 +18,8 @@ import DismissKeyboard from '../components/ui/DismissKeyboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, ChevronRight, Info, Zap } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Info, Zap, Camera, ImageIcon } from 'lucide-react-native';
+import { Image } from 'expo-image';
 import Colors from '../constants/colors';
 import { FOODS } from '../constants/foodDatabase';
 import { setDislikedFoods } from '../storage/dislikedFoodsRepo';
@@ -53,8 +54,12 @@ import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import ProInfoModal from '../components/ui/ProInfoModal';
 import { PRO_COPY } from '../src/content/proMicrocopy';
+import { captureProgressPhoto } from '../utils/photos/captureProgressPhoto';
+import { addPhoto as saveProgressPhoto } from '../storage/photosRepo';
+import { upsertMeasurement } from '../storage/measurementsRepo';
+import { getTodayDateKey } from '../utils/dateKey';
 
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 10;
 
 const PROTEIN_FOOD_IDS = [
   'bacon', 'beef_jerky', 'beef_liver', 'black_beans', 'bone_broth',
@@ -124,6 +129,8 @@ export default function OnboardingScreen() {
   const [proInfoVisible, setProInfoVisible] = useState(false);
   const [legalStep, setLegalStep] = useState<'terms' | 'privacy' | null>(null);
   const [legalSubmitPending, setLegalSubmitPending] = useState(false);
+  const [baselinePhotoUri, setBaselinePhotoUri] = useState<string | null>(null);
+  const [baselinePhotoSaving, setBaselinePhotoSaving] = useState(false);
 
   const animateProgress = useCallback(
     (nextStep: number) => {
@@ -242,9 +249,21 @@ export default function OnboardingScreen() {
         }))
       );
     }
+    if (baselinePhotoUri) {
+      await saveProgressPhoto('local_user', baselinePhotoUri, { isBaseline: true });
+    }
+    await upsertMeasurement({
+      id: `m_baseline_${Date.now()}`,
+      userId: 'local_user',
+      recordedAt: new Date().toISOString(),
+      dateKey: getTodayDateKey(),
+      weightLb: draftProfile.weightLb,
+      bodyFatPercent: draftProfile.bodyFatPercent,
+      isBaseline: true,
+    });
     completeOnboarding(draftProfile);
     router.replace('/(tabs)' as never);
-  }, [completeOnboarding, draftProfile, dislikedFoodIds]);
+  }, [completeOnboarding, draftProfile, dislikedFoodIds, baselinePhotoUri]);
 
   const executePurchase = useCallback(() => {
     const run = async () => {
@@ -575,7 +594,7 @@ export default function OnboardingScreen() {
           );
         })}
       </View>
-      <Text style={styles.foodDislikeNote}>Tap to mark foods you'd rather avoid.</Text>
+      <Text style={styles.foodDislikeNote}>Tap to mark foods you{"'"}d rather avoid.</Text>
     </View>
   );
 
@@ -772,8 +791,57 @@ export default function OnboardingScreen() {
     );
   };
 
+  const handleBaselineCapture = useCallback(async (source: 'camera' | 'library') => {
+    setBaselinePhotoSaving(true);
+    try {
+      const uri = await captureProgressPhoto(source);
+      if (uri) setBaselinePhotoUri(uri);
+    } finally {
+      setBaselinePhotoSaving(false);
+    }
+  }, []);
+
+  const renderBaselinePhotoStep = () => (
+    <View style={styles.stepContainer}>
+      {renderStepHeader(
+        'Baseline photo',
+        'Take a full-body photo in swimwear or fitted clothing. This helps you see visual progress over time. Stored on your device only.'
+      )}
+      {baselinePhotoUri ? (
+        <Image source={{ uri: baselinePhotoUri }} style={styles.baselinePreview} contentFit="cover" />
+      ) : (
+        <View style={styles.baselinePlaceholder}>
+          <Camera size={32} color={Colors.textTertiary} />
+          <Text style={styles.baselinePlaceholderText}>No photo yet</Text>
+        </View>
+      )}
+      <View style={styles.baselineActions}>
+        <TouchableOpacity
+          style={[styles.footerButton, styles.primaryButton]}
+          disabled={baselinePhotoSaving}
+          onPress={() => void handleBaselineCapture('camera')}
+        >
+          <Camera size={16} color={colors.onPrimary ?? Colors.white} />
+          <Text style={styles.primaryButtonText}>{baselinePhotoSaving ? 'Opening…' : 'Take Photo'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.footerButton, styles.secondaryButton]}
+          disabled={baselinePhotoSaving}
+          onPress={() => void handleBaselineCapture('library')}
+        >
+          <ImageIcon size={16} color={colors.primary} />
+          <Text style={styles.secondaryButtonText}>Choose from Library</Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity onPress={goNext} style={styles.skipLink}>
+        <Text style={styles.skipLinkText}>Skip for now</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const steps = [
     renderProfileStep,
+    renderBaselinePhotoStep,
     renderGoalStep,
     renderActivityStep,
     renderEatingStyleStep,
@@ -1324,6 +1392,54 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: colors.primary,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  secondaryButton: {
+    backgroundColor: colors.primaryMuted,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  secondaryButtonText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  baselinePreview: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  baselinePlaceholder: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  baselinePlaceholderText: {
+    color: Colors.textTertiary,
+    fontSize: 14,
+  },
+  baselineActions: {
+    gap: 10,
+  },
+  skipLink: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  skipLinkText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '600',
   },
   primaryButtonText: {
     color: colors.onPrimary,

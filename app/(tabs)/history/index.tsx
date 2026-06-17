@@ -603,6 +603,24 @@ export default function HistoryScreen() {
               </View>
             )}
 
+            <View style={styles.progressActionsCard}>
+              <Text style={styles.progressActionsTitle}>Progress tools</Text>
+              <View style={styles.progressActionsRow}>
+                <TouchableOpacity
+                  style={[styles.progressActionBtn, { borderColor: colors.primary }]}
+                  onPress={() => router.push('/progress-photos' as never)}
+                >
+                  <Text style={[styles.progressActionText, { color: colors.primary }]}>Progress Photos</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.progressActionBtn, { borderColor: colors.primary }]}
+                  onPress={() => router.push('/share-progress' as never)}
+                >
+                  <Text style={[styles.progressActionText, { color: colors.primary }]}>Share Progress</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {goalScore.breakdown.length > 0 && records.length >= 2 && (
               <View style={styles.breakdownCard}>
                 <Text style={styles.breakdownTitle}>Score Breakdown</Text>
@@ -942,6 +960,36 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
     marginTop: 2,
     marginBottom: 4,
+  },
+  progressActionsCard: {
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    ...(Shadows.card as Record<string, unknown>),
+  },
+  progressActionsTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '700' as const,
+    marginBottom: 10,
+  },
+  progressActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  progressActionBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
+  progressActionText: {
+    fontSize: 13,
+    fontWeight: '800' as const,
   },
   breakdownCard: {
     backgroundColor: Colors.card,

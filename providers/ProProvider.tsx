@@ -114,7 +114,7 @@ function mapIapErrorForDisplay(error: Error | null): string | null {
 
 export const [ProProvider, usePro] = createContextHook(() => {
   const queryClient = useQueryClient();
-  const { macros } = useUser();
+  const { macros: baseMacros } = useUser();
   const [postProHealthEducationPending, setPostProHealthEducationPending] = useState(false);
 
   const entitlementQuery = useQuery({ queryKey: ['pro_entitlement'], queryFn: getProEntitlement });
@@ -202,7 +202,7 @@ export const [ProProvider, usePro] = createContextHook(() => {
   const dynamic = useMemo(() => {
     if (!hasPremium || !settings.dynamicMacrosEnabled) {
       return {
-        targets: macros,
+        targets: baseMacros,
         reason: 'Core macro targets active.',
         inferredDayType: 'rest_day' as const,
         tierApplied: 'core' as const,
@@ -211,15 +211,15 @@ export const [ProProvider, usePro] = createContextHook(() => {
         fuelingStrategy: 'Base fueling only.',
       };
     }
-    const proAdjusted = applyProAdjustments(macros, healthSignals);
+    const proAdjusted = applyProAdjustments(baseMacros, healthSignals);
     if (!athleteProfile.enabled) return { ...proAdjusted, tierApplied: 'pro' as const };
     return applyAthleteAdjustments(
-      macros,
+      baseMacros,
       proAdjusted,
       athleteProfile,
       cycleProfile.enabled ? cycleDerived : null
     );
-  }, [hasPremium, settings.dynamicMacrosEnabled, macros, healthSignals, athleteProfile, cycleProfile.enabled, cycleDerived]);
+  }, [hasPremium, settings.dynamicMacrosEnabled, baseMacros, healthSignals, athleteProfile, cycleProfile.enabled, cycleDerived]);
 
   const hydration = useMemo(() => {
     const base = hydrationQuery.data ?? defaultHydration;

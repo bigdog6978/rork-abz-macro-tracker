@@ -203,6 +203,32 @@ export interface DayPlan {
   };
 }
 
+export interface PlanDay {
+  dayIndex: number;
+  label: string;
+  meals: MealSlot[];
+  substitutionMap?: Record<string, MealSuggestion>;
+}
+
+export interface WeekPlan {
+  eatingStyle: EatingStyle;
+  tags?: string[];
+  days: PlanDay[];
+  numDays: number;
+  planUnavailable?: boolean;
+  targetUsed?: MacroTargets;
+  targetNormalization?: {
+    wasNormalized: boolean;
+    deltaCalories: number;
+  };
+}
+
+export const WEEK_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
+export function getWeekDayLabel(dayIndex: number): string {
+  return WEEK_DAY_LABELS[dayIndex % 7] ?? `Day ${dayIndex + 1}`;
+}
+
 export const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
   sedentary: 'Sedentary',
   light_activity: 'Light Activity',
@@ -286,7 +312,11 @@ export interface SavedMealPlan {
   dietaryModifiers: DietaryModifier[];
   createdAt: string;
   updatedAt: string;
+  /** @deprecated use days[0].meals — kept for migration */
   meals: MealSlot[];
+  /** Multi-day plan (1–7 days). When present, takes precedence over `meals`. */
+  days?: PlanDay[];
+  numDays?: number;
   substitutionMap: Record<string, MealSuggestion>;
   macroTargets: MacroTargets;
   isActive: boolean;

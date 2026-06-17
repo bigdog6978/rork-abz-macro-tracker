@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   legacyMacroStrategyToEatingStyle,
+  PlanDay,
   SavedMealPlan,
   SavedMealTemplate,
   SavedMealTemplateItem,
+  getWeekDayLabel,
 } from '../types';
 
 const KEYS = {
@@ -13,7 +15,7 @@ const KEYS = {
   schemaVersion: 'abz_meal_plan_schema_version',
 };
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 let schemaChecked = false;
 
@@ -22,9 +24,23 @@ type LegacySavedMealPlan = SavedMealPlan & {
 };
 
 function normalizeSavedPlan(plan: LegacySavedMealPlan): SavedMealPlan {
+  const eatingStyle = plan.eatingStyle ?? legacyMacroStrategyToEatingStyle(plan.macroStrategy);
+  const days: PlanDay[] =
+    plan.days && plan.days.length > 0
+      ? plan.days
+      : [
+          {
+            dayIndex: 0,
+            label: getWeekDayLabel(0),
+            meals: plan.meals ?? [],
+          },
+        ];
   return {
     ...plan,
-    eatingStyle: plan.eatingStyle ?? legacyMacroStrategyToEatingStyle(plan.macroStrategy),
+    eatingStyle,
+    days,
+    numDays: plan.numDays ?? days.length,
+    meals: days[0]?.meals ?? plan.meals ?? [],
   };
 }
 

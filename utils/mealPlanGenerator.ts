@@ -1,5 +1,5 @@
 import { FOODS, FoodItemData, computeMacros, formatPortionLabel } from '../constants/foodDatabase';
-import { MacroTargets, DietaryModifier, DayPlan, MealSlot, MealSuggestion, MeasurementSystem, FoodCategory, UserAllergy, EatingStyle } from '../types';
+import { MacroTargets, DietaryModifier, DayPlan, WeekPlan, MealSlot, MealSuggestion, MeasurementSystem, FoodCategory, UserAllergy, EatingStyle, getWeekDayLabel } from '../types';
 import { isFoodBlockedByAllergies } from './allergyFilter';
 
 interface MealFoodRef {
@@ -1421,5 +1421,56 @@ export function generateMealPlan(
       wasNormalized,
       deltaCalories,
     },
+  };
+}
+
+export function generateWeekPlan(
+  macros: MacroTargets,
+  eatingStyle: EatingStyle,
+  modifiers: DietaryModifier[],
+  numDays: number,
+  measurementSystem: MeasurementSystem = 'us',
+  allergies: UserAllergy[] = [],
+  generationSeed = 0,
+  dislikedFoodIds: string[] = []
+): WeekPlan {
+  const clampedDays = Math.max(1, Math.min(7, Math.round(numDays)));
+  const days = Array.from({ length: clampedDays }, (_, dayIndex) => {
+    const dayPlan = generateMealPlan(
+      macros,
+      eatingStyle,
+      modifiers,
+      measurementSystem,
+      allergies,
+      generationSeed + dayIndex,
+      dislikedFoodIds
+    );
+    return {
+      dayIndex,
+      label: getWeekDayLabel(dayIndex),
+      meals: dayPlan.meals,
+    };
+  });
+
+  const first = generateMealPlan(
+    macros,
+    eatingStyle,
+    modifiers,
+    measurementSystem,
+    allergies,
+    generationSeed,
+    dislikedFoodIds
+  );
+
+  const anyUnavailable = days.some((d) => d.meals.every((m) => m.suggestions.length === 0));
+
+  return {
+    eatingStyle,
+    tags: first.tags,
+    days,
+    numDays: clampedDays,
+    planUnavailable: anyUnavailable || first.planUnavailable,
+    targetUsed: first.targetUsed,
+    targetNormalization: first.targetNormalization,
   };
 }

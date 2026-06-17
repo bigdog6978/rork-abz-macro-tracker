@@ -41,6 +41,7 @@ import {
   setActiveMealPlan,
   deleteMealPlan,
 } from '../../../storage/mealPlanRepo';
+import { getMealsForDay, getPlanDayCount } from '../../../utils/weekPlanHelpers';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 
 function getMealIcon(name: string, colors: AppColors): React.ReactNode {
@@ -111,6 +112,8 @@ function SavedPlanCard({
 
   const totalCalories = plan.macroTargets.calories;
   const totalSwaps = Object.keys(plan.substitutionMap ?? {}).length;
+  const dayCount = getPlanDayCount(plan);
+  const previewMeals = getMealsForDay(plan, 0);
   const createdDate = new Date(plan.createdAt).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -145,6 +148,12 @@ function SavedPlanCard({
             </View>
             <Text style={styles.metaDot}>·</Text>
             <Text style={styles.planCalories}>{formatNumber(totalCalories)} cal</Text>
+            {dayCount > 1 && (
+              <>
+                <Text style={styles.metaDot}>·</Text>
+                <Text style={styles.planSwaps}>{dayCount}-day plan</Text>
+              </>
+            )}
             {totalSwaps > 0 && (
               <>
                 <Text style={styles.metaDot}>·</Text>
@@ -206,7 +215,10 @@ function SavedPlanCard({
           </View>
 
           <View style={styles.mealsSection}>
-            {plan.meals.map((meal, idx) => (
+            {dayCount > 1 && (
+              <Text style={styles.dayPreviewLabel}>Day 1 preview</Text>
+            )}
+            {previewMeals.map((meal, idx) => (
               <MealPreview key={idx} meal={meal} />
             ))}
           </View>
@@ -544,6 +556,14 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   mealsSection: {
     gap: 8,
     marginBottom: 14,
+  },
+  dayPreviewLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   mealPreview: {
     backgroundColor: Colors.cardElevated,

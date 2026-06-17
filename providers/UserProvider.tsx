@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserProfile, MacroTargets } from '../types';
 import { calculateMacros } from '../utils/macroEngine';
 import { DEFAULT_PROFILE, LegacyUserProfile, normalizeStoredProfile } from '../utils/profileNormalization';
+import { clearProDynamicTargets } from '../storage/proRepo';
 import { loadData, saveData, removeData, STORAGE_KEYS } from '../services/storage';
 
 function mergeDefined<T extends object>(base: T, updates: Partial<T>): T {
@@ -36,11 +37,6 @@ export const [UserProvider, useUser] = createContextHook(() => {
     queryKey: ['custom_macro_targets'],
     queryFn: () => loadData<MacroTargets>(STORAGE_KEYS.CUSTOM_MACRO_TARGETS),
   });
-  const proDynamicTargetsQuery = useQuery({
-    queryKey: ['pro_dynamic_targets'],
-    queryFn: () => loadData<MacroTargets>(STORAGE_KEYS.PRO_DYNAMIC_TARGETS),
-  });
-
   useEffect(() => {
     if (profileQuery.data) {
       setProfile(profileQuery.data);
@@ -53,12 +49,16 @@ export const [UserProvider, useUser] = createContextHook(() => {
     }
   }, [customMacrosQuery.data]);
 
+  const invalidateProDynamicTargets = useCallback(async () => {
+    await clearProDynamicTargets();
+    queryClient.setQueryData(['pro_dynamic_targets'], null);
+  }, [queryClient]);
+
   const saveMutation = useMutation({
     mutationFn: async (updated: UserProfile) => {
       await saveData(STORAGE_KEYS.USER_PROFILE, updated);
-      const macros = calculateMacros(updated);
-      await saveData(STORAGE_KEYS.MACRO_TARGETS, macros);
       await removeData(STORAGE_KEYS.PROTOCOL);
+      await invalidateProDynamicTargets();
       return updated;
     },
     onSuccess: (data) => {
@@ -104,7 +104,8 @@ export const [UserProvider, useUser] = createContextHook(() => {
     }
     setCustomMacrosState(targets);
     queryClient.setQueryData(['custom_macro_targets'], targets);
-  }, [queryClient]);
+    await invalidateProDynamicTargets();
+  }, [invalidateProDynamicTargets, queryClient]);
 
   const calculatedMacros: MacroTargets = useMemo(() => {
     if (!profile.onboardingComplete) {
@@ -113,16 +114,14 @@ export const [UserProvider, useUser] = createContextHook(() => {
     return calculateMacros(profile);
   }, [profile]);
 
-  const macros: MacroTargets =
-    customMacros ??
-    proDynamicTargetsQuery.data ??
-    calculatedMacros;
+  const macros: MacroTargets = customMacros ?? calculatedMacros;
 
   const isLoading = profileQuery.isLoading;
 
   return {
     profile,
     macros,
+    calculatedMacros,
     customMacros,
     setCustomMacros,
     isLoading,

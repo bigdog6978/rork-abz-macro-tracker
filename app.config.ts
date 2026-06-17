@@ -5,6 +5,10 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 /** Single source of truth for HealthKit usage strings (react-native-health config plugin + review). */
 const HEALTH_SHARE_USAGE =
   'Physiq reads activity, workouts, heart rate, and sleep from Apple Health to adapt macro and hydration targets.';
+const CAMERA_USAGE =
+  'Physiq uses the camera to scan barcodes and capture progress photos stored on your device.';
+const PHOTO_LIBRARY_USAGE =
+  'Physiq accesses your photo library so you can add progress photos stored on your device.';
 
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
@@ -31,8 +35,9 @@ export default (): ExpoConfig => ({
     },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
-      NSCameraUsageDescription:
-        'Physiq uses the camera to scan barcodes to quickly add foods. No photos or videos are stored.',
+      NSCameraUsageDescription: CAMERA_USAGE,
+      NSPhotoLibraryUsageDescription: PHOTO_LIBRARY_USAGE,
+      NSPhotoLibraryAddUsageDescription: 'Physiq can save your progress share cards to your photo library.',
     },
   },
   android: {
@@ -55,8 +60,21 @@ export default (): ExpoConfig => ({
     [
       'expo-camera',
       {
-        cameraPermission:
-          'Physiq uses the camera to scan barcodes to quickly add foods. No photos or videos are stored.',
+        cameraPermission: CAMERA_USAGE,
+      },
+    ],
+    [
+      'expo-image-picker',
+      {
+        photosPermission: PHOTO_LIBRARY_USAGE,
+        cameraPermission: CAMERA_USAGE,
+      },
+    ],
+    [
+      'expo-media-library',
+      {
+        photosPermission: PHOTO_LIBRARY_USAGE,
+        savePhotosPermission: 'Physiq can save your progress share cards to your photo library.',
       },
     ],
     [

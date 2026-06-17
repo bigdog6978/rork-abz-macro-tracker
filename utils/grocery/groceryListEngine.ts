@@ -2,6 +2,11 @@ import { MealSlot, MealSuggestion, FoodCategory } from '../../types';
 import { FOODS } from '../../constants/foodDatabase';
 import { GroceryList, GroceryCategory, GroceryItem, GroceryCategoryGroup } from './types';
 
+export interface GroceryDayMeals {
+  dayLabel: string;
+  meals: MealSlot[];
+}
+
 const CATEGORY_MAP: Record<FoodCategory, GroceryCategory> = {
   protein: 'Protein',
   carb: 'Carbs',
@@ -40,34 +45,45 @@ function normalizeKey(name: string, unit: string): string {
 
 export function generateGroceryList(
   meals: MealSlot[],
+  planId: string,
+  dayLabel?: string
+): GroceryList {
+  return generateGroceryListFromDays([{ dayLabel: dayLabel ?? 'Plan', meals }], planId);
+}
+
+export function generateGroceryListFromDays(
+  dayMeals: GroceryDayMeals[],
   planId: string
 ): GroceryList {
-  console.log('[GroceryEngine] Generating grocery list for', meals.length, 'meals');
+  console.log('[GroceryEngine] Generating grocery list for', dayMeals.length, 'days');
 
   const itemMap = new Map<string, GroceryItem & { categoryName: GroceryCategory }>();
 
-  for (const meal of meals) {
-    for (const food of meal.suggestions) {
-      const category = resolveGroceryCategory(food);
-      const { amount, unit } = resolveUnit(food);
-      const key = normalizeKey(food.name, unit);
+  for (const day of dayMeals) {
+    for (const meal of day.meals) {
+      for (const food of meal.suggestions) {
+        const category = resolveGroceryCategory(food);
+        const { amount, unit } = resolveUnit(food);
+        const key = normalizeKey(food.name, unit);
+        const sourceLabel = `${day.dayLabel} · ${meal.name}`;
 
-      const existing = itemMap.get(key);
-      if (existing) {
-        existing.totalAmount = Math.round((existing.totalAmount + amount) * 10) / 10;
-        if (!existing.sources.includes(meal.name)) {
-          existing.sources.push(meal.name);
+        const existing = itemMap.get(key);
+        if (existing) {
+          existing.totalAmount = Math.round((existing.totalAmount + amount) * 10) / 10;
+          if (!existing.sources.includes(sourceLabel)) {
+            existing.sources.push(sourceLabel);
+          }
+        } else {
+          itemMap.set(key, {
+            key,
+            name: food.name,
+            totalAmount: Math.round(amount * 10) / 10,
+            unit,
+            sources: [sourceLabel],
+            checked: false,
+            categoryName: category,
+          });
         }
-      } else {
-        itemMap.set(key, {
-          key,
-          name: food.name,
-          totalAmount: Math.round(amount * 10) / 10,
-          unit,
-          sources: [meal.name],
-          checked: false,
-          categoryName: category,
-        });
       }
     }
   }

@@ -24,7 +24,7 @@ import { Radius, Spacing, Shadows } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
-import { getMealPlanForEatingStyle } from '../../../mocks/mealTemplates';
+import { getMealPlanForEatingStyle, getWeekPlanForEatingStyle } from '../../../mocks/mealTemplates';
 import { normalizeMacroTargetsForPlanning } from '../../../utils/mealPlanGenerator';
 import { getAllergies } from '../../../storage/allergiesRepo';
 import { getDislikedFoods } from '../../../storage/dislikedFoodsRepo';
@@ -38,7 +38,9 @@ import {
   DayPlan,
   SavedMealPlan,
   FoodEntry,
+  getWeekDayLabel,
 } from '../../../types';
+import { getMealsForDay } from '../../../utils/weekPlanHelpers';
 
 function computePlanTotals(meals: MealSlot[]): MacroTargets {
   let calories = 0;
@@ -109,7 +111,8 @@ import {
   clearActivePlan,
   saveMealTemplate,
 } from '../../../storage/mealPlanRepo';
-import { generateGroceryList, formatGroceryListAsText } from '../../../utils/grocery/groceryListEngine';
+import { generateGroceryListFromDays, formatGroceryListAsText } from '../../../utils/grocery/groceryListEngine';
+import type { GroceryDayMeals } from '../../../utils/grocery/groceryListEngine';
 import { loadChecklist, saveChecklist } from '../../../storage/groceryRepo';
 import { GroceryList, GroceryChecklist, GroceryCategoryGroup } from '../../../utils/grocery/types';
 import { loadData, saveData, STORAGE_KEYS } from '../../../services/storage';
@@ -398,12 +401,14 @@ function SubstituteOption({
 const GROCERY_SHEET_HEIGHT = 520;
 
 function GrocerySection({
-  meals,
+  dayMeals,
   planId,
+  subtitle,
   showToast,
 }: {
-  meals: MealSlot[];
+  dayMeals: GroceryDayMeals[];
   planId: string;
+  subtitle: string;
   showToast: (msg: string) => void;
 }) {
   const colors = useThemeColors();
@@ -414,8 +419,8 @@ function GrocerySection({
   const slideAnim = useRef(new Animated.Value(GROCERY_SHEET_HEIGHT)).current;
 
   const groceryList = useMemo(() => {
-    return generateGroceryList(meals, planId);
-  }, [meals, planId]);
+    return generateGroceryListFromDays(dayMeals, planId);
+  }, [dayMeals, planId]);
 
   const totalItems = useMemo(() => {
     return groceryList.categories.reduce((sum, cat) => sum + cat.items.length, 0);
@@ -515,7 +520,7 @@ function GrocerySection({
           </View>
           <View style={groceryStyles.sectionHeaderText}>
             <Text style={groceryStyles.sectionTitle}>Grocery List</Text>
-            <Text style={groceryStyles.sectionSubtitle}>Based on today's plan</Text>
+            <Text style={groceryStyles.sectionSubtitle}>{subtitle}</Text>
           </View>
           {checkedCount > 0 && (
             <View style={groceryStyles.badge}>
@@ -954,8 +959,8 @@ function createFoodEntryFromPlanItem(food: MealSuggestion): FoodEntry {
   };
 }
 
-function mealSlotBaseId(mealIndex: number, foodIndex: number): string {
-  return `plan-${mealIndex}-${foodIndex}`;
+function mealSlotBaseId(dayIndex: number, mealIndex: number, foodIndex: number): string {
+  return `plan-${dayIndex}-${mealIndex}-${foodIndex}`;
 }
 
 export default function PlanScreen() {
@@ -997,6 +1002,8 @@ export default function PlanScreen() {
   const measurementSystem = profile.measurementSystem ?? 'us';
   const activePlan = activePlanQuery.data;
   const [generationSeed, setGenerationSeed] = useState(0);
+  const [numDays, setNumDays] = useState(1);
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const generatedPlanKey = useMemo(
     () =>
       buildGeneratedPlanKey({
@@ -1029,17 +1036,27 @@ export default function PlanScreen() {
     );
   }, [activePlan, planningTargets, profile.dietModifiers, profile.eatingStyle]);
 
-  const basePlan = useMemo(() => {
-    return getMealPlanForEatingStyle(
+  const baseWeekPlan = useMemo(() => {
+    return getWeekPlanForEatingStyle(
       profile.eatingStyle,
       profile.dietModifiers ?? [],
+      numDays,
       planningTargets,
       profile.measurementSystem ?? 'us',
       allergies,
       generationSeed,
       dislikedFoodIds
     );
-  }, [profile.eatingStyle, profile.dietModifiers, profile.goal, planningTargets, profile.measurementSystem, allergies, generationSeed, dislikedFoodIds]);
+  }, [
+    profile.eatingStyle,
+    profile.dietModifiers,
+    numDays,
+    planningTargets,
+    profile.measurementSystem,
+    allergies,
+    generationSeed,
+    dislikedFoodIds,
+  ]);
 
   const [substitutionMap, setSubstitutionMap] = useState<
     Record<string, MealSuggestion>
@@ -1056,38 +1073,50 @@ export default function PlanScreen() {
     }
 
     console.log('[PlanScreen] Loading active plan:', activePlan.name);
+    const dayMeals = getMealsForDay(activePlan, selectedDayIndex);
     const migrated: Record<string, MealSuggestion> = {};
-    (activePlan.meals ?? []).forEach((meal, mealIdx) => {
+    dayMeals.forEach((meal, mealIdx) => {
       (meal.suggestions ?? []).forEach((food, foodIdx) => {
-        const slotKey = `plan-${mealIdx}-${foodIdx}`;
+        const slotKey = `plan-${selectedDayIndex}-${mealIdx}-${foodIdx}`;
         migrated[slotKey] = { ...food, id: slotKey };
       });
     });
     setSubstitutionMap(migrated);
     setActivePlanLoaded(true);
-  }, [activePlan, activePlanMatchesCurrentTargets]);
+    if (activePlan.numDays && activePlan.numDays !== numDays) {
+      setNumDays(activePlan.numDays);
+    }
+  }, [activePlan, activePlanMatchesCurrentTargets, selectedDayIndex]);
 
   const planKey = activePlanMatchesCurrentTargets && activePlan ? activePlan.id : generatedPlanKey;
+  const quantityPlanKey = `${planKey}::d${selectedDayIndex}`;
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const stored = await loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES);
       if (cancelled) return;
-      const map = stored?.[planKey] ?? {};
+      const map = stored?.[quantityPlanKey] ?? {};
       setQuantityMap(map);
     })();
     return () => { cancelled = true; };
-  }, [planKey]);
+  }, [quantityPlanKey]);
 
-  const activePlanMeals = activePlanMatchesCurrentTargets ? activePlan?.meals : undefined;
-  const isUsingActivePlan = !!activePlanMeals && activePlanLoaded;
+  const activePlanDayMeals = activePlanMatchesCurrentTargets && activePlan
+    ? getMealsForDay(activePlan, selectedDayIndex)
+    : undefined;
+  const isUsingActivePlan = !!activePlanDayMeals && activePlanLoaded;
+
+  const selectedDayMealsRaw = useMemo(() => {
+    if (isUsingActivePlan && activePlanDayMeals) return activePlanDayMeals;
+    return baseWeekPlan.days[selectedDayIndex]?.meals ?? baseWeekPlan.days[0]?.meals ?? [];
+  }, [activePlanDayMeals, baseWeekPlan.days, isUsingActivePlan, selectedDayIndex]);
 
   const plan: DayPlan = useMemo(() => {
     const applySubstitutionsAndQuantity = (meals: MealSlot[]) =>
       meals.map((meal, mealIdx) => ({
         ...meal,
         suggestions: meal.suggestions.map((food, foodIdx) => {
-          const slotKey = `plan-${mealIdx}-${foodIdx}`;
+          const slotKey = `plan-${selectedDayIndex}-${mealIdx}-${foodIdx}`;
           const item = substitutionMap[slotKey] ?? food;
           const baseItem = { ...item, id: slotKey };
           const qtyOverride = quantityMap[slotKey];
@@ -1116,20 +1145,35 @@ export default function PlanScreen() {
         }),
       }));
 
-    if (isUsingActivePlan && activePlanMeals) {
-      return {
-        eatingStyle: basePlan.eatingStyle,
-        tags: basePlan.tags,
-        meals: applySubstitutionsAndQuantity(activePlanMeals),
-        planUnavailable: false,
-      };
-    }
     return {
-      ...basePlan,
-      meals: applySubstitutionsAndQuantity(basePlan.meals),
-      planUnavailable: basePlan.planUnavailable ?? false,
+      eatingStyle: baseWeekPlan.eatingStyle,
+      tags: baseWeekPlan.tags,
+      meals: applySubstitutionsAndQuantity(selectedDayMealsRaw),
+      planUnavailable: baseWeekPlan.planUnavailable ?? false,
+      targetUsed: baseWeekPlan.targetUsed,
+      targetNormalization: baseWeekPlan.targetNormalization,
     };
-  }, [activePlanMeals, basePlan, isUsingActivePlan, measurementSystem, quantityMap, substitutionMap]);
+  }, [
+    baseWeekPlan,
+    measurementSystem,
+    quantityMap,
+    selectedDayIndex,
+    selectedDayMealsRaw,
+    substitutionMap,
+  ]);
+
+  const groceryDayMeals: GroceryDayMeals[] = useMemo(() => {
+    if (isUsingActivePlan && activePlan?.days && activePlan.days.length > 0) {
+      return activePlan.days.map((d) => ({
+        dayLabel: d.label,
+        meals: getMealsForDay(activePlan, d.dayIndex),
+      }));
+    }
+    return baseWeekPlan.days.map((d) => ({
+      dayLabel: d.label,
+      meals: d.meals,
+    }));
+  }, [activePlan, baseWeekPlan.days, isUsingActivePlan]);
 
   const planTotals = useMemo(() => computePlanTotals(plan.meals), [plan.meals]);
   const planTarget = plan.targetUsed ?? planningTargets;
@@ -1279,7 +1323,7 @@ export default function PlanScreen() {
       if (!replacement) return;
 
       const entries = replacement.suggestions.map((food, foodIndex) => {
-        const slotId = mealSlotBaseId(mealIndex, foodIndex);
+        const slotId = mealSlotBaseId(selectedDayIndex, mealIndex, foodIndex);
         return {
           ...food,
           id: slotId,
@@ -1289,7 +1333,7 @@ export default function PlanScreen() {
       setSubstitutionMap((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((k) => {
-          if (k.startsWith(`plan-${mealIndex}-`)) delete next[k];
+          if (k.startsWith(`plan-${selectedDayIndex}-${mealIndex}-`)) delete next[k];
         });
         entries.forEach((item) => {
           next[item.id] = item;
@@ -1299,10 +1343,10 @@ export default function PlanScreen() {
       setQuantityMap((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((k) => {
-          if (k.startsWith(`plan-${mealIndex}-`)) delete next[k];
+          if (k.startsWith(`plan-${selectedDayIndex}-${mealIndex}-`)) delete next[k];
         });
         loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES).then((existing) => {
-          const merged = { ...(existing ?? {}), [planKey]: next };
+          const merged = { ...(existing ?? {}), [quantityPlanKey]: next };
           saveData(STORAGE_KEYS.MEAL_PLAN_QUANTITIES, merged);
         });
         return next;
@@ -1314,7 +1358,8 @@ export default function PlanScreen() {
       allergies,
       dislikedFoodIds,
       generationSeed,
-      planKey,
+      quantityPlanKey,
+      selectedDayIndex,
       planningTargets,
       profile.dietModifiers,
       profile.eatingStyle,
@@ -1334,6 +1379,18 @@ export default function PlanScreen() {
         suggestions: meal.suggestions.map((s) => ({ ...s })),
       }));
 
+      const daysDeepCopy = baseWeekPlan.days.map((d, idx) => ({
+        dayIndex: d.dayIndex,
+        label: d.label,
+        meals:
+          idx === selectedDayIndex
+            ? mealsDeepCopy
+            : d.meals.map((meal) => ({
+                ...meal,
+                suggestions: meal.suggestions.map((s) => ({ ...s })),
+              })),
+      }));
+
       const savedPlan: SavedMealPlan = {
         id: generateId(),
         name: autoName,
@@ -1341,7 +1398,9 @@ export default function PlanScreen() {
         dietaryModifiers: [...(profile.dietModifiers ?? [])],
         createdAt: now,
         updatedAt: now,
-        meals: mealsDeepCopy,
+        meals: daysDeepCopy[0]?.meals ?? mealsDeepCopy,
+        days: daysDeepCopy,
+        numDays,
         substitutionMap: { ...substitutionMap },
         macroTargets: { ...planTarget },
         isActive: true,
@@ -1416,8 +1475,8 @@ export default function PlanScreen() {
   }, [slideAnim]);
 
   const openEditQuantity = useCallback((mealIndex: number, foodIndex: number, _food: MealSuggestion) => {
-    const slotKey = `plan-${mealIndex}-${foodIndex}`;
-    const rawMeals = isUsingActivePlan && activePlanMeals ? activePlanMeals : basePlan.meals;
+    const slotKey = mealSlotBaseId(selectedDayIndex, mealIndex, foodIndex);
+    const rawMeals = selectedDayMealsRaw;
     const rawFood = rawMeals[mealIndex].suggestions[foodIndex];
     const baseItem = substitutionMap[slotKey] ?? { ...rawFood, id: slotKey };
     const qtyInfo = getQuantityInfo(baseItem.foodId, baseItem.portionGrams, measurementSystem);
@@ -1425,7 +1484,7 @@ export default function PlanScreen() {
     setEditQtyFood(baseItem);
     setEditQtySlotKey(slotKey);
     setEditQtyVisible(true);
-  }, [substitutionMap, isUsingActivePlan, activePlanMeals, basePlan.meals, measurementSystem]);
+  }, [substitutionMap, selectedDayMealsRaw, selectedDayIndex, measurementSystem]);
 
   const handleQuantitySave = useCallback((slotKey: string, newQty: number) => {
     const baseItem = editQtyFood;
@@ -1453,7 +1512,7 @@ export default function PlanScreen() {
     setQuantityMap((prev) => {
       const next = { ...prev, [slotKey]: newQty };
       loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES).then((existing) => {
-        const merged = { ...(existing ?? {}), [planKey]: next };
+        const merged = { ...(existing ?? {}), [quantityPlanKey]: next };
         saveData(STORAGE_KEYS.MEAL_PLAN_QUANTITIES, merged);
       });
       return next;
@@ -1468,7 +1527,7 @@ export default function PlanScreen() {
         servingGrams: scaledItem.portionGrams,
       });
     }
-  }, [editQtyFood, measurementSystem, planKey, todayEntries, updateEntry]);
+  }, [editQtyFood, measurementSystem, quantityPlanKey, todayEntries, updateEntry]);
 
   const handleSelectSubstitute = useCallback((result: SubstituteResult) => {
     if (!selectedFood) return;
@@ -1478,7 +1537,7 @@ export default function PlanScreen() {
     }
 
     const newItem = applySubstitution(selectedFood, result, selectedMealIdx, selectedFoodIdx);
-    const slotKey = `plan-${selectedMealIdx}-${selectedFoodIdx}`;
+    const slotKey = mealSlotBaseId(selectedDayIndex, selectedMealIdx, selectedFoodIdx);
 
     setSubstitutionMap((prev) => ({
       ...prev,
@@ -1488,7 +1547,7 @@ export default function PlanScreen() {
       const next = { ...prev };
       delete next[slotKey];
       loadData<Record<string, Record<string, number>>>(STORAGE_KEYS.MEAL_PLAN_QUANTITIES).then((existing) => {
-        const merged = { ...(existing ?? {}), [planKey]: next };
+        const merged = { ...(existing ?? {}), [quantityPlanKey]: next };
         saveData(STORAGE_KEYS.MEAL_PLAN_QUANTITIES, merged);
       });
       return next;
@@ -1649,6 +1708,55 @@ export default function PlanScreen() {
               ))}
             </View>
           )}
+
+          <View style={styles.planLengthRow}>
+            <Text style={styles.planLengthLabel}>Plan length</Text>
+            <View style={styles.dayChipRow}>
+              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <TouchableOpacity
+                  key={n}
+                  style={[
+                    styles.dayChip,
+                    numDays === n && { backgroundColor: colors.primaryMuted, borderColor: colors.primary },
+                  ]}
+                  onPress={() => {
+                    setNumDays(n);
+                    setSelectedDayIndex((i) => Math.min(i, n - 1));
+                    setActivePlanLoaded(false);
+                  }}
+                >
+                  <Text style={[styles.dayChipText, numDays === n && { color: colors.primary }]}>{n}d</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {numDays > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daySelectorScroll}>
+              {Array.from({ length: numDays }, (_, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[
+                    styles.daySelectorChip,
+                    selectedDayIndex === i && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                  onPress={() => {
+                    setSelectedDayIndex(i);
+                    setActivePlanLoaded(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.daySelectorText,
+                      selectedDayIndex === i && { color: colors.onPrimary ?? Colors.white },
+                    ]}
+                  >
+                    {getWeekDayLabel(i)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
           <View style={styles.headerMacros}>
             <View style={styles.headerMacroItem}>
               <Text style={[styles.headerMacroValue, { color: Colors.protein }]}>{formatNumber(Math.round(planTotals.protein_g))}g</Text>
@@ -1671,7 +1779,7 @@ export default function PlanScreen() {
           <View style={styles.planUnavailableCard}>
             <Text style={styles.planUnavailableTitle}>Plan unavailable</Text>
             <Text style={styles.planUnavailableText}>
-              We couldn't generate a plan with your current allergies and dietary setup. Try removing an allergy or adjusting your eating style or restrictions.
+              We couldn{"'"}t generate a plan with your current allergies and dietary setup. Try removing an allergy or adjusting your eating style or restrictions.
             </Text>
             <TouchableOpacity
               style={[styles.editAllergiesBtn, { backgroundColor: colors.primary }]}
@@ -1700,8 +1808,9 @@ export default function PlanScreen() {
             ))}
 
                 <GrocerySection
-              meals={plan.meals}
-              planId={activePlanQuery.data?.id ?? 'generated'}
+              dayMeals={groceryDayMeals}
+              planId={activePlanQuery.data?.id ?? generatedPlanKey}
+              subtitle={`Based on your ${numDays}-day plan`}
               showToast={showToast}
             />
           </>
@@ -1889,7 +1998,7 @@ export default function PlanScreen() {
                   testID="plan-name-input"
                 />
                 <Text style={styles.saveHint}>
-                  Leave blank for auto: "{EATING_STYLE_LABELS[profile.eatingStyle]} Plan – {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}"
+                  Leave blank for auto: &ldquo;{EATING_STYLE_LABELS[profile.eatingStyle]} Plan – {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}&rdquo;
                 </Text>
               </View>
 
@@ -2027,6 +2136,51 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 11,
     fontWeight: '600' as const,
+  },
+  planLengthRow: {
+    marginTop: 12,
+    gap: 8,
+  },
+  planLengthLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  dayChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  dayChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.cardElevated,
+  },
+  dayChipText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  daySelectorScroll: {
+    marginTop: 10,
+    maxHeight: 44,
+  },
+  daySelectorChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.cardElevated,
+    marginRight: 8,
+  },
+  daySelectorText: {
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '700' as const,
   },
   headerMacros: {
     flexDirection: 'row',

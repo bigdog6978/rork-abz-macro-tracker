@@ -10,6 +10,7 @@ import { DailyLogProvider, useDailyLog } from "../providers/DailyLogProvider";
 import { MeasurementsProvider } from "../providers/MeasurementsProvider";
 import { GoalSettingsProvider } from "../providers/GoalSettingsProvider";
 import { ProProvider } from "../providers/ProProvider";
+import { PhotosProvider } from "../providers/PhotosProvider";
 import { ThemeProvider, useThemeColors } from "../providers/ThemeProvider";
 import AppBackground from "../components/ui/AppBackground";
 import ErrorBoundary from "../components/ui/ErrorBoundary";
@@ -167,6 +168,26 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="progress-photos"
+        options={{
+          presentation: "modal",
+          title: "Progress Photos",
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+      <Stack.Screen
+        name="share-progress"
+        options={{
+          presentation: "modal",
+          title: "Share Progress",
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+      <Stack.Screen
         name="legal-document"
         options={{
           title: "",
@@ -189,11 +210,13 @@ export default function RootLayout() {
                 <MeasurementsProvider>
                   <GoalSettingsProvider>
                     <ProProvider>
-                      <AppBackground>
-                        <PostProHealthFlow />
-                        <PhysiqWatchSync />
-                        <AppContent />
-                      </AppBackground>
+                      <PhotosProvider>
+                        <AppBackground>
+                          <PostProHealthFlow />
+                          <PhysiqWatchSync />
+                          <AppContent />
+                        </AppBackground>
+                      </PhotosProvider>
                     </ProProvider>
                   </GoalSettingsProvider>
                 </MeasurementsProvider>

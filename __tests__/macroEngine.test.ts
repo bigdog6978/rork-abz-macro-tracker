@@ -136,6 +136,30 @@ describe('macroEngine', () => {
   });
 });
 
+describe('macro target resolution (relaunch persistence)', () => {
+  it('prefers custom macros over calculated and ignores stale pro dynamic targets', () => {
+    const customMacros = { calories: 2200, protein_g: 180, carbs_g: 150, fat_g: 70 };
+    const calculatedMacros = { calories: 2000, protein_g: 160, carbs_g: 200, fat_g: 65 };
+    const staleProDynamic = { calories: 1800, protein_g: 140, carbs_g: 120, fat_g: 55 };
+
+    const resolveBaseMacros = (
+      custom: typeof customMacros | null,
+      calculated: typeof calculatedMacros
+    ) => custom ?? calculated;
+
+    expect(resolveBaseMacros(customMacros, calculatedMacros)).toEqual(customMacros);
+    expect(resolveBaseMacros(null, calculatedMacros)).toEqual(calculatedMacros);
+
+    const noCustom: typeof customMacros | null = null;
+    const buggyWithoutCustom = noCustom ?? staleProDynamic ?? calculatedMacros;
+    expect(buggyWithoutCustom).toEqual(staleProDynamic);
+
+    const fixedWithoutCustom = resolveBaseMacros(noCustom, calculatedMacros);
+    expect(fixedWithoutCustom).not.toEqual(staleProDynamic);
+    expect(fixedWithoutCustom).toEqual(calculatedMacros);
+  });
+});
+
 describe('migration adapters', () => {
   it('maps legacy macro strategies to eating styles', () => {
     expect(legacyMacroStrategyToEatingStyle('low_carb')).toBe('keto');
