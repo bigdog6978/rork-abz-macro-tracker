@@ -51,6 +51,8 @@ function getDialSize(cardWidth: number, screenWidth: number, isTablet: boolean):
 
 // ─── CustomMacrosModal ───────────────────────────────────────────────────────
 
+type MacroFieldKey = 'calories' | 'protein' | 'carbs' | 'fat';
+
 function CustomMacrosModal({
   visible,
   currentMacros,
@@ -67,10 +69,12 @@ function CustomMacrosModal({
   onClose: () => void;
 }) {
   const colors = useThemeColors();
+  const styles = useMemo(() => createModalStyles(colors), [colors]);
   const [calories, setCalories] = useState(String(currentMacros.calories));
   const [protein, setProtein] = useState(String(currentMacros.protein_g));
   const [carbs, setCarbs] = useState(String(currentMacros.carbs_g));
   const [fat, setFat] = useState(String(currentMacros.fat_g));
+  const [errors, setErrors] = useState<Partial<Record<MacroFieldKey, string>>>({});
 
   const ref0 = useRef<TextInput>(null);
   const ref1 = useRef<TextInput>(null);
@@ -84,30 +88,49 @@ function CustomMacrosModal({
       setProtein(String(currentMacros.protein_g));
       setCarbs(String(currentMacros.carbs_g));
       setFat(String(currentMacros.fat_g));
+      setErrors({});
     }
   }, [visible, currentMacros]);
 
   const handleSave = () => {
     Keyboard.dismiss();
-    const c = parseInt(calories, 10);
-    const p = parseInt(protein, 10);
-    const cb = parseInt(carbs, 10);
-    const f = parseInt(fat, 10);
-    if (!c || !p || cb === undefined || !f || c <= 0 || p <= 0 || cb < 0 || f <= 0) return;
-    onSave({ calories: c, protein_g: p, carbs_g: cb, fat_g: f });
+    const parsed: Record<MacroFieldKey, number> = {
+      calories: parseInt(calories, 10),
+      protein: parseInt(protein, 10),
+      carbs: parseInt(carbs, 10),
+      fat: parseInt(fat, 10),
+    };
+    const nextErrors: Partial<Record<MacroFieldKey, string>> = {};
+    (['calories', 'protein', 'fat'] as MacroFieldKey[]).forEach((key) => {
+      if (!Number.isFinite(parsed[key]) || parsed[key] <= 0) {
+        nextErrors[key] = 'Enter a number greater than 0.';
+      }
+    });
+    if (!Number.isFinite(parsed.carbs) || parsed.carbs < 0) {
+      nextErrors.carbs = 'Enter 0 or a positive number.';
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+    onSave({ calories: parsed.calories, protein_g: parsed.protein, carbs_g: parsed.carbs, fat_g: parsed.fat });
   };
 
-  const fields: { label: string; value: string; onChange: (v: string) => void; color: string }[] = [
-    { label: 'Calories', value: calories, onChange: setCalories, color: Colors.calories },
-    { label: 'Protein (g)', value: protein, onChange: setProtein, color: Colors.protein },
-    { label: 'Carbs (g)', value: carbs, onChange: setCarbs, color: Colors.carbs },
-    { label: 'Fat (g)', value: fat, onChange: setFat, color: Colors.fat },
+  const fields: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    color: string;
+    errorKey: MacroFieldKey;
+  }[] = [
+    { label: 'Calories', value: calories, onChange: setCalories, color: Colors.calories, errorKey: 'calories' },
+    { label: 'Protein (g)', value: protein, onChange: setProtein, color: Colors.protein, errorKey: 'protein' },
+    { label: 'Carbs (g)', value: carbs, onChange: setCarbs, color: Colors.carbs, errorKey: 'carbs' },
+    { label: 'Fat (g)', value: fat, onChange: setFat, color: Colors.fat, errorKey: 'fat' },
   ];
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
-        style={modalStyles.backdrop}
+        style={styles.backdrop}
         onPress={() => {
           if (Keyboard.isVisible()) {
             Keyboard.dismiss();
@@ -118,53 +141,67 @@ function CustomMacrosModal({
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={modalStyles.sheet}
+        style={styles.sheet}
       >
-        <View style={modalStyles.sheetHeader}>
+        <View style={styles.sheetHeader}>
           <View style={{ flex: 1 }} />
           <TouchableOpacity
             onPress={Keyboard.dismiss}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ChevronDown size={20} color={Colors.textTertiary} />
+            <ChevronDown size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
-        <Text style={modalStyles.title}>Set Custom Targets</Text>
-        <Text style={modalStyles.subtitle}>Override your calculated daily targets.</Text>
-        {fields.map(({ label, value, onChange, color }, index) => (
-          <View key={label} style={modalStyles.fieldRow}>
-            <Text style={[modalStyles.fieldLabel, { color }]}>{label}</Text>
-            <TextInput
-              ref={inputRefs[index]}
-              style={[modalStyles.fieldInput, { borderColor: color }]}
-              value={value}
-              onChangeText={onChange}
-              keyboardType="number-pad"
-              placeholder="0"
-              placeholderTextColor={Colors.textTertiary}
-              returnKeyType={index < 3 ? 'next' : 'done'}
-              blurOnSubmit={false}
-              onSubmitEditing={() => {
-                if (index < 3) {
-                  inputRefs[index + 1].current?.focus();
-                } else {
-                  Keyboard.dismiss();
-                }
-              }}
-            />
-          </View>
-        ))}
+        <Text style={styles.title}>Set Custom Targets</Text>
+        <Text style={styles.subtitle}>Override your calculated daily targets.</Text>
+        {fields.map(({ label, value, onChange, color, errorKey }, index) => {
+          const fieldError = errors[errorKey];
+          return (
+            <View key={label} style={styles.fieldRowWrap}>
+              <View style={styles.fieldRow}>
+                <Text style={[styles.fieldLabel, { color }]}>{label}</Text>
+                <TextInput
+                  ref={inputRefs[index]}
+                  style={[styles.fieldInput, { borderColor: fieldError ? Colors.danger : color }]}
+                  value={value}
+                  onChangeText={onChange}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={colors.textTertiary}
+                  returnKeyType={index < 3 ? 'next' : 'done'}
+                  blurOnSubmit={false}
+                  accessibilityLabel={label}
+                  onSubmitEditing={() => {
+                    if (index < 3) {
+                      inputRefs[index + 1].current?.focus();
+                    } else {
+                      Keyboard.dismiss();
+                    }
+                  }}
+                />
+              </View>
+              {fieldError ? <Text style={styles.fieldError}>{fieldError}</Text> : null}
+            </View>
+          );
+        })}
         <TouchableOpacity
-          style={[modalStyles.btn, { backgroundColor: colors.primary }]}
+          style={[styles.btn, { backgroundColor: colors.primary }]}
           onPress={handleSave}
+          accessibilityRole="button"
+          accessibilityLabel="Save custom targets"
         >
-          <Text style={[modalStyles.btnText, { color: colors.onPrimary ?? Colors.white }]}>
+          <Text style={[styles.btnText, { color: colors.onPrimary ?? colors.white }]}>
             Save Targets
           </Text>
         </TouchableOpacity>
         {isCustom && (
-          <TouchableOpacity style={modalStyles.resetBtn} onPress={onReset}>
-            <Text style={modalStyles.resetBtnText}>Reset to Calculated</Text>
+          <TouchableOpacity
+            style={styles.resetBtn}
+            onPress={onReset}
+            accessibilityRole="button"
+            accessibilityLabel="Reset to calculated targets"
+          >
+            <Text style={styles.resetBtnText}>Reset to Calculated</Text>
           </TouchableOpacity>
         )}
       </KeyboardAvoidingView>
@@ -402,7 +439,7 @@ export default function DashboardScreen() {
               onPress={() => setEditMacrosVisible(true)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Pencil size={14} color={customMacros ? colors.primary : Colors.textTertiary} />
+              <Pencil size={14} color={customMacros ? colors.primary : colors.textTertiary} />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -481,7 +518,7 @@ export default function DashboardScreen() {
                   onPress={() => dismissPrompt()}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <X size={14} color={Colors.textTertiary} />
+                  <X size={14} color={colors.textTertiary} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -499,6 +536,9 @@ export default function DashboardScreen() {
                     style={styles.entryTapArea}
                     onPress={() => handleEditEntry(entry.id)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Edit ${entry.name}, ${formatNumber(entry.calories)} calories`}
+                    accessibilityHint="Opens this log entry for editing"
                   >
                     <View style={styles.entryInfo}>
                       <Text style={styles.entryName}>{entry.name}</Text>
@@ -507,14 +547,16 @@ export default function DashboardScreen() {
                         {formatNumber(entry.carbs_g)}c · {formatNumber(entry.fat_g)}f
                       </Text>
                     </View>
-                    <ChevronRight size={18} color={Colors.textTertiary} style={styles.entryChevron} />
+                    <ChevronRight size={18} color={colors.textTertiary} style={styles.entryChevron} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.entryDelete}
                     onPress={() => handleRemoveEntry(entry.id)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${entry.name}`}
                   >
-                    <Trash2 size={16} color={Colors.textTertiary} />
+                    <Trash2 size={16} color={colors.textTertiary} />
                   </TouchableOpacity>
                 </PremiumCard>
               ))}
@@ -552,15 +594,15 @@ export default function DashboardScreen() {
   );
 }
 
-// ─── Modal styles (no theme dependency) ─────────────────────────────────────
+// ─── Modal styles ────────────────────────────────────────────────────────────
 
-const modalStyles = StyleSheet.create({
+const createModalStyles = (colors: AppColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -572,14 +614,17 @@ const modalStyles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 20,
     fontWeight: '800' as const,
   },
   subtitle: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     marginTop: -6,
+  },
+  fieldRowWrap: {
+    gap: 4,
   },
   fieldRow: {
     flexDirection: 'row' as const,
@@ -594,14 +639,20 @@ const modalStyles = StyleSheet.create({
   },
   fieldInput: {
     flex: 1,
-    backgroundColor: Colors.cardElevated,
+    backgroundColor: colors.cardElevated,
     borderWidth: 2,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: Colors.text,
+    color: colors.text,
     fontSize: 18,
     fontWeight: '700' as const,
+    textAlign: 'right' as const,
+  },
+  fieldError: {
+    color: Colors.danger,
+    fontSize: 12,
+    fontWeight: '600' as const,
     textAlign: 'right' as const,
   },
   btn: {
@@ -620,7 +671,7 @@ const modalStyles = StyleSheet.create({
     paddingVertical: 10,
   },
   resetBtnText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '600' as const,
   },
@@ -664,12 +715,12 @@ const createStyles = (colors: AppColors) =>
       paddingHorizontal: 8,
       paddingVertical: 5,
       borderRadius: Radius.sm,
-      backgroundColor: Colors.cardElevated,
+      backgroundColor: colors.cardElevated,
       borderWidth: 1,
-      borderColor: Colors.cardBorder,
+      borderColor: colors.cardBorder,
     },
     modifierTagText: {
-      color: Colors.textSecondary,
+      color: colors.textSecondary,
       fontSize: 11,
       fontWeight: '600' as const,
     },
@@ -726,11 +777,11 @@ const createStyles = (colors: AppColors) =>
     },
     dialNumber: {
       fontWeight: '800' as const,
-      color: Colors.text,
+      color: colors.text,
       textAlign: 'center' as const,
     },
     dialSub: {
-      color: Colors.textSecondary,
+      color: colors.textSecondary,
       textAlign: 'center' as const,
     },
     statsCol: {
@@ -756,13 +807,13 @@ const createStyles = (colors: AppColors) =>
       flexShrink: 0,
       width: 82,
       fontSize: 16,
-      color: Colors.textSecondary,
+      color: colors.textSecondary,
     },
     statValue: {
       flex: 1,
       fontSize: 30,
       fontWeight: '800' as const,
-      color: Colors.text,
+      color: colors.text,
       minWidth: 56,
       textAlign: 'right' as const,
     },
@@ -806,7 +857,7 @@ const createStyles = (colors: AppColors) =>
       marginTop: Spacing.xxl,
     },
     sectionTitle: {
-      color: Colors.text,
+      color: colors.text,
       fontSize: 18,
       fontWeight: '700' as const,
       marginBottom: Spacing.md,
@@ -829,12 +880,12 @@ const createStyles = (colors: AppColors) =>
       marginLeft: 8,
     },
     entryName: {
-      color: Colors.text,
+      color: colors.text,
       fontSize: 15,
       fontWeight: '600' as const,
     },
     entryMacros: {
-      color: Colors.textSecondary,
+      color: colors.textSecondary,
       fontSize: 13,
       marginTop: 3,
       fontWeight: '500' as const,
@@ -871,12 +922,12 @@ const createStyles = (colors: AppColors) =>
       flex: 1,
     },
     promptTitle: {
-      color: Colors.text,
+      color: colors.text,
       fontSize: 14,
       fontWeight: '700' as const,
     },
     promptSubtitle: {
-      color: Colors.textSecondary,
+      color: colors.textSecondary,
       fontSize: 12,
       fontWeight: '500' as const,
       marginTop: 1,

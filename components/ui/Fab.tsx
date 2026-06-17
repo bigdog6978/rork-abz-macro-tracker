@@ -2,7 +2,6 @@ import React, { useRef, useCallback, useMemo } from 'react';
 import { StyleSheet, Animated, TouchableWithoutFeedback, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Plus } from 'lucide-react-native';
-import Colors from '../../constants/colors';
 import { Shadows } from '../../theme/tokens';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
@@ -10,9 +9,10 @@ interface FabProps {
   onPress: () => void;
   icon?: React.ReactNode;
   testID?: string;
+  accessibilityLabel?: string;
 }
 
-export default function Fab({ onPress, icon, testID }: FabProps) {
+export default function Fab({ onPress, icon, testID, accessibilityLabel = 'Add food' }: FabProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const scale = useRef(new Animated.Value(1)).current;
@@ -48,6 +48,8 @@ export default function Fab({ onPress, icon, testID }: FabProps) {
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
     >
       <Animated.View style={[styles.fab, { transform: [{ scale }] }]}>
         {icon ?? <Plus size={26} color={colors.onPrimary} />}

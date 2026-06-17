@@ -53,10 +53,11 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { profile, macros, updateProfile, resetProfile } = useUser();
   const {
-    entitlement,
-    hasProAccess,
-    hasAthleteAccess,
-    tierLabel,
+    hasPremium,
+    trialActive,
+    trialExpired,
+    trialDaysRemaining,
+    startTrial,
     settings: proSettings,
     healthConnectionStatus,
     dynamicReason,
@@ -78,14 +79,10 @@ export default function SettingsScreen() {
     clearCycleData,
     startPurchase,
     restoreActivePurchases,
-    openManageSubscriptions,
-    proProduct,
-    athleteProduct,
+    lifetimeProduct,
     iapPurchasePending,
     iapRestorePending,
     iapError,
-    iapLifecycleStatus,
-    iapStatusMessage,
   } = usePro();
   const { clearAll } = useDailyLog();
   const colors = useThemeColors();
@@ -108,12 +105,11 @@ export default function SettingsScreen() {
   const [dietNotes, setDietNotes] = useState(profile.dietNotes ?? '');
   const [proInfoVisible, setProInfoVisible] = useState(false);
   const [healthPermissionVisible, setHealthPermissionVisible] = useState(false);
-  const [proExpanded, setProExpanded] = useState(hasProAccess || hasAthleteAccess);
-  const [upsellTier, setUpsellTier] = useState<'pro' | 'athlete'>('pro');
+  const [proExpanded, setProExpanded] = useState(hasPremium);
 
   useEffect(() => {
-    setProExpanded(hasProAccess || hasAthleteAccess);
-  }, [hasProAccess, hasAthleteAccess]);
+    setProExpanded(hasPremium);
+  }, [hasPremium]);
 
   useEffect(() => {
     setMeasurementSystem(profile.measurementSystem);
@@ -226,53 +222,30 @@ export default function SettingsScreen() {
     }
   }, [setAccentTheme]);
 
-  const startProTrial = useCallback(() => {
-    if (entitlement === 'pro_trial_consumed' || entitlement === 'athlete_trial_consumed') {
-      Alert.alert('Trial used', 'Your free trial for this tier has already been used. Subscribe to continue.');
-      return;
-    }
-    const isAthlete = !hasAthleteAccess && !hasProAccess ? upsellTier === 'athlete' : tierLabel === 'athlete';
-    Alert.alert(
-      isAthlete ? 'Start Athlete trial?' : 'Start Pro trial?',
-      isAthlete
-        ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
-        : PRO_COPY.renewalDisclosure,
-      [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Start Trial',
-        onPress: async () => {
-          const ok = await startPurchase(isAthlete ? 'athlete' : 'pro');
-          if (!ok) {
-            Alert.alert('Purchase not completed', 'Unable to start trial right now. Please try again.');
-          }
-        },
-      },
-      ]
-    );
-  }, [entitlement, tierLabel, hasAthleteAccess, hasProAccess, upsellTier, startPurchase]);
+  const premiumPriceText = lifetimeProduct?.priceText ?? PRO_COPY.priceFallback;
 
-  const subscribePro = useCallback(() => {
-    const isAthlete = !hasAthleteAccess && !hasProAccess ? upsellTier === 'athlete' : tierLabel === 'athlete';
+  const unlockLifetime = useCallback(() => {
     Alert.alert(
-      isAthlete ? 'Confirm Athlete subscription' : 'Confirm subscription',
-      isAthlete
-        ? 'You are choosing Athlete monthly access at $6.99/month. You can manage or cancel in Apple ID Subscriptions.'
-        : 'You are choosing Pro monthly access at $4.99/month. You can manage or cancel in Apple ID Subscriptions.',
+      'Unlock Physiq Premium',
+      `${premiumPriceText} — one-time purchase, yours forever. No subscription and no auto-renewal.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Subscribe',
+          text: 'Unlock',
           onPress: async () => {
-            const ok = await startPurchase(isAthlete ? 'athlete' : 'pro');
+            const ok = await startPurchase();
             if (!ok) {
-              Alert.alert('Purchase not completed', 'Unable to subscribe right now. Please try again.');
+              Alert.alert('Purchase not completed', 'Unable to complete the purchase right now. Please try again.');
             }
           },
         },
       ]
     );
-  }, [tierLabel, hasAthleteAccess, hasProAccess, upsellTier, startPurchase]);
+  }, [premiumPriceText, startPurchase]);
+
+  const startFreeTrial = useCallback(() => {
+    void startTrial();
+  }, [startTrial]);
 
   const completeHealthConnect = useCallback(async () => {
     setHealthPermissionVisible(false);
@@ -339,15 +312,14 @@ export default function SettingsScreen() {
         : healthConnectionStatus === 'not_available'
           ? 'Unavailable'
           : 'Connect';
-  const selectedProductTitle = (hasAthleteAccess || (!hasProAccess && upsellTier === 'athlete'))
-    ? 'Physiq Athlete'
-    : 'Physiq Pro';
-  const selectedProductSubtitle = hasAthleteAccess
-    ? 'Athlete active plan'
-    : hasProAccess
-      ? 'Pro active plan'
-      : upsellTier === 'athlete'
-        ? PRO_COPY.athleteSubheadline
+  const purchasedLifetime = hasPremium && !trialActive;
+  const selectedProductTitle = 'Physiq Premium';
+  const selectedProductSubtitle = purchasedLifetime
+    ? 'Lifetime access unlocked'
+    : trialActive
+      ? PRO_COPY.trialDaysLeft.replace('{n}', String(trialDaysRemaining))
+      : trialExpired
+        ? PRO_COPY.trialEndedTitle
         : PRO_COPY.subheadline;
 
   return (
@@ -417,7 +389,7 @@ export default function SettingsScreen() {
                   </View>
                 </View>
               </View>
-              {(hasProAccess || hasAthleteAccess) && Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
+              {hasPremium && Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
                 <View style={styles.healthBanner}>
                   <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
                   <Text style={styles.healthBannerBody}>{PRO_COPY.healthRequiredBannerBody}</Text>
@@ -436,66 +408,49 @@ export default function SettingsScreen() {
                 onPress={() => setProExpanded(true)}
               >
                 <Text style={styles.proCollapsedCtaText}>
-                  {hasProAccess || hasAthleteAccess ? 'Expand' : 'View Pro options'}
+                  {hasPremium ? 'Expand' : 'View Premium options'}
                 </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.editor}>
-            {!(hasProAccess || hasAthleteAccess) ? (
+            {!hasPremium ? (
               <>
-                <View style={styles.segmentRow}>
-                  <TouchableOpacity
-                    style={[styles.segment, upsellTier === 'pro' && { borderColor: colors.primary, backgroundColor: colors.primaryMuted }]}
-                    onPress={() => setUpsellTier('pro')}
-                  >
-                    <Text style={[styles.segmentText, upsellTier === 'pro' && { color: colors.primary }]}>Pro</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.segment, upsellTier === 'athlete' && { borderColor: colors.primary, backgroundColor: colors.primaryMuted }]}
-                    onPress={() => setUpsellTier('athlete')}
-                  >
-                    <Text style={[styles.segmentText, upsellTier === 'athlete' && { color: colors.primary }]}>Athlete</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.proDisclosureText}>
-                  {upsellTier === 'athlete'
-                    ? `3-day free trial, then ${athleteProduct?.priceText ?? '$6.99'} ${athleteProduct?.billingPeriodText ?? 'per month'}. Auto-renews unless canceled at least 24 hours before renewal.`
-                    : PRO_COPY.renewalDisclosure}
-                </Text>
-                <Text style={styles.proDisclosureText}>
-                  Subscription price: {upsellTier === 'athlete'
-                    ? `${athleteProduct?.priceText ?? '$6.99'} ${athleteProduct?.billingPeriodText ?? 'per month'}`
-                    : `${proProduct?.priceText ?? '$4.99'} ${proProduct?.billingPeriodText ?? 'per month'}`}
-                </Text>
-                <Text style={styles.proDisclosureText}>
-                  Cancel anytime in Apple ID Subscriptions. Billing renews automatically unless canceled at least 24 hours before renewal.
-                </Text>
-                <Text style={styles.proDisclosureText}>
-                  {PRO_COPY.iapStateCopy[iapLifecycleStatus]}
-                </Text>
-                <Text style={styles.proDisclosureText}>{iapStatusMessage}</Text>
+                {trialExpired ? (
+                  <Text style={styles.proDisclosureText}>
+                    {PRO_COPY.trialEndedTitle}. {PRO_COPY.trialEndedBody}
+                  </Text>
+                ) : (
+                  <Text style={styles.proDisclosureText}>
+                    Unlock everything with a single one-time purchase of {premiumPriceText} — yours forever. No subscription and no auto-renewal.
+                  </Text>
+                )}
                 {iapError ? <Text style={styles.proDisclosureText}>{iapError}</Text> : null}
+                {!trialExpired ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.proOutlineBtn, styles.proOutlineBtnSelected, { borderColor: colors.primary }]}
+                      onPress={startFreeTrial}
+                    >
+                      <Text style={[styles.proOutlineBtnText, { color: colors.primary }]}>{PRO_COPY.trialCta}</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.proDisclosureText}>{PRO_COPY.trialDisclosure}</Text>
+                  </>
+                ) : null}
                 <View style={styles.proActionRow}>
-                  <TouchableOpacity style={styles.proOutlineBtn} onPress={startProTrial} disabled={iapPurchasePending}>
-                    <Text style={styles.proOutlineBtnText}>{iapPurchasePending ? 'Processing…' : PRO_COPY.ctaTrial}</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.proOutlineBtn, styles.proOutlineBtnSelected, { borderColor: colors.primary }]}
-                    onPress={subscribePro}
+                    onPress={unlockLifetime}
                     disabled={iapPurchasePending}
                   >
                     <Text style={[styles.proOutlineBtnText, { color: colors.primary }]}>
-                      {upsellTier === 'athlete' ? PRO_COPY.ctaSubscribeAthlete : PRO_COPY.ctaSubscribe}
+                      {iapPurchasePending ? 'Processing…' : PRO_COPY.ctaUnlock}
                     </Text>
                   </TouchableOpacity>
                 </View>
                 <View style={styles.proLegalLinks}>
                   <TouchableOpacity onPress={() => void restoreActivePurchases()}>
-                    <Text style={styles.proLegalLinkText}>{iapRestorePending ? 'Restoring…' : 'Restore Purchases'}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => void openManageSubscriptions()}>
-                    <Text style={styles.proLegalLinkText}>Manage Subscription</Text>
+                    <Text style={styles.proLegalLinkText}>{iapRestorePending ? 'Restoring…' : PRO_COPY.ctaRestore}</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={styles.proLegalLinks}>
@@ -509,6 +464,26 @@ export default function SettingsScreen() {
               </>
             ) : (
               <>
+                {trialActive ? (
+                  <View style={styles.healthBanner}>
+                    <Text style={styles.healthBannerTitle}>
+                      {PRO_COPY.trialDaysLeft.replace('{n}', String(trialDaysRemaining))}
+                    </Text>
+                    <Text style={styles.healthBannerBody}>
+                      You have full premium access during your trial. {PRO_COPY.trialEndedBody}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.healthBannerCta}
+                      onPress={unlockLifetime}
+                      disabled={iapPurchasePending}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.healthBannerCtaText}>
+                        {iapPurchasePending ? 'Processing…' : PRO_COPY.ctaUnlockLifetimePrice.replace('{price}', premiumPriceText)}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
                 {Platform.OS === 'ios' && !proSettings.healthIntegrationEnabled ? (
                   <View style={styles.healthBanner}>
                     <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
@@ -524,7 +499,6 @@ export default function SettingsScreen() {
                 ) : null}
                 <Text style={styles.rowSubtitle}>Day Type: {inferredDayType.replace('_', ' ')}</Text>
                 <Text style={styles.rowSubtitle}>{dynamicReason}</Text>
-                <Text style={styles.rowSubtitle}>Tier: {tierLabel.toUpperCase()}</Text>
                 {fuelingStrategy ? <Text style={styles.rowSubtitle}>{fuelingStrategy}</Text> : null}
                 {dynamicExplainability?.length ? (
                   <View style={styles.chipWrap}>
@@ -535,7 +509,7 @@ export default function SettingsScreen() {
                     ))}
                   </View>
                 ) : null}
-                {hasAthleteAccess ? (
+                {athleteProfile.enabled ? (
                   <View style={styles.healthBanner}>
                     <Text style={styles.healthBannerTitle}>Athlete Configuration</Text>
                     <Text style={styles.healthBannerBody}>
@@ -624,6 +598,13 @@ export default function SettingsScreen() {
                     colors={colors}
                     styles={styles}
                   />
+                  <Chip
+                    active={athleteProfile.enabled}
+                    label="Athlete Mode"
+                    onPress={() => void updateAthleteProfile({ enabled: !athleteProfile.enabled })}
+                    colors={colors}
+                    styles={styles}
+                  />
                 </View>
                 <View style={styles.healthStatusRow}>
                   <Text style={styles.healthStatusLabel} numberOfLines={1}>
@@ -689,10 +670,7 @@ export default function SettingsScreen() {
                 </View>
                 <View style={styles.proLegalLinks}>
                   <TouchableOpacity onPress={() => void restoreActivePurchases()}>
-                    <Text style={styles.proLegalLinkText}>Restore Purchases</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => void openManageSubscriptions()}>
-                    <Text style={styles.proLegalLinkText}>Manage Subscription</Text>
+                    <Text style={styles.proLegalLinkText}>{iapRestorePending ? 'Restoring…' : PRO_COPY.ctaRestore}</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={styles.proLegalLinks}>

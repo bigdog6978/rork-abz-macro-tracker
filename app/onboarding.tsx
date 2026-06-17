@@ -92,11 +92,11 @@ export default function OnboardingScreen() {
   const { completeOnboarding } = useUser();
   const {
     setEntitlement,
-    updateAthleteProfile,
-    updateCycleProfile,
     startPurchase,
-    proProduct,
-    athleteProduct,
+    startTrial,
+    trialActive,
+    trialDaysRemaining,
+    lifetimeProduct,
     iapPurchasePending,
     iapError,
   } = usePro();
@@ -122,15 +122,7 @@ export default function OnboardingScreen() {
   const [definitionSheetTitle, setDefinitionSheetTitle] = useState('');
   const [definitionSheetSections, setDefinitionSheetSections] = useState<LearnMoreSection[]>([]);
   const [proInfoVisible, setProInfoVisible] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<'core' | 'pro' | 'athlete'>('pro');
   const [legalStep, setLegalStep] = useState<'terms' | 'privacy' | null>(null);
-  const [pendingEntitlement, setPendingEntitlement] = useState<
-    | 'pro_trial_active'
-    | 'pro_subscriber_active'
-    | 'athlete_trial_active'
-    | 'athlete_subscriber_active'
-    | null
-  >(null);
   const [legalSubmitPending, setLegalSubmitPending] = useState(false);
 
   const animateProgress = useCallback(
@@ -254,84 +246,53 @@ export default function OnboardingScreen() {
     router.replace('/(tabs)' as never);
   }, [completeOnboarding, draftProfile, dislikedFoodIds]);
 
-  const executeTierPurchase = useCallback(
-    (
-      entitlement:
-        | 'pro_trial_active'
-        | 'pro_subscriber_active'
-        | 'athlete_trial_active'
-        | 'athlete_subscriber_active'
-    ) => {
-      const isAthlete = entitlement === 'athlete_trial_active' || entitlement === 'athlete_subscriber_active';
-      const run = async () => {
-        setLegalSubmitPending(true);
-        try {
-          if (isAthlete) {
-            await updateAthleteProfile({
-              enabled: true,
-            });
-            await updateCycleProfile(
-              sex === 'female'
-                ? { enabled: true }
-                : { enabled: false, cycleDataConsentGivenAt: undefined, cycleDataConsentVersion: undefined }
-            );
-          }
-          const purchased = await startPurchase(isAthlete ? 'athlete' : 'pro');
-          if (purchased) {
-            void handleComplete();
-            return;
-          }
-          setEntitlement('core_active');
-          Alert.alert(
-            'Continuing with free access',
-            'Subscription is unavailable right now. You can continue with core features and try again later in Settings.'
-          );
+  const executePurchase = useCallback(() => {
+    const run = async () => {
+      setLegalSubmitPending(true);
+      try {
+        const purchased = await startPurchase();
+        if (purchased) {
           void handleComplete();
-        } finally {
-          setLegalSubmitPending(false);
-          setPendingEntitlement(null);
-          setLegalStep(null);
+          return;
         }
-      };
-      void run();
-    },
-    [
-      handleComplete,
-      sex,
-      startPurchase,
-      updateAthleteProfile,
-      updateCycleProfile,
-    ]
-  );
-
-  const completeWithTierEntitlement = useCallback(
-    (
-      entitlement:
-        | 'core_active'
-        | 'pro_trial_active'
-        | 'pro_subscriber_active'
-        | 'athlete_trial_active'
-        | 'athlete_subscriber_active'
-    ) => {
-      if (entitlement === 'core_active') {
-        setEntitlement('core_active');
+        setEntitlement('core');
+        Alert.alert(
+          'Continuing with free access',
+          'The purchase is unavailable right now. You can continue with core features and try again later in Settings.'
+        );
         void handleComplete();
-        return;
+      } finally {
+        setLegalSubmitPending(false);
+        setLegalStep(null);
       }
-      setPendingEntitlement(entitlement);
-      setLegalStep('terms');
-    },
-    [handleComplete, setEntitlement]
-  );
+    };
+    void run();
+  }, [handleComplete, setEntitlement, startPurchase]);
+
+  const beginUnlock = useCallback(() => {
+    setLegalStep('terms');
+  }, []);
+
+  const beginTrial = useCallback(() => {
+    const run = async () => {
+      await startTrial();
+      void handleComplete();
+    };
+    void run();
+  }, [handleComplete, startTrial]);
+
+  const continueFree = useCallback(() => {
+    setEntitlement('core');
+    void handleComplete();
+  }, [handleComplete, setEntitlement]);
 
   const acknowledgeTerms = useCallback(() => {
     setLegalStep('privacy');
   }, []);
 
   const acknowledgePrivacy = useCallback(() => {
-    if (!pendingEntitlement) return;
-    executeTierPurchase(pendingEntitlement);
-  }, [executeTierPurchase, pendingEntitlement]);
+    executePurchase();
+  }, [executePurchase]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -689,11 +650,7 @@ export default function OnboardingScreen() {
   );
 
   const renderProUpsellStep = () => {
-    const priceAfterTrial =
-      selectedTier === 'athlete'
-        ? athleteProduct?.priceText ?? '$6.99'
-        : proProduct?.priceText ?? '$4.99';
-    const ctaPriceLine = PRO_COPY.ctaPrimaryPriceHint.replace('{price}', priceAfterTrial);
+    const priceText = lifetimeProduct?.priceText ?? PRO_COPY.priceFallback;
     return (
     <View
       style={[
@@ -733,43 +690,8 @@ export default function OnboardingScreen() {
         {PRO_COPY.subheadline}
       </Text>
 
-      <View style={styles.tierToggleRow}>
-        <View style={styles.tierColumnTop}>
-          <Text style={styles.tierBadgeText} numberOfLines={1} adjustsFontSizeToFit>
-            {PRO_COPY.tierBadgePro}
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.tierSegmentPaywall,
-              selectedTier === 'pro' ? styles.tierSegmentPaywallActive : styles.tierSegmentPaywallIdle,
-            ]}
-            onPress={() => setSelectedTier('pro')}
-            accessibilityRole="button"
-            accessibilityState={{ selected: selectedTier === 'pro' }}
-          >
-            <Text style={[styles.segmentText, selectedTier === 'pro' && styles.segmentTextActive]}>Pro</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.tierColumnTop}>
-          <Text style={styles.tierBadgeText} numberOfLines={1} adjustsFontSizeToFit>
-            {PRO_COPY.tierBadgeAthlete}
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.tierSegmentPaywall,
-              selectedTier === 'athlete' ? styles.tierSegmentPaywallActive : styles.tierSegmentPaywallIdle,
-            ]}
-            onPress={() => setSelectedTier('athlete')}
-            accessibilityRole="button"
-            accessibilityState={{ selected: selectedTier === 'athlete' }}
-          >
-            <Text style={[styles.segmentText, selectedTier === 'athlete' && styles.segmentTextActive]}>Athlete</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       <View style={[styles.choiceList, paywallCompact && styles.choiceListCompact]}>
-        {(selectedTier === 'athlete' ? PRO_COPY.athleteFeatureBullets : PRO_COPY.featureBullets).map((line) => (
+        {PRO_COPY.featureBullets.map((line) => (
           <View key={line} style={styles.proFeatureRow}>
             <View style={styles.choiceDot} />
             <Text
@@ -789,32 +711,40 @@ export default function OnboardingScreen() {
       </View>
 
       <View style={[styles.proTrialCard, paywallCompact && styles.proTrialCardCompact]}>
-        <Text style={styles.proTrialTitle}>{PRO_COPY.trialTitle}</Text>
-        <Text style={styles.proTrialLine}>{PRO_COPY.trialLineFullAccess}</Text>
-        <Text style={styles.proTrialLine}>
-          Then {priceAfterTrial}/month unless canceled.
+        <Text style={styles.proTrialTitle}>
+          {trialActive ? PRO_COPY.trialDaysLeft.replace('{n}', String(trialDaysRemaining)) : PRO_COPY.trialTitle}
         </Text>
-        <Text style={styles.paywallTrustLineInCard}>{PRO_COPY.paywallTrustLine}</Text>
+        <Text style={styles.proTrialLine}>{PRO_COPY.oneTimeLine}</Text>
+        <Text style={styles.paywallTrustLineInCard}>{priceText}</Text>
       </View>
 
       <TouchableOpacity
         style={[styles.paywallPrimaryCta, iapPurchasePending && styles.paywallPrimaryCtaDisabled]}
         disabled={iapPurchasePending}
-        onPress={() =>
-          completeWithTierEntitlement(selectedTier === 'athlete' ? 'athlete_trial_active' : 'pro_trial_active')
-        }
+        onPress={beginTrial}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel={PRO_COPY.ctaTrial}
+        accessibilityLabel={PRO_COPY.trialCta}
       >
-        <Text style={styles.paywallPrimaryCtaTitle}>
-          {iapPurchasePending ? 'Processing…' : PRO_COPY.ctaTrial}
+        <Text style={styles.paywallPrimaryCtaTitle}>{PRO_COPY.trialCta}</Text>
+        <Text style={styles.paywallPrimaryCtaSub}>{PRO_COPY.trialDisclosure}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.paywallSecondaryCta, iapPurchasePending && styles.paywallPrimaryCtaDisabled]}
+        disabled={iapPurchasePending}
+        onPress={beginUnlock}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={PRO_COPY.ctaUnlock}
+      >
+        <Text style={styles.paywallSecondaryCtaText}>
+          {iapPurchasePending ? 'Processing…' : PRO_COPY.ctaUnlockLifetimePrice.replace('{price}', priceText)}
         </Text>
-        <Text style={styles.paywallPrimaryCtaSub}>{ctaPriceLine}</Text>
       </TouchableOpacity>
 
       <Text style={[styles.proDisclosure, paywallCompact && styles.proDisclosureCompact]}>
-        Full access 3 days, then renews unless canceled. Charged to your Apple ID at confirmation.
+        {PRO_COPY.oneTimeDisclosure}
       </Text>
 
       {iapError ? <Text style={[styles.proDisclosure, paywallCompact && styles.proDisclosureCompact]}>{iapError}</Text> : null}
@@ -910,7 +840,7 @@ export default function OnboardingScreen() {
         ) : (
           <TouchableOpacity
             style={[styles.footerButton, styles.footerButtonSkip]}
-            onPress={() => completeWithTierEntitlement('core_active')}
+            onPress={continueFree}
             activeOpacity={0.85}
           >
             <Text style={styles.footerButtonSkipText}>{PRO_COPY.ctaSkipFooter}</Text>
@@ -927,7 +857,6 @@ export default function OnboardingScreen() {
       <ProInfoModal
         visible={proInfoVisible}
         onClose={() => setProInfoVisible(false)}
-        tier={selectedTier === 'athlete' ? 'athlete' : 'pro'}
       />
       <Modal
         visible={legalStep !== null}
@@ -936,7 +865,6 @@ export default function OnboardingScreen() {
         onRequestClose={() => {
           if (legalSubmitPending) return;
           setLegalStep(null);
-          setPendingEntitlement(null);
         }}
       >
         <Pressable
@@ -944,7 +872,6 @@ export default function OnboardingScreen() {
           onPress={() => {
             if (legalSubmitPending) return;
             setLegalStep(null);
-            setPendingEntitlement(null);
           }}
         >
           <Pressable style={styles.legalSheet} onPress={() => {}}>
@@ -959,8 +886,8 @@ export default function OnboardingScreen() {
               </Text>
               <Text style={styles.legalBody}>
                 {legalStep === 'terms'
-                  ? 'Please review and acknowledge the Terms of Use before starting your subscription.'
-                  : 'Please review and acknowledge the Privacy Policy before starting your subscription.'}
+                  ? 'Please review and acknowledge the Terms of Use before unlocking.'
+                  : 'Please review and acknowledge the Privacy Policy before unlocking.'}
               </Text>
               <View style={styles.legalActionStack}>
                 <TouchableOpacity
@@ -1084,6 +1011,24 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     opacity: 0.92,
+  },
+  paywallSecondaryCta: {
+    width: '100%',
+    minHeight: 48,
+    marginTop: 10,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  paywallSecondaryCtaText: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   paywallLegalText: {
     color: Colors.textTertiary,

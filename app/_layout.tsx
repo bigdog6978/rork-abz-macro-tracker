@@ -12,6 +12,7 @@ import { GoalSettingsProvider } from "../providers/GoalSettingsProvider";
 import { ProProvider } from "../providers/ProProvider";
 import { ThemeProvider, useThemeColors } from "../providers/ThemeProvider";
 import AppBackground from "../components/ui/AppBackground";
+import ErrorBoundary from "../components/ui/ErrorBoundary";
 import PostProHealthFlow from "../components/ui/PostProHealthFlow";
 import PhysiqWatchSync from "../components/PhysiqWatchSync";
 
@@ -173,42 +174,34 @@ function RootLayoutNav() {
           headerTintColor: colors.text,
         }}
       />
-      <Stack.Screen
-        name="trial-conversion"
-        options={{
-          presentation: "modal",
-          title: "Trial Check-In",
-          headerStyle: { backgroundColor: 'transparent' },
-          headerTintColor: colors.text,
-          contentStyle: { backgroundColor: 'transparent' },
-        }}
-      />
     </Stack>
   );
 }
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <UserProvider>
-          <ThemeProvider>
-            <DailyLogProvider>
-              <MeasurementsProvider>
-                <GoalSettingsProvider>
-                  <ProProvider>
-                    <AppBackground>
-                      <PostProHealthFlow />
-                      <PhysiqWatchSync />
-                      <AppContent />
-                    </AppBackground>
-                  </ProProvider>
-                </GoalSettingsProvider>
-              </MeasurementsProvider>
-            </DailyLogProvider>
-          </ThemeProvider>
-        </UserProvider>
-      </GestureHandlerRootView>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <UserProvider>
+            <ThemeProvider>
+              <DailyLogProvider>
+                <MeasurementsProvider>
+                  <GoalSettingsProvider>
+                    <ProProvider>
+                      <AppBackground>
+                        <PostProHealthFlow />
+                        <PhysiqWatchSync />
+                        <AppContent />
+                      </AppBackground>
+                    </ProProvider>
+                  </GoalSettingsProvider>
+                </MeasurementsProvider>
+              </DailyLogProvider>
+            </ThemeProvider>
+          </UserProvider>
+        </GestureHandlerRootView>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

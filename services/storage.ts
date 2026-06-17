@@ -12,6 +12,7 @@ export const STORAGE_KEYS = {
   DISLIKED_FOODS: 'physiq_disliked_foods_v1',
   CUSTOM_MACRO_TARGETS: 'physiq_custom_macro_targets',
   PRO_ENTITLEMENT: 'physiq_pro_entitlement',
+  PRO_TRIAL_STATE: 'physiq_pro_trial_state_v1',
   PRO_SETTINGS: 'physiq_pro_settings',
   PRO_HEALTH_SIGNALS: 'physiq_pro_health_signals',
   PRO_HYDRATION_LOG: 'physiq_pro_hydration_log',
@@ -19,7 +20,6 @@ export const STORAGE_KEYS = {
   ATHLETE_PROFILE: 'physiq_athlete_profile_v1',
   ATHLETE_CYCLE_PROFILE: 'physiq_athlete_cycle_profile_v1',
   ATHLETE_CYCLE_LOGS: 'physiq_athlete_cycle_logs_v1',
-  TRIAL_CONVERSION_STATE: 'physiq_trial_conversion_state_v1',
 } as const;
 
 export async function saveData(key: string, value: unknown): Promise<void> {

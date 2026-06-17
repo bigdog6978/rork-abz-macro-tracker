@@ -101,8 +101,8 @@ Physiq does not control these sources and is not responsible for inaccuracies in
 Physiq may offer:
 
 Paid apps
-Premium features
-Future subscription services
+An optional 5-day free trial of premium features (no payment required to start, no auto-renewal)
+Premium features unlocked by a single one-time purchase (no subscription and no auto-renewal)
 
 All purchases made through the Apple App Store or Google Play Store are processed through those platforms and subject to their payment policies.
 

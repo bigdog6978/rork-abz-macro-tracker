@@ -13,6 +13,30 @@ function averageValues(values: HealthValue[] | undefined): number {
   return sumValues(values) / values.length;
 }
 
+function sampleDurationMs(sample: HealthValue): number {
+  const start = sample.startDate ? new Date(sample.startDate).getTime() : NaN;
+  const end = sample.endDate ? new Date(sample.endDate).getTime() : NaN;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+  return end - start;
+}
+
+/**
+ * Sum sleep duration from each sample's start/end span (not the category `value`).
+ * Prefers actual asleep stages; falls back to in-bed spans when stages are unavailable,
+ * so older devices that only report IN_BED still produce a usable number.
+ */
+function sumSleepHours(samples: HealthValue[] | undefined): number {
+  if (!samples || samples.length === 0) return 0;
+  const categoryOf = (s: HealthValue) => String((s as { value?: unknown }).value ?? '').toUpperCase();
+  const asleep = samples.filter((s) => {
+    const c = categoryOf(s);
+    return c !== 'INBED' && c !== 'IN_BED' && c !== 'AWAKE';
+  });
+  const source = asleep.length > 0 ? asleep : samples;
+  const ms = source.reduce((sum, item) => sum + sampleDurationMs(item), 0);
+  return ms / 3600000;
+}
+
 function callArray(
   method: (opts: HealthInputOptions, cb: (err: string, results: HealthValue[]) => void) => void,
   options: HealthInputOptions
@@ -86,7 +110,7 @@ export async function readTodayHealthSignals(): Promise<ProHealthSignals | null>
   const avgHr = averageValues(heartRateSamples);
   const restHr = restingHR?.value ?? avgHr;
   const hrTrendDeltaPct = restHr > 0 ? Math.round(((avgHr - restHr) / restHr) * 100) : 0;
-  const sleepHours = sumValues(sleepSamples) / 60;
+  const sleepHours = sumSleepHours(sleepSamples);
 
   return {
     dateKey: getTodayDateKey(),

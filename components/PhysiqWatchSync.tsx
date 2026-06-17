@@ -16,7 +16,7 @@ export default function PhysiqWatchSync() {
   const { profile, macros } = useUser();
   const { todayTotals, todayEntries, getStreak } = useDailyLog();
   const colors = useThemeColors();
-  const { hydration, tierLabel, hasAthleteAccess, athleteProfile } = usePro();
+  const { hydration, hasPremium, trialActive, athleteProfile } = usePro();
 
   const payload = useMemo((): Record<string, string> => {
     const caloriesRemaining = Math.max(macros.calories - todayTotals.calories, 0);
@@ -60,8 +60,8 @@ export default function PhysiqWatchSync() {
       proteinHex: Colors.protein,
       carbsHex: Colors.carbs,
       fatHex: Colors.fat,
-      tier: tierLabel,
-      athleteSport: hasAthleteAccess ? athleteProfile.sport : '',
+      tier: trialActive ? 'trial' : hasPremium ? 'unlocked' : 'core',
+      athleteSport: athleteProfile.enabled ? athleteProfile.sport : '',
       syncState,
       syncMessage,
     };
@@ -81,8 +81,9 @@ export default function PhysiqWatchSync() {
     colors.primary,
     hydration.consumedMl,
     hydration.targetMl,
-    tierLabel,
-    hasAthleteAccess,
+    hasPremium,
+    trialActive,
+    athleteProfile.enabled,
     athleteProfile.sport,
     getStreak,
     todayEntries.length,
@@ -103,9 +104,8 @@ export default function PhysiqWatchSync() {
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
 
-    send(payload);
-    const timers = [400, 1200, 2500].map((ms) => setTimeout(() => send(payload), ms));
-    return () => timers.forEach(clearTimeout);
+    const timer = setTimeout(() => send(payload), 400);
+    return () => clearTimeout(timer);
   }, [payload, send]);
 
   useEffect(() => {

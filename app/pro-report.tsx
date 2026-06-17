@@ -19,13 +19,13 @@ export default function ProReportScreen() {
     healthSignals,
     dynamicTargets,
     inferredDayType,
-    tierLabel,
-    hasAthleteAccess,
+    hasPremium,
     athleteProfile,
     cycleDerived,
     fuelingStrategy,
     dynamicExplainability,
   } = usePro();
+  const athleteActive = hasPremium && athleteProfile.enabled;
 
   const nutritionAdherence = getAdherencePercent(todayTotals, dynamicTargets);
   const hydrationAdherence = Math.round(
@@ -52,9 +52,8 @@ export default function ProReportScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Pro Report' }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{hasAthleteAccess ? 'Weekly Athlete Snapshot' : 'Weekly Pro Snapshot'}</Text>
+        <Text style={styles.title}>{athleteActive ? 'Weekly Athlete Snapshot' : 'Weekly Premium Snapshot'}</Text>
         <Text style={styles.subtitle}>Day type: {inferredDayType.replace('_', ' ')}</Text>
-        <Text style={styles.subtitle}>Tier: {tierLabel.toUpperCase()}</Text>
 
         <Card label="Physiq Score" value={`${physiqScore}`} styles={styles} />
         <Card label="Nutrition Adherence" value={`${nutritionAdherence}%`} styles={styles} />
@@ -65,7 +64,7 @@ export default function ProReportScreen() {
         <Card label="Current Core Calories" value={`${macros.calories} cal`} styles={styles} />
         <Card label="Pro Dynamic Calories" value={`${dynamicTargets.calories} cal`} styles={styles} />
         {fuelingStrategy ? <Card label="Fueling Strategy" value={fuelingStrategy} styles={styles} /> : null}
-        {hasAthleteAccess ? (
+        {athleteActive ? (
           <>
             <Card label="Athlete Sport" value={athleteProfile.sport} styles={styles} />
             <Card label="Season Context" value={athleteProfile.season.phase.replace('_', '-')} styles={styles} />

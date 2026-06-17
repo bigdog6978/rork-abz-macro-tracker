@@ -9,15 +9,7 @@ import {
   ProHydrationLog,
   ProSettings,
 } from '../features/pro/types';
-
-export interface TrialConversionState {
-  trialStartedAt?: string;
-  trialEndedAt?: string;
-  trialTier?: 'pro' | 'athlete';
-  trialExperienceRating?: number;
-  trialConversionPromptLastShownAt?: string;
-  trialConversionSkippedAt?: string;
-}
+import { DEFAULT_TRIAL_STATE, ProTrialState } from '../features/pro/trial';
 
 const DEFAULT_PRO_SETTINGS: ProSettings = {
   dynamicMacrosEnabled: true,
@@ -46,24 +38,49 @@ const DEFAULT_CYCLE_PROFILE: AthleteCycleProfile = {
 
 export async function getProEntitlement(): Promise<ProEntitlementState> {
   const stored = await loadData<string>(STORAGE_KEYS.PRO_ENTITLEMENT);
-  if (!stored) return 'core_active';
-  if (stored === 'pro_active') return 'pro_subscriber_active';
+  if (!stored) return 'core';
+  if (stored === 'core' || stored === 'unlocked') return stored;
+  // Migrate legacy tiered/trial entitlements: any premium variant becomes a lifetime unlock.
   if (
-    stored === 'core_active' ||
+    stored === 'pro_active' ||
     stored === 'pro_trial_active' ||
     stored === 'pro_subscriber_active' ||
-    stored === 'pro_trial_consumed' ||
     stored === 'athlete_trial_active' ||
-    stored === 'athlete_subscriber_active' ||
-    stored === 'athlete_trial_consumed'
+    stored === 'athlete_subscriber_active'
   ) {
-    return stored;
+    return 'unlocked';
   }
-  return 'core_active';
+  return 'core';
 }
 
 export async function setProEntitlement(state: ProEntitlementState): Promise<void> {
   await saveData(STORAGE_KEYS.PRO_ENTITLEMENT, state);
+}
+
+export async function getTrialState(): Promise<ProTrialState> {
+  const stored = await loadData<ProTrialState>(STORAGE_KEYS.PRO_TRIAL_STATE);
+  return { ...DEFAULT_TRIAL_STATE, ...(stored ?? {}) };
+}
+
+export async function saveTrialState(state: ProTrialState): Promise<void> {
+  await saveData(STORAGE_KEYS.PRO_TRIAL_STATE, state);
+}
+
+/** Starts the trial once. Idempotent: if a trial was ever started, the original start is kept. */
+export async function startTrial(): Promise<ProTrialState> {
+  const current = await getTrialState();
+  if (current.startedAt) return current;
+  const next: ProTrialState = { startedAt: new Date().toISOString(), expiryAcknowledged: false };
+  await saveTrialState(next);
+  return next;
+}
+
+/** Records that the user has seen the trial-ended prompt, so it is not shown again. */
+export async function acknowledgeTrialExpiry(): Promise<ProTrialState> {
+  const current = await getTrialState();
+  const next: ProTrialState = { ...current, expiryAcknowledged: true };
+  await saveTrialState(next);
+  return next;
 }
 
 export async function getProSettings(): Promise<ProSettings> {
@@ -160,13 +177,5 @@ export function deriveAthleteCycleState(
     dataQuality: hasEnough ? 'sufficient' : logs.length > 0 ? 'limited' : 'insufficient',
     lastComputedAt: now.toISOString(),
   };
-}
-
-export async function getTrialConversionState(): Promise<TrialConversionState> {
-  return (await loadData<TrialConversionState>(STORAGE_KEYS.TRIAL_CONVERSION_STATE)) ?? {};
-}
-
-export async function saveTrialConversionState(next: TrialConversionState): Promise<void> {
-  await saveData(STORAGE_KEYS.TRIAL_CONVERSION_STATE, next);
 }
 

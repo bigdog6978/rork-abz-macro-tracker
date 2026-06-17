@@ -1,20 +1,12 @@
-import { Platform, Linking } from 'react-native';
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import Purchases, { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
-import { IAP_PRODUCT_IDS, IapCustomerState, mapCustomerLikeInfoToState } from './iapMapping';
-
-export const IAP_PRODUCTS = {
-  proMonthly: IAP_PRODUCT_IDS.proMonthly,
-  athleteMonthly: IAP_PRODUCT_IDS.athleteMonthly,
-} as const;
-
-export type IapTier = 'pro' | 'athlete';
+import { IapCustomerState, LIFETIME_PRODUCT_ID, mapOwnedProductsToEntitlement } from './iapMapping';
 
 export interface IapProductView {
   productId: string;
   title: string;
   priceText: string;
-  billingPeriodText: string;
 }
 
 let isConfigured = false;
@@ -26,47 +18,29 @@ function getRevenueCatKey(): string {
   return key ?? '';
 }
 
-function periodUnitToText(unit: string | undefined): string {
-  if (!unit) return 'month';
-  if (unit === 'DAY') return 'day';
-  if (unit === 'WEEK') return 'week';
-  if (unit === 'YEAR') return 'year';
-  return 'month';
-}
-
 function mapPackageToView(pkg: PurchasesPackage): IapProductView {
   const p = pkg.product;
-  const unit = periodUnitToText((p.subscriptionPeriod as any)?.unit);
-  const value = Number((p.subscriptionPeriod as any)?.value ?? 1);
-  const billingPeriodText = `per ${value > 1 ? `${value} ${unit}s` : unit}`;
   return {
     productId: p.identifier,
     title: p.title || p.identifier,
     priceText: p.priceString,
-    billingPeriodText,
   };
 }
 
 export function mapCustomerInfoToState(info: CustomerInfo): IapCustomerState {
   const anyInfo = info as any;
-  const entitlementValues = Object.values(anyInfo.entitlements?.all ?? {}) as Array<any>;
-  const hasBillingIssue = entitlementValues.some((e) => Boolean(e?.billingIssueDetectedAt));
-  const gracePeriodExpiresDate =
-    entitlementValues.map((e) => e?.gracePeriodExpiresDate).find(Boolean) ?? null;
-  const isDeferred = entitlementValues.some((e) => Boolean(e?.isSandbox && e?.periodType === 'trial' && !e?.isActive));
-  const trialEntitlement = entitlementValues.find((e) => e?.isActive && e?.periodType === 'trial');
-  const trialEndsAt = trialEntitlement?.expirationDate ?? null;
+  const activeEntitlementProductIds = (Object.values(anyInfo.entitlements?.active ?? {}) as Array<any>)
+    .map((e) => e?.productIdentifier)
+    .filter(Boolean) as string[];
+  const allPurchased = (anyInfo.allPurchasedProductIdentifiers ?? []) as string[];
+  const ownedIds = Array.from(
+    new Set<string>([...activeEntitlementProductIds, ...allPurchased])
+  );
 
-  return mapCustomerLikeInfoToState({
-    activeSubscriptions: info.activeSubscriptions,
-    latestExpirationDate: info.latestExpirationDate,
-    billingIssueDetectedAt: hasBillingIssue ? new Date().toISOString() : null,
-    gracePeriodExpiresDate,
-    deferred: isDeferred,
-    trialActive: Boolean(trialEntitlement),
-    trialEndsAt,
-    nowIso: anyInfo.requestDate ?? new Date().toISOString(),
-  });
+  return {
+    entitlement: mapOwnedProductsToEntitlement(ownedIds),
+    activeProductIds: ownedIds,
+  };
 }
 
 export async function initIAP(): Promise<void> {
@@ -90,30 +64,20 @@ export async function getProducts(): Promise<IapProductView[]> {
   const offering = await getCurrentOffering();
   if (!offering) return [];
   return offering.availablePackages
-    .filter(
-      (pkg) =>
-        pkg.product.identifier === IAP_PRODUCTS.proMonthly ||
-        pkg.product.identifier === IAP_PRODUCTS.athleteMonthly
-    )
+    .filter((pkg) => pkg.product.identifier === LIFETIME_PRODUCT_ID)
     .map(mapPackageToView);
 }
 
-function getProductIdForTier(tier: IapTier): string {
-  return tier === 'athlete' ? IAP_PRODUCTS.athleteMonthly : IAP_PRODUCTS.proMonthly;
-}
-
-async function getPackageForTier(tier: IapTier): Promise<PurchasesPackage | null> {
+async function getLifetimePackage(): Promise<PurchasesPackage | null> {
   const offering = await getCurrentOffering();
   if (!offering) return null;
-  return (
-    offering.availablePackages.find((pkg) => pkg.product.identifier === getProductIdForTier(tier)) ?? null
-  );
+  return offering.availablePackages.find((pkg) => pkg.product.identifier === LIFETIME_PRODUCT_ID) ?? null;
 }
 
-export async function purchaseTier(tier: IapTier): Promise<IapCustomerState> {
+export async function purchaseLifetime(): Promise<IapCustomerState> {
   await initIAP();
-  const pkg = await getPackageForTier(tier);
-  if (!pkg) throw new Error(`Product not available: ${tier}`);
+  const pkg = await getLifetimePackage();
+  if (!pkg) throw new Error('Product not available: lifetime');
   const { customerInfo } = await Purchases.purchasePackage(pkg);
   return mapCustomerInfoToState(customerInfo);
 }
@@ -129,8 +93,3 @@ export async function getCustomerState(): Promise<IapCustomerState> {
   const info = await Purchases.getCustomerInfo();
   return mapCustomerInfoToState(info);
 }
-
-export async function openManageSubscriptions(): Promise<void> {
-  await Linking.openURL('https://apps.apple.com/account/subscriptions');
-}
-

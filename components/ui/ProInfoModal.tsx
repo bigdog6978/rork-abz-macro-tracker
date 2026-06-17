@@ -8,22 +8,16 @@ import { PRO_COPY } from '../../src/content/proMicrocopy';
 type Props = {
   visible: boolean;
   onClose: () => void;
-  tier?: 'pro' | 'athlete';
 };
 
-export default function ProInfoModal({ visible, onClose, tier = 'pro' }: Props) {
+export default function ProInfoModal({ visible, onClose }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const infoTitle = tier === 'athlete' ? PRO_COPY.athleteInfoTitle : PRO_COPY.infoTitle;
-  const infoBody = tier === 'athlete' ? PRO_COPY.athleteInfoBody : PRO_COPY.infoBody;
-  const infoIncludedTitle =
-    tier === 'athlete' ? PRO_COPY.athleteInfoIncludedTitle : PRO_COPY.infoIncludedTitle;
-  const infoIncludedBullets =
-    tier === 'athlete' ? PRO_COPY.athleteInfoIncludedBullets : PRO_COPY.infoIncludedBullets;
-  const disclosure =
-    tier === 'athlete'
-      ? '3-day free trial, then $6.99/month. Auto-renews unless canceled at least 24 hours before renewal.'
-      : PRO_COPY.renewalDisclosure;
+  const infoTitle = PRO_COPY.infoTitle;
+  const infoBody = PRO_COPY.infoBody;
+  const infoIncludedTitle = PRO_COPY.infoIncludedTitle;
+  const infoIncludedBullets = PRO_COPY.infoIncludedBullets;
+  const disclosure = PRO_COPY.oneTimeDisclosure;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

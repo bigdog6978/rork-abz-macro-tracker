@@ -1,13 +1,6 @@
 import { MacroTargets } from '../../types';
 
-export type ProEntitlementState =
-  | 'core_active'
-  | 'pro_trial_active'
-  | 'pro_subscriber_active'
-  | 'pro_trial_consumed'
-  | 'athlete_trial_active'
-  | 'athlete_subscriber_active'
-  | 'athlete_trial_consumed';
+export type ProEntitlementState = 'core' | 'unlocked';
 
 export type ProDayType = 'workout_day' | 'high_activity_day' | 'rest_day';
 export type HealthConnectionStatus =

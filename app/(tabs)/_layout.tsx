@@ -1,11 +1,10 @@
 import { Tabs } from "expo-router";
-import { router } from "expo-router";
 import { Home, UtensilsCrossed, TrendingUp, Settings } from "lucide-react-native";
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import Colors from "../../constants/colors";
-import { useThemeColors, type AppColors } from "../../providers/ThemeProvider";
-import { usePro } from "../../providers/ProProvider";
+import { useThemeColors } from "../../providers/ThemeProvider";
+import TrialExpiredModal from "../../components/ui/TrialExpiredModal";
 
 function TabIcon({ icon: Icon, color, size, focused, activeBarColor }: {
   icon: typeof Home;
@@ -24,7 +23,6 @@ function TabIcon({ icon: Icon, color, size, focused, activeBarColor }: {
 
 export default function TabLayout() {
   const colors = useThemeColors();
-  const { trialConversionPromptDue, markTrialConversionPromptShown } = usePro();
   const tabBarStyle = useMemo(
     () => ({
       backgroundColor: Colors.tabBar,
@@ -35,16 +33,9 @@ export default function TabLayout() {
     []
   );
 
-  useEffect(() => {
-    if (!trialConversionPromptDue) return;
-    const run = async () => {
-      await markTrialConversionPromptShown();
-      router.push('/trial-conversion' as never);
-    };
-    void run();
-  }, [markTrialConversionPromptShown, trialConversionPromptDue]);
-
   return (
+    <>
+    <TrialExpiredModal />
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -97,6 +88,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </>
   );
 }
 
