@@ -9,9 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
-ios/
-android/
+# Native (repo root only — do not ignore ios/android inside local modules)
+/ios/
+/android/
 *.orig.*
 *.jks
 *.p8
@@ -43,5 +43,4 @@ yarn-error.*
 .env
 rork-eslint.config.js
 core
-node_modules
-.expo
+/expo/

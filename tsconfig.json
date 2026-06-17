@@ -6,6 +6,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "physiq-watch-connectivity": [
+        "./modules/physiq-watch-connectivity"
       ]
     }
   },
