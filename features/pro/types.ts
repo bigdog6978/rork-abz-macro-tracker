@@ -95,8 +95,12 @@ export interface ProHealthSignals {
   activeEnergyKcal: number;
   steps: number;
   workoutMinutes: number;
+  /** Distinct workouts logged today (HealthKit anchored query). */
+  workoutCount: number;
   hrTrendDeltaPct: number;
   sleepHours: number;
+  /** Average HRV (SDNN, ms) when samples exist. */
+  hrvSdnnMs?: number;
 }
 
 export interface ProHydrationLog {

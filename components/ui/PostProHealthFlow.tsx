@@ -22,6 +22,7 @@ export default function PostProHealthFlow() {
 
   const [educationVisible, setEducationVisible] = useState(false);
   const [healthPermissionVisible, setHealthPermissionVisible] = useState(false);
+  const [healthConnectPending, setHealthConnectPending] = useState(false);
 
   useEffect(() => {
     if (!profile.onboardingComplete || Platform.OS !== 'ios') return;
@@ -58,16 +59,29 @@ export default function PostProHealthFlow() {
   }, [dismissEducation]);
 
   const completeHealthConnect = useCallback(async () => {
+    setHealthConnectPending(true);
     setHealthPermissionVisible(false);
-    dismissEducation();
-    const ok = await enableHealthIntegration();
-    if (!ok) {
-      Alert.alert('Apple Health access needed', 'To use adaptive targets, enable Apple Health access in Settings.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => Linking.openSettings() },
-      ]);
+    try {
+      const ok = await enableHealthIntegration();
+      if (!ok) {
+        Alert.alert(
+          'Apple Health access needed',
+          'Physiq could not connect to Apple Health. Open the Health app → your profile → Apps → Physiq and enable the data types you want to share, or try again.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Apple Health error',
+        error instanceof Error ? error.message : 'Unable to connect to Apple Health right now.'
+      );
+    } finally {
+      setHealthConnectPending(false);
     }
-  }, [dismissEducation, enableHealthIntegration]);
+  }, [enableHealthIntegration]);
 
   return (
     <>
@@ -78,8 +92,10 @@ export default function PostProHealthFlow() {
       />
       <HealthPermissionModal
         visible={healthPermissionVisible}
+        connecting={healthConnectPending}
         onContinue={() => void completeHealthConnect()}
         onNotNow={() => {
+          if (healthConnectPending) return;
           setHealthPermissionVisible(false);
           dismissEducation();
         }}

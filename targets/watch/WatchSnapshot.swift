@@ -25,6 +25,12 @@ struct WatchSnapshot {
   var syncState: String
   var syncMessage: String
   var updatedAt: String?
+  var dayType: String
+  var dayTypeLabel: String
+  var healthConnected: Bool
+  var activeEnergyKcal: Double
+  var workoutMinutes: Double
+  var healthLine: String
 
   var hasData: Bool {
     caloriesTarget > 0 || caloriesConsumed > 0 || proteinTarget > 0
@@ -89,7 +95,13 @@ struct WatchSnapshot {
       athleteSport: context["athleteSport"] ?? "",
       syncState: context["syncState"] ?? "",
       syncMessage: context["syncMessage"] ?? "",
-      updatedAt: context["updatedAt"]
+      updatedAt: context["updatedAt"],
+      dayType: context["dayType"] ?? "",
+      dayTypeLabel: context["dayTypeLabel"] ?? "",
+      healthConnected: context["healthConnected"] == "1",
+      activeEnergyKcal: d("activeEnergyKcal"),
+      workoutMinutes: d("workoutMinutes"),
+      healthLine: context["healthLine"] ?? ""
     )
   }
 

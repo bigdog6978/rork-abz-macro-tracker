@@ -96,6 +96,7 @@ export default function SettingsScreen() {
   const [dietNotes, setDietNotes] = useState(profile.dietNotes ?? '');
   const [proInfoVisible, setProInfoVisible] = useState(false);
   const [healthPermissionVisible, setHealthPermissionVisible] = useState(false);
+  const [healthConnectPending, setHealthConnectPending] = useState(false);
   const [proExpanded, setProExpanded] = useState(true);
   const [psmfModalVisible, setPsmfModalVisible] = useState(false);
   const [pendingPsmfAckAt, setPendingPsmfAckAt] = useState<string | undefined>(undefined);
@@ -262,17 +263,27 @@ export default function SettingsScreen() {
   }, [setAccentTheme]);
 
   const completeHealthConnect = useCallback(async () => {
+    setHealthConnectPending(true);
     setHealthPermissionVisible(false);
-    const ok = await enableHealthIntegration();
-    if (!ok) {
+    try {
+      const ok = await enableHealthIntegration();
+      if (!ok) {
+        Alert.alert(
+          'Apple Health access needed',
+          'Physiq could not connect to Apple Health. Open the Health app → your profile → Apps → Physiq and enable the data types you want to share, or try again.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+      }
+    } catch (error) {
       Alert.alert(
-        'Apple Health access needed',
-        'To use adaptive Pro targets, enable Apple Health access in Settings.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() },
-        ]
+        'Apple Health error',
+        error instanceof Error ? error.message : 'Unable to connect to Apple Health right now.'
       );
+    } finally {
+      setHealthConnectPending(false);
     }
   }, [enableHealthIntegration]);
 
@@ -937,8 +948,12 @@ export default function SettingsScreen() {
       />
       <HealthPermissionModal
         visible={healthPermissionVisible}
+        connecting={healthConnectPending}
         onContinue={() => void completeHealthConnect()}
-        onNotNow={() => setHealthPermissionVisible(false)}
+        onNotNow={() => {
+          if (healthConnectPending) return;
+          setHealthPermissionVisible(false);
+        }}
       />
     </View>
   );

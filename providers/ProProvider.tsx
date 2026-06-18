@@ -183,9 +183,10 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     if (!settings.healthIntegrationEnabled) return;
     const live = await readTodayHealthSignals();
     if (live) {
-      healthMutation.mutate(live);
+      await saveLatestProHealthSignals(live);
+      queryClient.setQueryData(['pro_health_signals'], live);
     }
-  }, [healthMutation, settings.healthIntegrationEnabled]);
+  }, [queryClient, settings.healthIntegrationEnabled]);
 
   const addHydration = useCallback(
     (ml: number) => {
@@ -226,33 +227,44 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
   const enableHealthIntegration = useCallback(async (): Promise<boolean> => {
     const available = await isHealthKitAvailable();
     if (!available) {
-      settingsMutation.mutate({
+      const next: ProSettings = {
         ...settings,
         healthIntegrationEnabled: false,
         healthPermissionStatus: 'not_available',
-      });
+      };
+      await saveProSettings(next);
+      queryClient.setQueryData(['pro_settings'], next);
       return false;
     }
-    const granted = await requestHealthKitPermissions();
-    if (!granted) {
-      settingsMutation.mutate({
+
+    const permission = await requestHealthKitPermissions();
+    if (!permission.ok) {
+      const next: ProSettings = {
         ...settings,
         healthIntegrationEnabled: false,
-        healthPermissionStatus: 'denied_or_restricted',
-      });
+        healthPermissionStatus:
+          permission.reason === 'denied' ? 'denied_or_restricted' : 'not_connected',
+      };
+      await saveProSettings(next);
+      queryClient.setQueryData(['pro_settings'], next);
       return false;
     }
-    settingsMutation.mutate({
+
+    const connected: ProSettings = {
       ...settings,
       healthIntegrationEnabled: true,
       healthPermissionStatus: 'connected',
-    });
+    };
+    await saveProSettings(connected);
+    queryClient.setQueryData(['pro_settings'], connected);
+
     const live = await readTodayHealthSignals();
     if (live) {
-      healthMutation.mutate(live);
+      await saveLatestProHealthSignals(live);
+      queryClient.setQueryData(['pro_health_signals'], live);
     }
     return true;
-  }, [healthMutation, settings, settingsMutation]);
+  }, [queryClient, settings]);
 
   const disableHealthIntegration = useCallback(() => {
     settingsMutation.mutate({
@@ -299,9 +311,12 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
       void queryClient.invalidateQueries({ queryKey: ['pro_settings'] });
+      if (settings.healthIntegrationEnabled) {
+        void refreshHealthSignals();
+      }
     });
     return () => sub.remove();
-  }, [queryClient]);
+  }, [queryClient, refreshHealthSignals, settings.healthIntegrationEnabled]);
 
   return {
     entitlement,

@@ -12,7 +12,7 @@ const MAX_CARB_ADJUSTMENT_G = 55;
 
 export function inferProDayType(signals: ProHealthSignals | null): ProDayType {
   if (!signals) return 'rest_day';
-  if (signals.workoutMinutes >= 35) return 'workout_day';
+  if (signals.workoutCount >= 1 || signals.workoutMinutes >= 35) return 'workout_day';
   if (signals.activeEnergyKcal >= 700 || signals.steps >= 12000) return 'high_activity_day';
   return 'rest_day';
 }

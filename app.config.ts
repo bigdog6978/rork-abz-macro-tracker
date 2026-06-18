@@ -4,7 +4,9 @@ const DEFAULT_USDA_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
 
 /** Single source of truth for HealthKit usage strings (react-native-health config plugin + review). */
 const HEALTH_SHARE_USAGE =
-  'Physiq reads activity, workouts, heart rate, and sleep from Apple Health to adapt macro and hydration targets.';
+  'Physiq reads activity, workouts, heart rate, heart rate variability, and sleep from Apple Health to adapt macro and hydration targets.';
+const HEALTH_UPDATE_USAGE =
+  'Physiq does not write health data. This permission is required by Apple Health for app compatibility.';
 const CAMERA_USAGE =
   'Physiq uses the camera to scan barcodes and capture progress photos stored on your device.';
 const PHOTO_LIBRARY_USAGE =
@@ -18,6 +20,8 @@ export default (): ExpoConfig => ({
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
   userInterfaceStyle: 'automatic',
+  // New Architecture required by react-native-worklets (Expo SDK 54). react-native-health
+  // uses legacy NativeModules; interop is supported but expo-doctor flags it as untested.
   newArchEnabled: true,
   // Native splash cannot use SVG or theme colors. In-app splash loads
   // assets/splash_brand.svg at runtime via SplashBrandSvg (useThemeColors().primary).
@@ -91,6 +95,7 @@ export default (): ExpoConfig => ({
       'react-native-health',
       {
         healthSharePermission: HEALTH_SHARE_USAGE,
+        healthUpdatePermission: HEALTH_UPDATE_USAGE,
       },
     ],
     '@bacons/apple-targets',

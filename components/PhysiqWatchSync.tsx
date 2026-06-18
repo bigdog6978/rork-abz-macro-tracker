@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import { sendProSnapshotToWatch } from 'physiq-watch-connectivity';
 import { useUser } from '../providers/UserProvider';
@@ -8,6 +8,12 @@ import { usePro } from '../providers/ProProvider';
 import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS } from '../types';
 import Colors from '../constants/colors';
 
+const DAY_TYPE_LABELS: Record<string, string> = {
+  workout_day: 'Workout day',
+  high_activity_day: 'High activity',
+  rest_day: 'Rest day',
+};
+
 /**
  * Pushes dashboard-aligned macro + hydration snapshot to watchOS via WatchConnectivity.
  * Runs for all signed-in iOS users (not Pro-gated) so the Watch mirrors the phone dashboard.
@@ -16,10 +22,21 @@ export default function PhysiqWatchSync() {
   const { profile, macros } = useUser();
   const { todayTotals, todayEntries, getStreak } = useDailyLog();
   const colors = useThemeColors();
-  const { hydration, athleteProfile } = usePro();
+  const {
+    hydration,
+    athleteProfile,
+    dynamicTargets,
+    settings,
+    inferredDayType,
+    healthSignals,
+    healthConnectionStatus,
+  } = usePro();
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const targets = settings.dynamicMacrosEnabled ? dynamicTargets : macros;
 
   const payload = useMemo((): Record<string, string> => {
-    const caloriesRemaining = Math.max(macros.calories - todayTotals.calories, 0);
+    const caloriesRemaining = Math.max(targets.calories - todayTotals.calories, 0);
     const streak = getStreak();
     const eatingStyle = EATING_STYLE_LABELS[profile.eatingStyle] ?? 'Standard';
     const modifiers = (profile.dietModifiers ?? [])
@@ -31,24 +48,25 @@ export default function PhysiqWatchSync() {
     const syncMessage = profile.onboardingComplete
       ? ''
       : 'Finish onboarding on iPhone to sync macro targets.';
+    const dayTypeLabel = DAY_TYPE_LABELS[inferredDayType] ?? inferredDayType;
+    const healthLine = healthSignals
+      ? `${Math.round(healthSignals.activeEnergyKcal)} kcal active · ${healthSignals.workoutMinutes} min training`
+      : '';
 
     if (__DEV__ && !profile.onboardingComplete) {
       console.log('[PhysiqWatchSync] sending degraded payload: onboarding incomplete');
     }
-    if (__DEV__ && !profile.firstName) {
-      console.log('[PhysiqWatchSync] payload has empty firstName');
-    }
 
     return {
       caloriesRemaining: String(Math.round(caloriesRemaining)),
-      caloriesTarget: String(Math.round(macros.calories)),
+      caloriesTarget: String(Math.round(targets.calories)),
       caloriesConsumed: String(Math.round(todayTotals.calories)),
       proteinConsumed: round1(todayTotals.protein_g),
-      proteinTarget: round1(macros.protein_g),
+      proteinTarget: round1(targets.protein_g),
       carbsConsumed: round1(todayTotals.carbs_g),
-      carbsTarget: round1(macros.carbs_g),
+      carbsTarget: round1(targets.carbs_g),
       fatConsumed: round1(todayTotals.fat_g),
-      fatTarget: round1(macros.fat_g),
+      fatTarget: round1(targets.fat_g),
       hydrationConsumedMl: String(Math.round(hydration.consumedMl)),
       hydrationTargetMl: String(Math.round(hydration.targetMl)),
       hydration: `${Math.round(hydration.consumedMl)}/${Math.round(hydration.targetMl)} ml`,
@@ -64,16 +82,22 @@ export default function PhysiqWatchSync() {
       athleteSport: athleteProfile.enabled ? athleteProfile.sport : '',
       syncState,
       syncMessage,
+      dayType: inferredDayType,
+      dayTypeLabel,
+      healthConnected: healthConnectionStatus === 'connected' ? '1' : '0',
+      activeEnergyKcal: healthSignals ? String(Math.round(healthSignals.activeEnergyKcal)) : '0',
+      workoutMinutes: healthSignals ? String(healthSignals.workoutMinutes) : '0',
+      healthLine,
     };
   }, [
     profile.firstName,
     profile.onboardingComplete,
     profile.eatingStyle,
     profile.dietModifiers,
-    macros.calories,
-    macros.protein_g,
-    macros.carbs_g,
-    macros.fat_g,
+    targets.calories,
+    targets.protein_g,
+    targets.carbs_g,
+    targets.fat_g,
     todayTotals.calories,
     todayTotals.protein_g,
     todayTotals.carbs_g,
@@ -83,15 +107,21 @@ export default function PhysiqWatchSync() {
     hydration.targetMl,
     athleteProfile.enabled,
     athleteProfile.sport,
+    inferredDayType,
+    healthSignals,
+    healthConnectionStatus,
     getStreak,
     todayEntries.length,
   ]);
 
-  const send = useCallback((data: Record<string, string>) => {
+  const send = useCallback((data: Record<string, string>, attempt = 0) => {
     const withTime = { ...data, updatedAt: new Date().toISOString() };
     void sendProSnapshotToWatch(withTime).catch((err) => {
       if (__DEV__) {
         console.warn('[PhysiqWatchSync] sendProSnapshot failed', err);
+      }
+      if (attempt < 2) {
+        retryTimer.current = setTimeout(() => send(data, attempt + 1), 1500 * (attempt + 1));
       }
     });
     if (__DEV__) {
@@ -103,7 +133,10 @@ export default function PhysiqWatchSync() {
     if (Platform.OS !== 'ios') return;
 
     const timer = setTimeout(() => send(payload), 400);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    };
   }, [payload, send]);
 
   useEffect(() => {

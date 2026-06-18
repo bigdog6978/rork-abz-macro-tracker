@@ -5,11 +5,12 @@ import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
 type Props = {
   visible: boolean;
+  connecting?: boolean;
   onContinue: () => void;
   onNotNow: () => void;
 };
 
-export default function HealthPermissionModal({ visible, onContinue, onNotNow }: Props) {
+export default function HealthPermissionModal({ visible, connecting = false, onContinue, onNotNow }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -19,13 +20,17 @@ export default function HealthPermissionModal({ visible, onContinue, onNotNow }:
         <Pressable style={styles.card} onPress={() => {}}>
           <Text style={styles.title}>Apple Health access</Text>
           <Text style={styles.body}>
-            Physiq uses activity, workout, heart rate, and sleep data from Apple Health to adapt
-            macro and hydration targets.
+            Physiq uses activity, workout, heart rate, heart rate variability, and sleep data
+            from Apple Health to adapt macro and hydration targets.
           </Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={onContinue}>
-            <Text style={styles.primaryBtnText}>Continue</Text>
+          <TouchableOpacity
+            style={[styles.primaryBtn, connecting && styles.primaryBtnDisabled]}
+            onPress={onContinue}
+            disabled={connecting}
+          >
+            <Text style={styles.primaryBtnText}>{connecting ? 'Connecting…' : 'Continue'}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={onNotNow}>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={onNotNow} disabled={connecting}>
             <Text style={styles.secondaryBtnText}>Not now</Text>
           </TouchableOpacity>
         </Pressable>
@@ -76,6 +81,9 @@ const createStyles = (colors: AppColors) =>
       color: colors.onPrimary,
       fontSize: 16,
       fontWeight: '600',
+    },
+    primaryBtnDisabled: {
+      opacity: 0.65,
     },
     secondaryBtn: {
       borderRadius: 8,

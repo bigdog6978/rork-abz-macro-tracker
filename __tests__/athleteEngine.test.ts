@@ -15,6 +15,7 @@ const SIGNALS: ProHealthSignals = {
   activeEnergyKcal: 880,
   steps: 13200,
   workoutMinutes: 72,
+  workoutCount: 2,
   hrTrendDeltaPct: 5,
   sleepHours: 7.1,
 };

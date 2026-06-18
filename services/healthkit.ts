@@ -1,40 +1,46 @@
-import { Platform } from 'react-native';
-import AppleHealthKit, { HealthInputOptions, HealthKitPermissions, HealthValue } from 'react-native-health';
+import { InteractionManager, NativeModules, Platform } from 'react-native';
+import AppleHealthKit, {
+  AnchoredQueryResults,
+  HealthInputOptions,
+  HealthKitPermissions,
+  HealthValue,
+} from 'react-native-health';
 import { ProHealthSignals } from '../features/pro/types';
-import { getTodayDateKey } from '../utils/dateKey';
+import {
+  buildProHealthSignals,
+  getActivityDayRange,
+  getSleepQueryRange,
+  WorkoutSample,
+} from './healthkitMapping';
 
-function sumValues(values: HealthValue[] | undefined): number {
-  if (!values || values.length === 0) return 0;
-  return values.reduce((sum, item) => sum + (item.value ?? 0), 0);
+export type HealthKitPermissionResult =
+  | { ok: true }
+  | { ok: false; reason: 'unavailable' | 'native_module' | 'denied' | 'error'; message?: string };
+
+export type HealthKitProbeResult = { ok: true } | { ok: false; message?: string };
+
+function logHealthKit(message: string, detail?: unknown) {
+  if (__DEV__) {
+    console.log(`[HealthKit] ${message}`, detail ?? '');
+  }
 }
 
-function averageValues(values: HealthValue[] | undefined): number {
-  if (!values || values.length === 0) return 0;
-  return sumValues(values) / values.length;
+function warnHealthKit(message: string, detail?: unknown) {
+  console.warn(`[HealthKit] ${message}`, detail ?? '');
 }
 
-function sampleDurationMs(sample: HealthValue): number {
-  const start = sample.startDate ? new Date(sample.startDate).getTime() : NaN;
-  const end = sample.endDate ? new Date(sample.endDate).getTime() : NaN;
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
-  return end - start;
+function isNativeModuleLoaded(): boolean {
+  if (Platform.OS !== 'ios') return false;
+  const native = NativeModules.AppleHealthKit as { initHealthKit?: unknown; isAvailable?: unknown } | undefined;
+  return typeof native?.initHealthKit === 'function' && typeof native?.isAvailable === 'function';
 }
 
-/**
- * Sum sleep duration from each sample's start/end span (not the category `value`).
- * Prefers actual asleep stages; falls back to in-bed spans when stages are unavailable,
- * so older devices that only report IN_BED still produce a usable number.
- */
-function sumSleepHours(samples: HealthValue[] | undefined): number {
-  if (!samples || samples.length === 0) return 0;
-  const categoryOf = (s: HealthValue) => String((s as { value?: unknown }).value ?? '').toUpperCase();
-  const asleep = samples.filter((s) => {
-    const c = categoryOf(s);
-    return c !== 'INBED' && c !== 'IN_BED' && c !== 'AWAKE';
+function waitForUiSettled(): Promise<void> {
+  return new Promise((resolve) => {
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(resolve, 450);
+    });
   });
-  const source = asleep.length > 0 ? asleep : samples;
-  const ms = source.reduce((sum, item) => sum + sampleDurationMs(item), 0);
-  return ms / 3600000;
 }
 
 function callArray(
@@ -43,8 +49,12 @@ function callArray(
 ): Promise<HealthValue[]> {
   return new Promise((resolve) => {
     method(options, (err, results) => {
-      if (err) resolve([]);
-      else resolve(results ?? []);
+      if (err) {
+        logHealthKit('read error', err);
+        resolve([]);
+      } else {
+        resolve(results ?? []);
+      }
     });
   });
 }
@@ -55,8 +65,25 @@ function callSingle(
 ): Promise<HealthValue | null> {
   return new Promise((resolve) => {
     method(options, (err, results) => {
-      if (err) resolve(null);
-      else resolve(results ?? null);
+      if (err) {
+        logHealthKit('read error', err);
+        resolve(null);
+      } else {
+        resolve(results ?? null);
+      }
+    });
+  });
+}
+
+function callAnchoredWorkouts(options: HealthInputOptions): Promise<WorkoutSample[]> {
+  return new Promise((resolve) => {
+    AppleHealthKit.getAnchoredWorkouts(options, (err, results: AnchoredQueryResults) => {
+      if (err) {
+        logHealthKit('workout read error', err);
+        resolve([]);
+      } else {
+        resolve((results?.data ?? []) as WorkoutSample[]);
+      }
     });
   });
 }
@@ -67,6 +94,7 @@ const HEALTHKIT_PERMISSIONS: HealthKitPermissions = {
       AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
       AppleHealthKit.Constants.Permissions.StepCount,
       AppleHealthKit.Constants.Permissions.HeartRate,
+      AppleHealthKit.Constants.Permissions.HeartRateVariability,
       AppleHealthKit.Constants.Permissions.SleepAnalysis,
       AppleHealthKit.Constants.Permissions.Workout,
       AppleHealthKit.Constants.Permissions.AppleExerciseTime,
@@ -75,50 +103,142 @@ const HEALTHKIT_PERMISSIONS: HealthKitPermissions = {
   },
 };
 
+export function isHealthKitNativeModuleLoaded(): boolean {
+  return isNativeModuleLoaded();
+}
+
 export async function isHealthKitAvailable(): Promise<boolean> {
   if (Platform.OS !== 'ios') return false;
+  if (!isNativeModuleLoaded()) {
+    warnHealthKit('Native module AppleHealthKit is not linked');
+    return false;
+  }
   return new Promise((resolve) => {
-    AppleHealthKit.isAvailable((_err, available) => resolve(Boolean(available)));
+    AppleHealthKit.isAvailable((err, available) => {
+      if (err) {
+        warnHealthKit('isAvailable error', err);
+        resolve(false);
+        return;
+      }
+      resolve(Boolean(available));
+    });
   });
 }
 
-export async function requestHealthKitPermissions(): Promise<boolean> {
-  if (Platform.OS !== 'ios') return false;
+/** Lightweight read after authorization to confirm HealthKit bridge responds. */
+export async function probeHealthKitReadAccess(): Promise<HealthKitProbeResult> {
+  if (!isNativeModuleLoaded()) {
+    return { ok: false, message: 'AppleHealthKit native module missing' };
+  }
+  const { startDate, endDate } = getActivityDayRange();
   return new Promise((resolve) => {
-    AppleHealthKit.initHealthKit(HEALTHKIT_PERMISSIONS, (error) => resolve(!error));
+    AppleHealthKit.getStepCount({ startDate, endDate }, (err) => {
+      if (err) {
+        const message = typeof err === 'string' ? err : String(err);
+        warnHealthKit('probe read failed', message);
+        resolve({ ok: false, message });
+        return;
+      }
+      logHealthKit('probe read succeeded');
+      resolve({ ok: true });
+    });
   });
+}
+
+export async function requestHealthKitPermissions(): Promise<HealthKitPermissionResult> {
+  if (Platform.OS !== 'ios') {
+    return { ok: false, reason: 'unavailable', message: 'Not iOS' };
+  }
+  if (!isNativeModuleLoaded()) {
+    return { ok: false, reason: 'native_module', message: 'AppleHealthKit native module missing' };
+  }
+
+  const available = await isHealthKitAvailable();
+  if (!available) {
+    return { ok: false, reason: 'unavailable', message: 'HealthKit not available on this device' };
+  }
+
+  await waitForUiSettled();
+
+  const initResult = await new Promise<HealthKitPermissionResult>((resolve) => {
+    try {
+      AppleHealthKit.initHealthKit(HEALTHKIT_PERMISSIONS, (error) => {
+        if (error) {
+          const message = typeof error === 'string' ? error : String(error);
+          warnHealthKit('initHealthKit failed', message);
+          const denied =
+            message.toLowerCase().includes('authorization') ||
+            message.toLowerCase().includes('denied') ||
+            message.toLowerCase().includes('cancel');
+          resolve({
+            ok: false,
+            reason: denied ? 'denied' : 'error',
+            message,
+          });
+          return;
+        }
+        logHealthKit('initHealthKit succeeded');
+        resolve({ ok: true });
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      warnHealthKit('initHealthKit threw', message);
+      resolve({ ok: false, reason: 'error', message });
+    }
+  });
+
+  if (!initResult.ok) return initResult;
+
+  const probe = await probeHealthKitReadAccess();
+  if (!probe.ok) {
+    const message = probe.message ?? 'HealthKit probe read failed';
+    const denied =
+      message.toLowerCase().includes('authorization') ||
+      message.toLowerCase().includes('denied') ||
+      message.toLowerCase().includes('permission');
+    if (denied) {
+      return { ok: false, reason: 'denied', message };
+    }
+    warnHealthKit('probe failed after init; continuing as connected', message);
+  }
+
+  return { ok: true };
 }
 
 export async function readTodayHealthSignals(): Promise<ProHealthSignals | null> {
+  if (!isNativeModuleLoaded()) return null;
   const available = await isHealthKitAvailable();
   if (!available) return null;
 
-  const now = new Date();
-  const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const endDate = now.toISOString();
-  const options: HealthInputOptions = { startDate, endDate };
+  const activityRange = getActivityDayRange();
+  const sleepRange = getSleepQueryRange();
+  const workoutOptions: HealthInputOptions = { ...activityRange, type: 'Workout' };
 
-  const [activeEnergy, stepCount, exercise, heartRateSamples, sleepSamples, restingHR] = await Promise.all([
-    callArray(AppleHealthKit.getActiveEnergyBurned, options),
-    callSingle(AppleHealthKit.getStepCount, options),
-    callArray(AppleHealthKit.getAppleExerciseTime, options),
-    callArray(AppleHealthKit.getHeartRateSamples, options),
-    callArray(AppleHealthKit.getSleepSamples, options),
-    callSingle(AppleHealthKit.getRestingHeartRate, options),
-  ]);
+  try {
+    const [activeEnergy, stepCount, exercise, workouts, heartRateSamples, sleepSamples, restingHR, hrvSamples] =
+      await Promise.all([
+        callArray(AppleHealthKit.getActiveEnergyBurned, activityRange),
+        callSingle(AppleHealthKit.getStepCount, activityRange),
+        callArray(AppleHealthKit.getAppleExerciseTime, activityRange),
+        callAnchoredWorkouts(workoutOptions),
+        callArray(AppleHealthKit.getHeartRateSamples, activityRange),
+        callArray(AppleHealthKit.getSleepSamples, sleepRange),
+        callSingle(AppleHealthKit.getRestingHeartRate, activityRange),
+        callArray(AppleHealthKit.getHeartRateVariabilitySamples, activityRange),
+      ]);
 
-  const avgHr = averageValues(heartRateSamples);
-  const restHr = restingHR?.value ?? avgHr;
-  const hrTrendDeltaPct = restHr > 0 ? Math.round(((avgHr - restHr) / restHr) * 100) : 0;
-  const sleepHours = sumSleepHours(sleepSamples);
-
-  return {
-    dateKey: getTodayDateKey(),
-    activeEnergyKcal: Math.round(sumValues(activeEnergy)),
-    steps: Math.round(stepCount?.value ?? 0),
-    workoutMinutes: Math.round(sumValues(exercise)),
-    hrTrendDeltaPct,
-    sleepHours: Math.round(sleepHours * 10) / 10,
-  };
+    return buildProHealthSignals({
+      activeEnergy,
+      stepCount,
+      exerciseMinutes: exercise,
+      workouts,
+      heartRateSamples,
+      sleepSamples,
+      restingHR,
+      hrvSamples,
+    });
+  } catch (error) {
+    warnHealthKit('readTodayHealthSignals failed', error);
+    return null;
+  }
 }
-

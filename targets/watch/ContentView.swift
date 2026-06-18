@@ -33,6 +33,9 @@ struct ContentView: View {
         if snapshot.hasData {
           calorieHero
           macroRow
+          if snapshot.healthConnected || !snapshot.dayTypeLabel.isEmpty {
+            activityBlock
+          }
           hydrationBlock
         } else {
           emptyState
@@ -200,6 +203,35 @@ struct ContentView: View {
     }
     .frame(maxWidth: .infinity)
     .padding(.vertical, 8)
+    .background(
+      RoundedRectangle(cornerRadius: 12, style: .continuous)
+        .fill(PhysiqTheme.card)
+    )
+  }
+
+  private var activityBlock: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack {
+        Image(systemName: "heart.fill")
+          .font(.system(size: 11))
+          .foregroundStyle(accent)
+        Text(snapshot.dayTypeLabel.isEmpty ? "Activity" : snapshot.dayTypeLabel)
+          .font(.system(size: 12, weight: .bold, design: .rounded))
+          .foregroundStyle(PhysiqTheme.textPrimary)
+      }
+      if !snapshot.healthLine.isEmpty {
+        Text(snapshot.healthLine)
+          .font(.system(size: 11, weight: .medium, design: .rounded))
+          .foregroundStyle(PhysiqTheme.textSecondary)
+          .lineLimit(2)
+      } else if snapshot.healthConnected {
+        Text("Apple Health connected")
+          .font(.system(size: 11, weight: .medium, design: .rounded))
+          .foregroundStyle(PhysiqTheme.textSecondary)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(10)
     .background(
       RoundedRectangle(cornerRadius: 12, style: .continuous)
         .fill(PhysiqTheme.card)

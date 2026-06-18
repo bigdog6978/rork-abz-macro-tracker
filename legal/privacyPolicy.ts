@@ -1,8 +1,8 @@
-export const PRIVACY_POLICY_LAST_UPDATED = 'March 8, 2026';
+export const PRIVACY_POLICY_LAST_UPDATED = 'June 17, 2026';
 
 export const PRIVACY_POLICY = `Privacy Policy
 Physiq: Macro Tracker
-Last Updated: March 8, 2026
+Last Updated: June 17, 2026
 
 Physiq: Macro Tracker ("Physiq", "we", "our", or "us") respects your privacy and is committed to protecting your personal information. This Privacy Policy explains how information is collected, used, and protected when you use the Physiq: Macro Tracker mobile application and related services.
 
@@ -69,7 +69,23 @@ Historical entries
 
 If you delete the app, this data may be deleted unless you have backed up your device.
 
-5. Advertising
+5. Apple Health (HealthKit)
+
+If you choose to connect Apple Health on iPhone, Physiq may read the following data types from HealthKit, only after you grant permission through Apple's system prompt:
+
+Active energy burned
+Step count
+Workout and exercise time
+Heart rate and heart rate variability (SDNN)
+Sleep analysis
+
+This data is used solely on your device to adapt macro targets, hydration cues, and activity-aware fueling recommendations. Physiq does not write health data to Apple Health, does not use Health data for advertising or marketing, does not sell Health data, and does not share Health data with third parties.
+
+Health-derived values are stored locally on your iPhone (for example, the latest activity summary used for target adjustments). You can revoke access at any time in the iPhone Settings app under Privacy & Security → Health → Physiq, or in the Apple Health app under your profile → Apps → Physiq.
+
+The optional Apple Watch companion app displays macro and hydration summaries sent from your iPhone. It does not read HealthKit directly.
+
+6. Advertising
 
 If you use the free macro calculator on our website, advertisements may be displayed through advertising networks such as Google AdSense.
 
@@ -80,7 +96,7 @@ https://policies.google.com/privacy
 
 The Physiq: Macro Tracker mobile app itself does not currently display third-party ads.
 
-6. How We Use Information
+7. How We Use Information
 
 Information collected through the app is used to:
 
@@ -93,7 +109,7 @@ Diagnose crashes and technical issues
 
 We do not sell your personal information.
 
-7. Data Sharing
+8. Data Sharing
 
 We do not sell, rent, or trade your personal information.
 
@@ -105,19 +121,19 @@ Crash reporting services
 
 These providers only receive the minimum information required to perform their services.
 
-8. Data Security
+9. Data Security
 
 We take reasonable measures to protect information stored by the app. However, no method of electronic storage or internet transmission is completely secure.
 
 Users are responsible for securing their own devices.
 
-9. Children's Privacy
+10. Children's Privacy
 
 Physiq: Macro Tracker is not intended for children under the age of 13.
 
 We do not knowingly collect personal information from children under 13. If we become aware that such information has been collected, it will be deleted.
 
-10. Health Disclaimer
+11. Health Disclaimer
 
 Physiq: Macro Tracker provides nutrition calculations and informational tools only.
 
@@ -125,7 +141,7 @@ The app is not a medical device and is not intended to diagnose, treat, cure, or
 
 Always consult a qualified healthcare professional before making significant dietary or health changes.
 
-11. Your Privacy Rights
+12. Your Privacy Rights
 
 Depending on your location, you may have rights to:
 
@@ -135,13 +151,13 @@ Request correction of inaccurate data
 
 Because most data is stored locally on your device, you can delete your data by removing the app or clearing app storage.
 
-12. Changes to This Policy
+13. Changes to This Policy
 
 We may update this Privacy Policy from time to time.
 
 Changes will be posted within the app or on the Physiq website with an updated revision date.
 
-13. Contact
+14. Contact
 
 If you have questions about this Privacy Policy, you can contact us at:
 
