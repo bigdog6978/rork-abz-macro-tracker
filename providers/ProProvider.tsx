@@ -225,45 +225,50 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
   }, [addHydration]);
 
   const enableHealthIntegration = useCallback(async (): Promise<boolean> => {
-    const available = await isHealthKitAvailable();
-    if (!available) {
-      const next: ProSettings = {
+    try {
+      const available = await isHealthKitAvailable();
+      if (!available) {
+        const next: ProSettings = {
+          ...settings,
+          healthIntegrationEnabled: false,
+          healthPermissionStatus: 'not_available',
+        };
+        await saveProSettings(next);
+        queryClient.setQueryData(['pro_settings'], next);
+        return false;
+      }
+
+      const permission = await requestHealthKitPermissions();
+      if (!permission.ok) {
+        const next: ProSettings = {
+          ...settings,
+          healthIntegrationEnabled: false,
+          healthPermissionStatus:
+            permission.reason === 'denied' ? 'denied_or_restricted' : 'not_connected',
+        };
+        await saveProSettings(next);
+        queryClient.setQueryData(['pro_settings'], next);
+        return false;
+      }
+
+      const connected: ProSettings = {
         ...settings,
-        healthIntegrationEnabled: false,
-        healthPermissionStatus: 'not_available',
+        healthIntegrationEnabled: true,
+        healthPermissionStatus: 'connected',
       };
-      await saveProSettings(next);
-      queryClient.setQueryData(['pro_settings'], next);
+      await saveProSettings(connected);
+      queryClient.setQueryData(['pro_settings'], connected);
+
+      const live = await readTodayHealthSignals();
+      if (live) {
+        await saveLatestProHealthSignals(live);
+        queryClient.setQueryData(['pro_health_signals'], live);
+      }
+      return true;
+    } catch (error) {
+      console.warn('[HealthKit] enableHealthIntegration failed', error);
       return false;
     }
-
-    const permission = await requestHealthKitPermissions();
-    if (!permission.ok) {
-      const next: ProSettings = {
-        ...settings,
-        healthIntegrationEnabled: false,
-        healthPermissionStatus:
-          permission.reason === 'denied' ? 'denied_or_restricted' : 'not_connected',
-      };
-      await saveProSettings(next);
-      queryClient.setQueryData(['pro_settings'], next);
-      return false;
-    }
-
-    const connected: ProSettings = {
-      ...settings,
-      healthIntegrationEnabled: true,
-      healthPermissionStatus: 'connected',
-    };
-    await saveProSettings(connected);
-    queryClient.setQueryData(['pro_settings'], connected);
-
-    const live = await readTodayHealthSignals();
-    if (live) {
-      await saveLatestProHealthSignals(live);
-      queryClient.setQueryData(['pro_health_signals'], live);
-    }
-    return true;
   }, [queryClient, settings]);
 
   const disableHealthIntegration = useCallback(() => {

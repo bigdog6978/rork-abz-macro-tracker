@@ -278,10 +278,8 @@ export default function SettingsScreen() {
         );
       }
     } catch (error) {
-      Alert.alert(
-        'Apple Health error',
-        error instanceof Error ? error.message : 'Unable to connect to Apple Health right now.'
-      );
+      const detail = error instanceof Error ? error.message : 'Unable to connect to Apple Health right now.';
+      Alert.alert('Apple Health error', detail);
     } finally {
       setHealthConnectPending(false);
     }
