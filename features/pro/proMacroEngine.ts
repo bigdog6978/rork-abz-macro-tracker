@@ -3,6 +3,7 @@ import {
   AthleteCycleDerivedState,
   AthleteProfile,
   ProDayType,
+  ProDayTypeOverride,
   ProHealthSignals,
   ProMacroAdjustment,
 } from './types';
@@ -10,7 +11,27 @@ import {
 const MAX_CAL_ADJUSTMENT_PCT = 0.14;
 const MAX_CARB_ADJUSTMENT_G = 55;
 
-export function inferProDayType(signals: ProHealthSignals | null): ProDayType {
+/** Translate a manual override to a concrete day type; 'auto' defers to signals. */
+function dayTypeFromOverride(override?: ProDayTypeOverride): ProDayType | null {
+  switch (override) {
+    case 'training':
+    case 'competition':
+      return 'workout_day';
+    case 'rest':
+      return 'rest_day';
+    case 'auto':
+    case undefined:
+    default:
+      return null;
+  }
+}
+
+export function inferProDayType(
+  signals: ProHealthSignals | null,
+  override?: ProDayTypeOverride
+): ProDayType {
+  const forced = dayTypeFromOverride(override);
+  if (forced) return forced;
   if (!signals) return 'rest_day';
   if (signals.workoutCount >= 1 || signals.workoutMinutes >= 35) return 'workout_day';
   if (signals.activeEnergyKcal >= 700 || signals.steps >= 12000) return 'high_activity_day';
@@ -19,9 +40,10 @@ export function inferProDayType(signals: ProHealthSignals | null): ProDayType {
 
 export function applyProAdjustments(
   baseTargets: MacroTargets,
-  signals: ProHealthSignals | null
+  signals: ProHealthSignals | null,
+  override?: ProDayTypeOverride
 ): ProMacroAdjustment {
-  const dayType = inferProDayType(signals);
+  const dayType = inferProDayType(signals, override);
   if (!signals) {
     return {
       targets: baseTargets,
@@ -30,7 +52,11 @@ export function applyProAdjustments(
     };
   }
 
-  const activityDeltaPct = Math.max(-0.2, Math.min(0.3, (signals.activeEnergyKcal - 500) / 1000));
+  let activityDeltaPct = Math.max(-0.2, Math.min(0.3, (signals.activeEnergyKcal - 500) / 1000));
+  // A manual override nudges fueling even when same-day signals are quiet.
+  if (override === 'competition') activityDeltaPct = Math.max(activityDeltaPct, 0.12);
+  else if (override === 'training') activityDeltaPct = Math.max(activityDeltaPct, 0.06);
+  else if (override === 'rest') activityDeltaPct = Math.min(activityDeltaPct, 0);
   const calorieDelta = Math.round(
     Math.max(
       -baseTargets.calories * MAX_CAL_ADJUSTMENT_PCT,

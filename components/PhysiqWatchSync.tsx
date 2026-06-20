@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
-import { sendProSnapshotToWatch } from 'physiq-watch-connectivity';
+import { sendProSnapshotToWatch, subscribePhysiqWatch } from 'physiq-watch-connectivity';
 import { useUser } from '../providers/UserProvider';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { useThemeColors } from '../providers/ThemeProvider';
@@ -20,10 +20,11 @@ const DAY_TYPE_LABELS: Record<string, string> = {
  */
 export default function PhysiqWatchSync() {
   const { profile, macros } = useUser();
-  const { todayTotals, todayEntries, getStreak } = useDailyLog();
+  const { todayTotals, todayEntries, getStreak, addEntry } = useDailyLog();
   const colors = useThemeColors();
   const {
     hydration,
+    hydrationUnit,
     athleteProfile,
     dynamicTargets,
     settings,
@@ -70,6 +71,7 @@ export default function PhysiqWatchSync() {
       hydrationConsumedMl: String(Math.round(hydration.consumedMl)),
       hydrationTargetMl: String(Math.round(hydration.targetMl)),
       hydration: `${Math.round(hydration.consumedMl)}/${Math.round(hydration.targetMl)} ml`,
+      hydrationUnit,
       streak: String(streak),
       firstName: profile.firstName ?? '',
       eatingStyle,
@@ -105,6 +107,7 @@ export default function PhysiqWatchSync() {
     colors.primary,
     hydration.consumedMl,
     hydration.targetMl,
+    hydrationUnit,
     athleteProfile.enabled,
     athleteProfile.sport,
     inferredDayType,
@@ -147,6 +150,29 @@ export default function PhysiqWatchSync() {
     });
     return () => sub.remove();
   }, [payload, send]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const sub = subscribePhysiqWatch('onWatchPayload', (body) => {
+      const data = (body.payload as Record<string, string> | undefined) ?? {};
+      if (data.action !== 'add_protein') return;
+      const grams = Number.parseInt(data.grams ?? '', 10);
+      if (!Number.isFinite(grams) || grams <= 0) return;
+      addEntry({
+        id: `watch_protein_${Date.now()}`,
+        name: `Protein (+${grams}g)`,
+        protein_g: grams,
+        carbs_g: 0,
+        fat_g: 0,
+        calories: grams * 4,
+        timestamp: new Date().toISOString(),
+        providerId: 'manual',
+        source: 'manual',
+        isCustomMacros: true,
+      });
+    });
+    return () => sub?.remove();
+  }, [addEntry]);
 
   return null;
 }

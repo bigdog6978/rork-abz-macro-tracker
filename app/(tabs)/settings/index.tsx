@@ -47,6 +47,12 @@ import {
   MeasurementSystem,
 } from '../../../types';
 import { buildPsmfProfileUpdates, hasValidPsmfAcknowledgment } from '../../../utils/psmfHelpers';
+import {
+  formatHydrationProgress,
+  hydrationQuickAdds,
+  hydrationUnitLabel,
+  type HydrationUnit,
+} from '../../../utils/hydration';
 
 type EditMode = 'none' | 'profile' | 'nutrition';
 
@@ -62,6 +68,7 @@ export default function SettingsScreen() {
     fuelingStrategy,
     inferredDayType,
     hydration,
+    hydrationUnit,
     athleteProfile,
     cycleProfile,
     cycleDerived,
@@ -70,10 +77,6 @@ export default function SettingsScreen() {
     updateSettings: updateProSettings,
     refreshHealthSignals,
     addHydration,
-    updateAthleteProfile,
-    updateCycleProfile,
-    addCycleLog,
-    clearCycleData,
   } = usePro();
   const { clearAll } = useDailyLog();
   const colors = useThemeColors();
@@ -453,72 +456,37 @@ export default function SettingsScreen() {
                     ))}
                   </View>
                 ) : null}
-                {athleteProfile.enabled ? (
-                  <View style={styles.healthBanner}>
-                    <Text style={styles.healthBannerTitle}>Athlete Configuration</Text>
-                    <Text style={styles.healthBannerBody}>
-                      {athleteProfile.sport} · {athleteProfile.userType.replace('_', ' ')} · {athleteProfile.season.phase.replace('_', '-')}
+                <TouchableOpacity
+                  style={styles.premiumNavRow}
+                  onPress={() => router.push('/training-mode' as never)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.rowCopy}>
+                    <Text style={styles.rowTitle}>Training Mode</Text>
+                    <Text style={styles.rowSubtitle}>
+                      {athleteProfile.enabled
+                        ? `${athleteProfile.sports[0] ?? athleteProfile.sport ?? 'Active'} · ${athleteProfile.season.phase.replace('_', '-')}`
+                        : 'Sport, activities, season & schedule fueling'}
                     </Text>
-                    <View style={styles.proActionRow}>
-                      <TouchableOpacity
-                        style={styles.proOutlineBtn}
-                        onPress={() =>
-                          void updateAthleteProfile({
-                            enabled: true,
-                            season: {
-                              ...athleteProfile.season,
-                              phase:
-                                athleteProfile.season.phase === 'preseason'
-                                  ? 'in_season'
-                                  : athleteProfile.season.phase === 'in_season'
-                                    ? 'off_season'
-                                    : 'preseason',
-                            },
-                          })
-                        }
-                      >
-                        <Text style={styles.proOutlineBtnText}>Cycle Season</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.proOutlineBtn}
-                        onPress={() =>
-                          void updateCycleProfile({
-                            enabled: !cycleProfile.enabled,
-                            cycleDataConsentGivenAt: !cycleProfile.enabled ? new Date().toISOString() : undefined,
-                            cycleDataConsentVersion: !cycleProfile.enabled ? 'v1' : undefined,
-                          })
-                        }
-                      >
-                        <Text style={styles.proOutlineBtnText}>
-                          {cycleProfile.enabled ? 'Disable Female Track' : 'Enable Female Track'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    {cycleProfile.enabled ? (
-                      <>
-                        <Text style={styles.rowSubtitle}>
-                          Cycle phase: {cycleDerived.currentPhase} ({cycleDerived.phaseConfidence})
-                        </Text>
-                        <View style={styles.proActionRow}>
-                          <TouchableOpacity
-                            style={styles.proOutlineBtn}
-                            onPress={() =>
-                              void addCycleLog({
-                                date: new Date().toISOString().slice(0, 10),
-                                phaseTag: 'menstrual',
-                                symptoms: ['fatigue'],
-                              })
-                            }
-                          >
-                            <Text style={styles.proOutlineBtnText}>Log Fatigue Day</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={styles.proOutlineBtn} onPress={() => void clearCycleData()}>
-                            <Text style={styles.proOutlineBtnText}>Delete Cycle Data</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </>
-                    ) : null}
                   </View>
+                  <ChevronRight size={16} color={Colors.textSecondary} />
+                </TouchableOpacity>
+                {profile.sex === 'female' ? (
+                  <TouchableOpacity
+                    style={styles.premiumNavRow}
+                    onPress={() => router.push('/cycle-sync' as never)}
+                    activeOpacity={0.85}
+                  >
+                    <View style={styles.rowCopy}>
+                      <Text style={styles.rowTitle}>Cycle Sync</Text>
+                      <Text style={styles.rowSubtitle}>
+                        {cycleProfile.enabled
+                          ? `Phase: ${cycleDerived.currentPhase} (${cycleDerived.phaseConfidence})`
+                          : 'Optional cycle-aware fueling & hydration'}
+                      </Text>
+                    </View>
+                    <ChevronRight size={16} color={Colors.textSecondary} />
+                  </TouchableOpacity>
                 ) : null}
                 <View style={styles.chipWrap}>
                   <Chip
@@ -543,9 +511,9 @@ export default function SettingsScreen() {
                     styles={styles}
                   />
                   <Chip
-                    active={athleteProfile.enabled}
-                    label="Athlete Mode"
-                    onPress={() => void updateAthleteProfile({ enabled: !athleteProfile.enabled })}
+                    active={proSettings.electrolyteNudgesEnabled}
+                    label="Electrolyte Nudges"
+                    onPress={() => updateProSettings({ electrolyteNudgesEnabled: !proSettings.electrolyteNudgesEnabled })}
                     colors={colors}
                     styles={styles}
                   />
@@ -599,18 +567,30 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 </View>
                 <Text style={styles.rowSubtitle}>
-                  Hydration: {hydration.consumedMl} / {hydration.targetMl} ml
+                  Hydration: {formatHydrationProgress(hydration.consumedMl, hydration.targetMl, hydrationUnit)}
                 </Text>
+                <View style={styles.chipWrap}>
+                  {(['cup', 'oz', 'ml'] as HydrationUnit[]).map((unit) => (
+                    <Chip
+                      key={unit}
+                      active={hydrationUnit === unit}
+                      label={hydrationUnitLabel(unit)}
+                      onPress={() => updateProSettings({ hydrationUnit: unit })}
+                      colors={colors}
+                      styles={styles}
+                    />
+                  ))}
+                </View>
                 <View style={styles.proActionRow}>
-                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => addHydration(250)}>
-                    <Text style={styles.proOutlineBtnText}>+250ml</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => addHydration(500)}>
-                    <Text style={styles.proOutlineBtnText}>+500ml</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => addHydration(750)}>
-                    <Text style={styles.proOutlineBtnText}>+750ml</Text>
-                  </TouchableOpacity>
+                  {hydrationQuickAdds(hydrationUnit).map((preset) => (
+                    <TouchableOpacity
+                      key={preset.label}
+                      style={styles.proOutlineBtn}
+                      onPress={() => addHydration(preset.ml)}
+                    >
+                      <Text style={styles.proOutlineBtnText}>{preset.label}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
                 <View style={styles.proLegalLinks}>
                   <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
@@ -1062,6 +1042,18 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     gap: 12,
+  },
+  premiumNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    backgroundColor: Colors.card,
+    marginTop: 8,
   },
   iconBadge: {
     width: 34,

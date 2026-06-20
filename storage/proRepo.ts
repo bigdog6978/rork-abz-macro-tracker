@@ -4,6 +4,7 @@ import {
   AthleteCycleLogEntry,
   AthleteCycleProfile,
   AthleteProfile,
+  MenstrualPhaseTag,
   ProEntitlementState,
   ProHealthSignals,
   ProHydrationLog,
@@ -21,8 +22,11 @@ const DEFAULT_PRO_SETTINGS: ProSettings = {
 
 const DEFAULT_ATHLETE_PROFILE: AthleteProfile = {
   enabled: false,
+  persona: 'general',
   userType: 'performance_intermediate',
   sport: 'Soccer',
+  sports: [],
+  activities: [],
   season: { phase: 'in_season' },
   schedule: [],
 };
@@ -122,7 +126,13 @@ export async function clearProDynamicTargets(): Promise<void> {
 
 export async function getAthleteProfile(): Promise<AthleteProfile> {
   const stored = await loadData<AthleteProfile>(STORAGE_KEYS.ATHLETE_PROFILE);
-  return { ...DEFAULT_ATHLETE_PROFILE, ...(stored ?? {}) };
+  const merged: AthleteProfile = { ...DEFAULT_ATHLETE_PROFILE, ...(stored ?? {}) };
+  // Migration: seed multi-select `sports` from legacy single `sport` when empty.
+  if ((!merged.sports || merged.sports.length === 0) && merged.sport) {
+    merged.sports = [merged.sport];
+  }
+  if (!Array.isArray(merged.activities)) merged.activities = [];
+  return merged;
 }
 
 export async function saveAthleteProfile(profile: AthleteProfile): Promise<void> {
@@ -157,25 +167,74 @@ export async function clearAthleteCycleData(): Promise<void> {
   await removeData(STORAGE_KEYS.ATHLETE_CYCLE_LOGS);
 }
 
+const DAY_MS = 86400000;
+
+/**
+ * Estimate the current menstrual phase from the last period start + cycle length using a
+ * standard calendar model, refined by a same-day logged tag when available.
+ */
 export function deriveAthleteCycleState(
   profile: AthleteCycleProfile,
-  logs: AthleteCycleLogEntry[]
+  logs: AthleteCycleLogEntry[],
+  now: Date = new Date()
 ): AthleteCycleDerivedState {
-  const now = new Date();
   const latest = logs[0];
+  const cycleLength = clampCycleLength(profile.cycleLengthDays ?? 28);
+  const periodLength = Math.max(2, Math.min(10, profile.periodLengthDays ?? 5));
+
+  let calendarPhase: MenstrualPhaseTag = 'unknown';
+  let cycleDay: number | null = null;
+  let predictedNextPhaseDate: string | undefined;
+
+  if (profile.lastPeriodStartDate) {
+    const start = new Date(profile.lastPeriodStartDate);
+    if (!Number.isNaN(start.getTime())) {
+      const elapsed = Math.floor((now.getTime() - start.getTime()) / DAY_MS);
+      cycleDay = ((elapsed % cycleLength) + cycleLength) % cycleLength; // 0-indexed day in cycle
+      calendarPhase = phaseForCycleDay(cycleDay, cycleLength, periodLength);
+      const nextPeriod = new Date(start.getTime() + (Math.floor(elapsed / cycleLength) + 1) * cycleLength * DAY_MS);
+      predictedNextPhaseDate = nextPeriod.toISOString().slice(0, 10);
+    }
+  }
+
+  // A log explicitly tagged today overrides the calendar estimate.
+  const todayKey = now.toISOString().slice(0, 10);
+  const todayLog = logs.find((l) => l.date === todayKey);
+  const currentPhase: MenstrualPhaseTag =
+    todayLog?.phaseTag && todayLog.phaseTag !== 'unknown'
+      ? todayLog.phaseTag
+      : calendarPhase !== 'unknown'
+        ? calendarPhase
+        : (latest?.phaseTag ?? 'unknown');
+
+  const hasCalendar = Boolean(profile.lastPeriodStartDate);
+  const hasLogs = logs.length >= 3;
   const symptomCount = latest?.symptoms?.length ?? 0;
-  const currentPhase = latest?.phaseTag ?? 'unknown';
-  const hasEnough = logs.length >= 3 || Boolean(profile.lastPeriodStartDate);
+
+  let phaseConfidence: 'high' | 'medium' | 'low' = 'low';
+  if (hasCalendar && hasLogs) phaseConfidence = 'high';
+  else if (hasCalendar || hasLogs || symptomCount > 0) phaseConfidence = 'medium';
+
   return {
     currentPhase,
-    phaseConfidence: hasEnough ? (symptomCount > 0 ? 'high' : 'medium') : 'low',
-    predictedNextPhaseDate: profile.lastPeriodStartDate
-      ? new Date(new Date(profile.lastPeriodStartDate).getTime() + (profile.cycleLengthDays ?? 28) * 86400000)
-          .toISOString()
-          .slice(0, 10)
-      : undefined,
-    dataQuality: hasEnough ? 'sufficient' : logs.length > 0 ? 'limited' : 'insufficient',
+    phaseConfidence,
+    predictedNextPhaseDate,
+    dataQuality: hasCalendar || hasLogs ? 'sufficient' : logs.length > 0 ? 'limited' : 'insufficient',
     lastComputedAt: now.toISOString(),
   };
+}
+
+function clampCycleLength(days: number): number {
+  if (!Number.isFinite(days)) return 28;
+  return Math.max(21, Math.min(40, Math.round(days)));
+}
+
+function phaseForCycleDay(cycleDay: number, cycleLength: number, periodLength: number): MenstrualPhaseTag {
+  // Ovulation ~14 days before the next period; fertile/ovulatory window around it.
+  const ovulationDay = cycleLength - 14;
+  if (cycleDay < periodLength) return 'menstrual';
+  if (cycleDay < ovulationDay - 1) return 'follicular';
+  if (cycleDay <= ovulationDay + 1) return 'ovulatory';
+  return 'luteal';
 }
 

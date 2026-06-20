@@ -17,7 +17,7 @@ import {
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown } from 'lucide-react-native';
+import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
@@ -26,6 +26,9 @@ import { useStaggerFadeIn } from '../../../utils/motion';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
+import { usePro } from '../../../providers/ProProvider';
+import { formatHydrationProgress, hydrationQuickAdds } from '../../../utils/hydration';
+import type { ProDayType } from '../../../features/pro/types';
 import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier, MacroTargets } from '../../../types';
 import PremiumCard from '../../../components/ui/PremiumCard';
 import GreetingHeader from '../../../components/ui/GreetingHeader';
@@ -47,6 +50,18 @@ function getDialSize(cardWidth: number, screenWidth: number, isTablet: boolean):
   const dialMax = effectiveWidth - STATS_MIN_WIDTH - GAP;
   const maxCap = isTablet ? 320 : 230;
   return Math.min(maxCap, Math.max(120, Math.floor(dialMax)));
+}
+
+function dayTypeMeta(dayType: ProDayType): { label: string; icon: typeof Activity } {
+  switch (dayType) {
+    case 'workout_day':
+      return { label: 'Training day', icon: Dumbbell };
+    case 'high_activity_day':
+      return { label: 'Active day', icon: Activity };
+    case 'rest_day':
+    default:
+      return { label: 'Rest day', icon: Moon };
+  }
 }
 
 // ─── CustomMacrosModal ───────────────────────────────────────────────────────
@@ -234,6 +249,15 @@ export default function DashboardScreen() {
   );
   const { todayEntries, todayTotals, removeEntry, getStreak } = useDailyLog();
   const { showPrompt, hasBaseline, dismissPrompt } = useMeasurements();
+  const {
+    settings: proSettings,
+    dynamicTargets,
+    inferredDayType,
+    hydration,
+    hydrationUnit,
+    addHydration,
+    athleteProfile,
+  } = usePro();
   const streak = getStreak();
   const stagger = useStaggerFadeIn(5);
 
@@ -485,6 +509,89 @@ export default function DashboardScreen() {
             />
           </PremiumCard>
         </Animated.View>
+
+        {/* Adaptive Today */}
+        {(proSettings.dynamicMacrosEnabled || proSettings.hydrationEnabled) && (
+          <Animated.View style={{ opacity: stagger[3] }}>
+            <PremiumCard style={styles.adaptiveCard}>
+              {proSettings.dynamicMacrosEnabled ? (
+                <View style={styles.adaptiveHeaderRow}>
+                  <View style={styles.dayTypePill}>
+                    {(() => {
+                      const meta = dayTypeMeta(inferredDayType);
+                      const Icon = meta.icon;
+                      return (
+                        <>
+                          <Icon size={14} color={colors.primary} />
+                          <Text style={styles.dayTypePillText}>{meta.label}</Text>
+                        </>
+                      );
+                    })()}
+                  </View>
+                  <View style={styles.adaptiveCalCol}>
+                    <Text style={styles.adaptiveCalValue}>{formatNumber(dynamicTargets.calories)}</Text>
+                    <Text style={styles.adaptiveCalLabel}>adaptive cal</Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {proSettings.hydrationEnabled ? (
+                <View style={styles.hydrationBlock}>
+                  <View style={styles.hydrationTop}>
+                    <View style={styles.hydrationLabelRow}>
+                      <Droplet size={16} color={Colors.carbs} />
+                      <Text style={styles.hydrationTitle}>Hydration</Text>
+                    </View>
+                    <Text style={styles.hydrationValue}>
+                      {formatHydrationProgress(hydration.consumedMl, hydration.targetMl, hydrationUnit)}
+                    </Text>
+                  </View>
+                  <View style={styles.hydrationBarTrack}>
+                    <View
+                      style={[
+                        styles.hydrationBarFill,
+                        {
+                          width: `${Math.min(
+                            100,
+                            hydration.targetMl > 0 ? (hydration.consumedMl / hydration.targetMl) * 100 : 0
+                          )}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.hydrationChipsRow}>
+                    {hydrationQuickAdds(hydrationUnit).map((preset) => (
+                      <TouchableOpacity
+                        key={preset.label}
+                        style={styles.hydrationChip}
+                        onPress={() => {
+                          if (Platform.OS !== 'web') Haptics.selectionAsync();
+                          addHydration(preset.ml);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.hydrationChipText}>{preset.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+              {!athleteProfile.enabled ? (
+                <TouchableOpacity
+                  style={styles.trainingNudge}
+                  onPress={() => router.push('/training-mode' as never)}
+                  activeOpacity={0.85}
+                >
+                  <Dumbbell size={16} color={colors.primary} />
+                  <Text style={styles.trainingNudgeText}>
+                    Set up Training Mode for sport & schedule-aware fueling
+                  </Text>
+                  <ChevronRight size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
+              ) : null}
+            </PremiumCard>
+          </Animated.View>
+        )}
 
         {/* Measurement Prompt */}
         {showPrompt && (
@@ -847,6 +954,109 @@ const createStyles = (colors: AppColors) =>
       padding: Spacing.lg,
       marginTop: Spacing.lg,
       gap: Spacing.md,
+    },
+    adaptiveCard: {
+      padding: Spacing.lg,
+      marginTop: Spacing.lg,
+      gap: Spacing.md,
+    },
+    adaptiveHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    dayTypePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      backgroundColor: colors.primaryMuted,
+    },
+    dayTypePillText: {
+      color: colors.primary,
+      fontSize: 13,
+      fontWeight: '700' as const,
+    },
+    adaptiveCalCol: {
+      alignItems: 'flex-end',
+    },
+    adaptiveCalValue: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: '800' as const,
+    },
+    adaptiveCalLabel: {
+      color: colors.textSecondary,
+      fontSize: 11,
+      fontWeight: '600' as const,
+    },
+    hydrationBlock: {
+      gap: Spacing.sm,
+    },
+    hydrationTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    hydrationLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    hydrationTitle: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '700' as const,
+    },
+    hydrationValue: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '700' as const,
+    },
+    hydrationBarTrack: {
+      height: 8,
+      borderRadius: 999,
+      backgroundColor: colors.cardBorder,
+      overflow: 'hidden',
+    },
+    hydrationBarFill: {
+      height: '100%',
+      borderRadius: 999,
+      backgroundColor: Colors.carbs,
+    },
+    hydrationChipsRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    hydrationChip: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 9,
+      borderRadius: Radius.sm,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.cardElevated,
+    },
+    hydrationChipText: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '700' as const,
+    },
+    trainingNudge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingTop: Spacing.sm,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.cardBorder,
+    },
+    trainingNudgeText: {
+      flex: 1,
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontWeight: '600' as const,
     },
     macroDialRow: {
       flexDirection: 'row',

@@ -28,11 +28,13 @@ import {
   AthleteCycleProfile,
   AthleteProfile,
   HealthConnectionStatus,
+  HydrationUnit,
   ProEntitlementState,
   ProHealthSignals,
   ProHydrationLog,
   ProSettings,
 } from '../features/pro/types';
+import { defaultHydrationUnit } from '../utils/hydration';
 import {
   applyAthleteAdjustments,
   applyProAdjustments,
@@ -51,8 +53,11 @@ const defaultHydration: ProHydrationLog = {
 
 const defaultAthleteProfile: AthleteProfile = {
   enabled: false,
+  persona: 'general',
   userType: 'performance_intermediate',
   sport: 'Soccer',
+  sports: [],
+  activities: [],
   season: { phase: 'in_season' },
   schedule: [],
 };
@@ -68,7 +73,7 @@ const defaultCycleProfile: AthleteCycleProfile = {
 
 export const [ProProvider, usePro] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
-  const { macros: baseMacros } = useUser();
+  const { macros: baseMacros, profile } = useUser();
 
   const settingsQuery = useQuery({ queryKey: ['pro_settings'], queryFn: getProSettings });
   const healthQuery = useQuery({ queryKey: ['pro_health_signals'], queryFn: getLatestProHealthSignals });
@@ -116,7 +121,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
         fuelingStrategy: 'Base fueling only.',
       };
     }
-    const proAdjusted = applyProAdjustments(baseMacros, healthSignals);
+    const proAdjusted = applyProAdjustments(baseMacros, healthSignals, settings.dayTypeOverride);
     if (!athleteProfile.enabled) return { ...proAdjusted, tierApplied: 'pro' as const };
     return applyAthleteAdjustments(
       baseMacros,
@@ -124,7 +129,18 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
       athleteProfile,
       cycleProfile.enabled ? cycleDerived : null
     );
-  }, [settings.dynamicMacrosEnabled, baseMacros, healthSignals, athleteProfile, cycleProfile.enabled, cycleDerived]);
+  }, [
+    settings.dynamicMacrosEnabled,
+    settings.dayTypeOverride,
+    baseMacros,
+    healthSignals,
+    athleteProfile,
+    cycleProfile.enabled,
+    cycleDerived,
+  ]);
+
+  const hydrationUnit: HydrationUnit =
+    settings.hydrationUnit ?? defaultHydrationUnit(profile.measurementSystem);
 
   const hydration = useMemo(() => {
     const base = hydrationQuery.data ?? defaultHydration;
@@ -217,12 +233,29 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
   useEffect(() => {
     const sub = subscribePhysiqWatch('onWatchPayload', (body) => {
       const payload = (body.payload as Record<string, string> | undefined) ?? {};
-      if (payload.action === 'hydration_ack') {
-        addHydration(250);
+      switch (payload.action) {
+        case 'hydration_ack':
+          addHydration(250);
+          break;
+        case 'log_water': {
+          const ml = Number.parseInt(payload.ml ?? '', 10);
+          if (Number.isFinite(ml) && ml > 0) addHydration(ml);
+          break;
+        }
+        case 'set_day_type': {
+          const next = payload.dayType;
+          if (next === 'auto' || next === 'training' || next === 'competition' || next === 'rest') {
+            updateSettings({ dayTypeOverride: next });
+          }
+          break;
+        }
+        default:
+          // `add_protein` is handled in PhysiqWatchSync where the daily log is available.
+          break;
       }
     });
     return () => sub?.remove();
-  }, [addHydration]);
+  }, [addHydration, updateSettings]);
 
   const enableHealthIntegration = useCallback(async (): Promise<boolean> => {
     try {
@@ -342,6 +375,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     fuelingStrategy: dynamic.fuelingStrategy ?? '',
     inferredDayType: dynamic.inferredDayType,
     hydration,
+    hydrationUnit,
     updateSettings,
     enableHealthIntegration,
     disableHealthIntegration,

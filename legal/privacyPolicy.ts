@@ -1,8 +1,8 @@
-export const PRIVACY_POLICY_LAST_UPDATED = 'June 17, 2026';
+export const PRIVACY_POLICY_LAST_UPDATED = 'June 19, 2026';
 
 export const PRIVACY_POLICY = `Privacy Policy
 Physiq: Macro Tracker
-Last Updated: June 17, 2026
+Last Updated: June 19, 2026
 
 Physiq: Macro Tracker ("Physiq", "we", "our", or "us") respects your privacy and is committed to protecting your personal information. This Privacy Policy explains how information is collected, used, and protected when you use the Physiq: Macro Tracker mobile application and related services.
 
@@ -84,6 +84,10 @@ This data is used solely on your device to adapt macro targets, hydration cues, 
 Health-derived values are stored locally on your iPhone (for example, the latest activity summary used for target adjustments). You can revoke access at any time in the iPhone Settings app under Privacy & Security → Health → Physiq, or in the Apple Health app under your profile → Apps → Physiq.
 
 The optional Apple Watch companion app displays macro and hydration summaries sent from your iPhone. It does not read HealthKit directly.
+
+Cycle Sync (optional)
+
+If you enable Cycle Sync, you may log menstrual cycle information such as period start dates, cycle and period length, bleeding level, and symptoms. This is sensitive information and is used solely on your device to provide cycle-aware fueling and hydration guidance. Cycle data is stored only on your device, is never uploaded to our servers, is never used for advertising or marketing, and is never sold or shared with third parties. You can disable Cycle Sync and delete all stored cycle data at any time from Settings.
 
 6. Advertising
 

@@ -22,8 +22,12 @@ const SIGNALS: ProHealthSignals = {
 
 const ATHLETE: AthleteProfile = {
   enabled: true,
+  persona: 'athlete',
   userType: 'advanced_athlete',
   sport: 'Soccer',
+  sports: ['Soccer'],
+  competitionLevel: 'semi_pro',
+  activities: [],
   season: { phase: 'in_season' },
   schedule: [
     { id: 'a', dayOfWeek: 1, sessionType: 'training', durationMin: 75, intensity: 'high' },

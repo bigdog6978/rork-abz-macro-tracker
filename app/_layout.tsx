@@ -188,6 +188,26 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="training-mode"
+        options={{
+          presentation: "modal",
+          title: "Training Mode",
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+      <Stack.Screen
+        name="cycle-sync"
+        options={{
+          presentation: "modal",
+          title: "Cycle Sync",
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      />
+      <Stack.Screen
         name="legal-document"
         options={{
           title: "",

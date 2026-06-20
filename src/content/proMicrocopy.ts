@@ -10,6 +10,34 @@ export const PRO_COPY = {
     'Sport, season, and training-schedule fueling strategy',
     'Weekly progress report with your Physiq Score',
   ],
+  /** The five plain-language Premium capabilities, surfaced in Settings + onboarding. */
+  capabilities: [
+    {
+      id: 'adaptive_targets',
+      title: 'Adaptive Targets',
+      body: 'Your macros auto-shift with your activity and day type.',
+    },
+    {
+      id: 'training_mode',
+      title: 'Training Mode',
+      body: 'Fueling tuned to your sport, activities, season, and weekly schedule.',
+    },
+    {
+      id: 'cycle_sync',
+      title: 'Cycle Sync',
+      body: 'Optional cycle-aware fueling and hydration, on-device and private.',
+    },
+    {
+      id: 'smart_hydration',
+      title: 'Smart Hydration',
+      body: 'A hydration goal that scales with training and heat, in your units.',
+    },
+    {
+      id: 'weekly_report',
+      title: 'Weekly Report + Physiq Score',
+      body: 'A weekly snapshot of adherence, activity, hydration, and consistency.',
+    },
+  ],
   includedTitle: 'Included with Physiq',
   includedLine: 'All adaptive features are included — no upgrade required.',
   infoTitle: 'Physiq Premium overview',

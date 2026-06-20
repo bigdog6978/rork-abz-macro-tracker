@@ -99,6 +99,9 @@ export default function WhyTheseMacrosCard({
           <DetailRow label="Goal Adjustment" value={details.calorieAdjustmentLabel} styles={styles} />
           <DetailRow label="Eating Style" value={details.eatingStyleLabel} styles={styles} />
           <DetailRow label="Protein Rule" value={details.proteinRuleLabel} styles={styles} />
+          {details.safetyNote ? (
+            <Text style={styles.safetyNote}>{details.safetyNote}</Text>
+          ) : null}
 
           <View style={styles.finalBlock}>
             <Text style={styles.finalTitle}>Final Daily Targets</Text>
@@ -212,6 +215,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     lineHeight: 19,
     fontWeight: '600',
     textAlign: 'right',
+  },
+  safetyNote: {
+    color: Colors.warning,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
   },
   finalBlock: {
     marginTop: 4,

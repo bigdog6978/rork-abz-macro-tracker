@@ -22,7 +22,26 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
   }
 
   func sendHydrationAck() {
-    let message = ["action": "hydration_ack"]
+    send(["action": "hydration_ack"])
+  }
+
+  /// Log a specific amount of water (milliliters) from the wrist.
+  func logWater(ml: Int) {
+    send(["action": "log_water", "ml": String(ml)])
+  }
+
+  /// Quick-add protein grams from the wrist.
+  func addProtein(grams: Int) {
+    send(["action": "add_protein", "grams": String(grams)])
+  }
+
+  /// Override today's day type (auto / training / competition / rest).
+  func setDayType(_ dayType: String) {
+    send(["action": "set_day_type", "dayType": dayType])
+  }
+
+  /// Sends an action to the phone, falling back to application context when unreachable.
+  private func send(_ message: [String: String]) {
     if WCSession.default.isReachable {
       WCSession.default.sendMessage(
         message,

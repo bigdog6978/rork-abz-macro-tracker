@@ -318,7 +318,7 @@ export const EATING_STYLE_DEFINITIONS: Record<EatingStyle, EatingStyleDefinition
       {
         heading: 'How macros are calculated',
         body:
-          'Protein is set to ~1.25 g per lb of lean body mass (minimum 1.0 g/lb body weight). Fat is fixed at essential levels (~20 g women / 25 g men). Carbs are capped at ~25 g from non-starchy vegetables. Total calories are derived from those macros.',
+          'Protein follows McDonald RFL categories when body fat % is set (0.85–1.5 g/lb lean mass), with a minimum of 1.0 g/lb body weight and a max of 1.5 g/lb lean. Without body fat, protein defaults to 1.0 g/lb body weight. Fat is fixed at essential levels (~20 g women / 25 g men). Carbs are capped at ~25 g from non-starchy vegetables. Total calories are derived from those macros — not inflated to match TDEE.',
       },
       {
         heading: 'Duration & safety',

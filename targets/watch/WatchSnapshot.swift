@@ -31,6 +31,8 @@ struct WatchSnapshot {
   var activeEnergyKcal: Double
   var workoutMinutes: Double
   var healthLine: String
+  /// Preferred hydration unit: "ml" | "oz" | "cup".
+  var hydrationUnit: String
 
   var hasData: Bool {
     caloriesTarget > 0 || caloriesConsumed > 0 || proteinTarget > 0
@@ -101,12 +103,70 @@ struct WatchSnapshot {
       healthConnected: context["healthConnected"] == "1",
       activeEnergyKcal: d("activeEnergyKcal"),
       workoutMinutes: d("workoutMinutes"),
-      healthLine: context["healthLine"] ?? ""
+      healthLine: context["healthLine"] ?? "",
+      hydrationUnit: context["hydrationUnit"] ?? "ml"
     )
   }
 
   func progress(consumed: Double, target: Double) -> CGFloat {
     guard target > 0 else { return 0 }
     return CGFloat(min(max(consumed / target, 0), 1))
+  }
+
+  /// Hydration consumed/target rendered in the user's preferred unit.
+  var hydrationDisplay: String {
+    HydrationFormat.progress(consumedMl: hydrationConsumed, targetMl: hydrationTarget, unit: hydrationUnit)
+  }
+}
+
+/// Mirrors RN `utils/hydration` for watch-side display + quick-add presets.
+enum HydrationFormat {
+  static let mlPerOz = 29.5735
+  static let mlPerCup = 236.588
+
+  static func toUnit(_ ml: Double, unit: String) -> Double {
+    switch unit {
+    case "oz": return ml / mlPerOz
+    case "cup": return ml / mlPerCup
+    default: return ml
+    }
+  }
+
+  static func unitLabel(_ unit: String) -> String {
+    switch unit {
+    case "oz": return "oz"
+    case "cup": return "cups"
+    default: return "mL"
+    }
+  }
+
+  static func format(_ ml: Double, unit: String) -> String {
+    let v = toUnit(ml, unit: unit)
+    if unit == "ml" {
+      return "\(Int(round(v))) \(unitLabel(unit))"
+    }
+    let rounded = (v * 10).rounded() / 10
+    let num = rounded.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(rounded)) : String(format: "%.1f", rounded)
+    return "\(num) \(unitLabel(unit))"
+  }
+
+  static func progress(consumedMl: Double, targetMl: Double, unit: String) -> String {
+    let c = format(consumedMl, unit: unit)
+    let t = format(targetMl, unit: unit)
+    // Keep a single unit label at the end.
+    let cNum = c.split(separator: " ").first.map(String.init) ?? c
+    return "\(cNum) / \(t)"
+  }
+
+  /// Quick-add presets (label, milliliters) per unit.
+  static func quickAdds(_ unit: String) -> [(label: String, ml: Int)] {
+    switch unit {
+    case "oz":
+      return [("+8 oz", Int((8 * mlPerOz).rounded())), ("+16 oz", Int((16 * mlPerOz).rounded()))]
+    case "cup":
+      return [("+1 cup", Int(mlPerCup.rounded())), ("+2 cups", Int((2 * mlPerCup).rounded()))]
+    default:
+      return [("+250 mL", 250), ("+500 mL", 500)]
+    }
   }
 }

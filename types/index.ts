@@ -123,6 +123,8 @@ export interface MacroCalculationDetails {
   proteinTargetGrams: number;
   carbTargetGrams: number;
   fatTargetGrams: number;
+  /** Optional safety note for aggressive protocols (e.g. PSMF large deficit). */
+  safetyNote?: string;
 }
 
 export interface NutrientsPer100g {

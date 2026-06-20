@@ -47,6 +47,17 @@ import {
   LearnMoreSection,
 } from '../src/content/planDefinitions';
 import { calculateMacros } from '../utils/macroEngine';
+import {
+  ACTIVITY_TYPES,
+  ActivityType,
+  ATHLETE_SPORTS,
+  AthleteCompetitionLevel,
+  AthleteSeasonPhase,
+  COMPETITION_LEVEL_LABELS,
+  deriveAthleteUserType,
+  TrainingPersona,
+} from '../features/pro/types';
+import { saveAthleteProfile } from '../storage/proRepo';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import ProInfoModal from '../components/ui/ProInfoModal';
@@ -58,7 +69,7 @@ import { getTodayDateKey } from '../utils/dateKey';
 import { buildPsmfProfileUpdates } from '../utils/psmfHelpers';
 import { Radius, Spacing } from '../theme/tokens';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 const FOOTER_BUTTON_HEIGHT = 52;
 
 const PROTEIN_FOOD_IDS = [
@@ -110,6 +121,12 @@ export default function OnboardingScreen() {
   const [goal, setGoal] = useState<Goal>('cut');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate_training');
   const [eatingStyle, setEatingStyle] = useState<EatingStyle>('standard');
+  const [trainingPersona, setTrainingPersona] = useState<TrainingPersona>('general');
+  const [selectedSports, setSelectedSports] = useState<string[]>([]);
+  const [competitionLevel, setCompetitionLevel] = useState<AthleteCompetitionLevel | undefined>(undefined);
+  const [seasonPhase, setSeasonPhase] = useState<AthleteSeasonPhase>('in_season');
+  const [selectedActivities, setSelectedActivities] = useState<ActivityType[]>([]);
+  const [sessionsPerWeek, setSessionsPerWeek] = useState('');
   const [dietModifiers, setDietModifiers] = useState<DietaryModifier[]>([]);
   const [dietNotes, setDietNotes] = useState('');
   const [dislikedFoodIds, setDislikedFoodIds] = useState<string[]>([]);
@@ -163,6 +180,20 @@ export default function OnboardingScreen() {
       prev.includes(foodId)
         ? prev.filter((id) => id !== foodId)
         : [...prev, foodId]
+    );
+  }, []);
+
+  const toggleSport = useCallback((sport: string) => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    setSelectedSports((prev) =>
+      prev.includes(sport) ? prev.filter((s) => s !== sport) : [...prev, sport]
+    );
+  }, []);
+
+  const toggleActivity = useCallback((activity: ActivityType) => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    setSelectedActivities((prev) =>
+      prev.includes(activity) ? prev.filter((a) => a !== activity) : [...prev, activity]
     );
   }, []);
 
@@ -253,6 +284,21 @@ export default function OnboardingScreen() {
       bodyFatPercent: draftProfile.bodyFatPercent,
       isBaseline: true,
     });
+    if (trainingPersona !== 'general') {
+      const parsedSessions = parseInt(sessionsPerWeek, 10);
+      await saveAthleteProfile({
+        enabled: true,
+        persona: trainingPersona,
+        userType: deriveAthleteUserType(competitionLevel),
+        sport: selectedSports[0] ?? '',
+        sports: selectedSports,
+        competitionLevel: trainingPersona === 'athlete' ? competitionLevel : undefined,
+        activities: trainingPersona === 'fitness' ? selectedActivities : [],
+        sessionsPerWeek: Number.isFinite(parsedSessions) && parsedSessions > 0 ? parsedSessions : undefined,
+        season: { phase: seasonPhase },
+        schedule: [],
+      });
+    }
     completeOnboarding({
       ...draftProfile,
       ...buildPsmfProfileUpdates(
@@ -262,7 +308,19 @@ export default function OnboardingScreen() {
       ),
     });
     router.replace('/(tabs)' as never);
-  }, [completeOnboarding, draftProfile, dislikedFoodIds, baselinePhotoUri, psmfAcknowledgedAt]);
+  }, [
+    completeOnboarding,
+    draftProfile,
+    dislikedFoodIds,
+    baselinePhotoUri,
+    psmfAcknowledgedAt,
+    trainingPersona,
+    selectedSports,
+    competitionLevel,
+    selectedActivities,
+    seasonPhase,
+    sessionsPerWeek,
+  ]);
 
   const handleEatingStyleSelect = useCallback((value: EatingStyle) => {
     if (value === 'psmf') {
@@ -516,6 +574,128 @@ export default function OnboardingScreen() {
           renderChoice(value, activityLevel, setActivityLevel, ACTIVITY_LABELS[value], ACTIVITY_DESCRIPTIONS[value])
         )}
       </View>
+    </View>
+  );
+
+  const renderTrainingStep = () => (
+    <View style={styles.stepContainer}>
+      {renderStepHeader(
+        'How you train',
+        'This personalizes your fueling. You can change any of this later in Settings.'
+      )}
+      <View style={styles.choiceList}>
+        {renderChoice(
+          'athlete' as TrainingPersona,
+          trainingPersona,
+          setTrainingPersona,
+          'I train or compete for a sport',
+          'Get sport, season, and schedule-aware fueling.'
+        )}
+        {renderChoice(
+          'fitness' as TrainingPersona,
+          trainingPersona,
+          setTrainingPersona,
+          'I work out for fitness / health',
+          'Tune fueling to the activities you do.'
+        )}
+        {renderChoice(
+          'general' as TrainingPersona,
+          trainingPersona,
+          setTrainingPersona,
+          'Just tracking nutrition for now',
+          'Skip training setup — enable it anytime.'
+        )}
+      </View>
+
+      {trainingPersona === 'athlete' ? (
+        <>
+          <Text style={styles.label}>Your sport(s)</Text>
+          <View style={styles.chipWrap}>
+            {ATHLETE_SPORTS.map((sport) => {
+              const active = selectedSports.includes(sport);
+              return (
+                <TouchableOpacity
+                  key={sport}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => toggleSport(sport)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{sport}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.label}>Competition level</Text>
+          <View style={styles.chipWrap}>
+            {(Object.keys(COMPETITION_LEVEL_LABELS) as AthleteCompetitionLevel[]).map((level) => {
+              const active = competitionLevel === level;
+              return (
+                <TouchableOpacity
+                  key={level}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setCompetitionLevel(level)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {COMPETITION_LEVEL_LABELS[level]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.label}>Current season</Text>
+          <View style={styles.segmentRow}>
+            {(['preseason', 'in_season', 'off_season'] as AthleteSeasonPhase[]).map((phase) => (
+              <TouchableOpacity
+                key={phase}
+                style={[styles.segment, seasonPhase === phase && styles.segmentActive]}
+                onPress={() => setSeasonPhase(phase)}
+              >
+                <Text style={[styles.segmentText, seasonPhase === phase && styles.segmentTextActive]}>
+                  {phase === 'in_season' ? 'In-season' : phase === 'off_season' ? 'Off-season' : 'Preseason'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      {trainingPersona === 'fitness' ? (
+        <>
+          <Text style={styles.label}>Your activities</Text>
+          <View style={styles.chipWrap}>
+            {ACTIVITY_TYPES.map((activity) => {
+              const active = selectedActivities.includes(activity.id);
+              return (
+                <TouchableOpacity
+                  key={activity.id}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => toggleActivity(activity.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{activity.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
+
+      {trainingPersona !== 'general' ? (
+        <View style={styles.field}>
+          <Text style={styles.label}>Typical sessions per week (optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={sessionsPerWeek}
+            onChangeText={setSessionsPerWeek}
+            keyboardType="number-pad"
+            placeholder="e.g. 4"
+            placeholderTextColor={Colors.textTertiary}
+          />
+        </View>
+      ) : null}
     </View>
   );
 
@@ -786,6 +966,7 @@ export default function OnboardingScreen() {
     renderBaselinePhotoStep,
     renderGoalStep,
     renderActivityStep,
+    renderTrainingStep,
     renderEatingStyleStep,
     renderProteinDislikesStep,
     renderCarbDislikesStep,
