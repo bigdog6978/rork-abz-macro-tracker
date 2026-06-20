@@ -48,8 +48,9 @@ struct ContentView: View {
   // MARK: - Calories
 
   private func caloriesPage(metrics: WatchLayoutMetrics) -> some View {
-    VStack(spacing: metrics.pageSpacing) {
-      pageHeader(icon: "flame.fill", title: "Calories")
+    VStack(spacing: 0) {
+      inlinePageHeader(icon: "flame.fill", title: "Calories")
+      Spacer().frame(height: WatchLayoutMetrics.headerToContentSpacing)
       ZStack {
         RingGaugeView(
           progress: snapshot.progress(consumed: snapshot.caloriesConsumed, target: snapshot.caloriesTarget),
@@ -72,11 +73,13 @@ struct ContentView: View {
             .foregroundStyle(PhysiqTheme.textSecondary)
         }
       }
+      Spacer().frame(height: metrics.pageSpacing)
       HStack(spacing: 8) {
         miniStat("Target", formatInt(snapshot.caloriesTarget), accentValue: false, metrics: metrics)
         miniStat("Eaten", formatInt(snapshot.caloriesConsumed), accentValue: true, metrics: metrics)
       }
       if metrics.showsStreakRow, snapshot.streak > 0 {
+        Spacer().frame(height: metrics.pageSpacing)
         HStack(spacing: 4) {
           Image(systemName: "flame.fill").font(.system(size: 11)).foregroundStyle(accent)
           Text("\(snapshot.streak) day streak")
@@ -91,7 +94,7 @@ struct ContentView: View {
 
   private func macrosPage(metrics: WatchLayoutMetrics) -> some View {
     VStack(spacing: metrics.pageSpacing) {
-      pageHeader(icon: "chart.bar.fill", title: "Macros")
+      inlinePageHeader(icon: "chart.bar.fill", title: "Macros")
       HStack(spacing: 6) {
         macroCell("Protein", icon: "bolt.fill", consumed: snapshot.proteinConsumed, target: snapshot.proteinTarget,
                   ring: PhysiqTheme.color(hex: snapshot.proteinHex, fallback: PhysiqTheme.protein),
@@ -157,13 +160,14 @@ struct ContentView: View {
   // MARK: - Hydration
 
   private func hydrationPage(metrics: WatchLayoutMetrics) -> some View {
-    VStack(spacing: metrics.pageSpacing) {
-      pageHeader(
+    VStack(spacing: 0) {
+      inlinePageHeader(
         icon: "drop.fill",
         title: "Hydration",
         iconColor: hydrationColor,
         statusDotColor: hydrationColor
       )
+      Spacer().frame(height: WatchLayoutMetrics.headerToContentSpacing)
       ZStack {
         RingGaugeView(
           progress: snapshot.progress(consumed: snapshot.hydrationConsumed, target: snapshot.hydrationTarget),
@@ -186,6 +190,7 @@ struct ContentView: View {
             .foregroundStyle(PhysiqTheme.textSecondary)
         }
       }
+      Spacer().frame(height: metrics.pageSpacing)
       HStack(spacing: 6) {
         ForEach(HydrationFormat.quickAdds(snapshot.hydrationUnit), id: \.label) { preset in
           hydrationActionButton(label: preset.label, metrics: metrics) {
@@ -201,7 +206,7 @@ struct ContentView: View {
   private func todayPage(metrics: WatchLayoutMetrics) -> some View {
     let selectedOverride = connectivity.resolvedDayTypeOverride(fallback: snapshot.dayTypeOverride)
     return VStack(spacing: metrics.pageSpacing) {
-      pageHeader(icon: snapshot.todayIcon, title: "Today")
+      inlinePageHeader(icon: snapshot.todayIcon, title: "Today")
       VStack(alignment: .leading, spacing: 6) {
         HStack(spacing: 6) {
           Image(systemName: snapshot.todayIcon).font(.system(size: 14)).foregroundStyle(accent)
@@ -250,22 +255,30 @@ struct ContentView: View {
 
   // MARK: - Shared pieces
 
-  private func pageHeader(
+  /// Leading icon + title on the same row as the system clock (trailing clearance only).
+  private func inlinePageHeader(
     icon: String,
     title: String,
     iconColor: Color? = nil,
-    statusDotColor: Color? = nil
+    statusDotColor: Color? = nil,
+    showStatusDot: Bool = true
   ) -> some View {
-    HStack(spacing: 6) {
+    HStack(spacing: 4) {
       Image(systemName: icon)
-        .font(.system(size: 12, weight: .bold))
+        .font(.system(size: 11, weight: .bold))
         .foregroundStyle(iconColor ?? accent)
       Text(title)
-        .font(.system(size: 13, weight: .heavy, design: .rounded))
+        .font(.system(size: 12, weight: .heavy, design: .rounded))
         .foregroundStyle(PhysiqTheme.textPrimary)
-      Spacer(minLength: 0)
-      Circle().fill(statusDotColor ?? statusColor).frame(width: 6, height: 6)
+        .lineLimit(1)
+      if showStatusDot {
+        Circle()
+          .fill(statusDotColor ?? statusColor)
+          .frame(width: 5, height: 5)
+      }
+      Spacer(minLength: WatchLayoutMetrics.clockClearance)
     }
+    .frame(height: WatchLayoutMetrics.inlineHeaderHeight, alignment: .leading)
   }
 
   private func miniStat(

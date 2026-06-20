@@ -2,10 +2,8 @@ import SwiftUI
 
 /// Lays a TabView page out across the **full** watch face.
 ///
-/// The system already keeps content clear of the clock (top) and the page dots
-/// (bottom), so this only applies small cosmetic insets and **top-aligns** the
-/// content — no double safe-area reservation and no `Spacer()` centering that
-/// would float a shrunken cluster in the middle of the screen.
+/// Top padding is zero so the inline page header shares the system clock row.
+/// Only small bottom/horizontal insets remain for page dots and bezels.
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content
@@ -27,15 +25,15 @@ struct WatchPageContainer<Content: View>: View {
           content(metrics)
             .frame(maxWidth: .infinity, alignment: .top)
             .padding(.horizontal, metrics.horizontal)
-            .padding(.top, metrics.topInset)
             .padding(.bottom, metrics.bottomInset)
         }
+        .ignoresSafeArea(.container, edges: .top)
       } else {
         content(metrics)
           .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
           .padding(.horizontal, metrics.horizontal)
-          .padding(.top, metrics.topInset)
           .padding(.bottom, metrics.bottomInset)
+          .ignoresSafeArea(.container, edges: .top)
       }
     }
   }

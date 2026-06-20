@@ -75,25 +75,27 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 
 ## Full-screen layout (watch UI)
 
-Paged screens use **`WatchPageContainer`** + **`WatchLayoutMetrics`** (`targets/watch/`) to fill the **entire watch face**. The `TabView` page already lays content inside the system safe area (below the upper-right clock, above the page-indicator dots), so the container does **not** re-reserve large chrome blocks — it adds only tiny cosmetic insets and **top-aligns** content (no centered band, no `Spacer()` floating a shrunken cluster).
+Paged screens use **`WatchPageContainer`** + **`WatchLayoutMetrics`** (`targets/watch/`) to fill the **entire watch face**. Page titles use an **inline header** that shares the system clock row: leading icon + title, with **44pt trailing clearance** for the upper-right watchOS time (no custom clock, no separate title band below the status bar).
 
 | Zone | Purpose | Reserve |
 |------|---------|---------|
-| **Top inset** | Clear the curved top corner under the clock | `2pt` (system safe area already excludes the clock) |
+| **Top inset** | Inline header shares the status/time row | `0pt` (header sits at top of page) |
+| **Inline header** | Icon + title + optional status dot (leading) | `20pt` tall |
+| **Header → content** | Gap before hero ring / macro row | `5pt` |
 | **Bottom inset** | Keep the last control off the page dots | `8pt` |
-| **Horizontal** | Bezel clearance | `6pt` each side |
+| **Horizontal** | Bezel clearance | `5pt` each side |
 
-Non-scroll pages (**Calories**, **Hydration**) fill the screen top-aligned with the hero ring as the focal element. Scroll pages (**Macros**, **Today**) use the same insets and scroll only if content genuinely overflows.
+Non-scroll pages (**Calories**, **Hydration**): inline header → hero ring (minimal gap) → stat/quick-add row. Scroll pages (**Macros**, **Today**): same inline header, then scrollable content below.
 
-**Scaled components** — sizes scale **up** from the real available width/height (never shrunk from over-reserved insets) and cap generously on larger watches:
+**Scaled components** — hero ring sized from width and leftover height after the compact inline header (not a standalone title band):
 
 | Watch class | Approx. height | Hero ring | Mini ring | Streak row |
 |-------------|----------------|-----------|-----------|------------|
-| 40–41mm | &lt; 200pt | ~94–101pt | ~46pt | Hidden (&lt; 200pt band) |
-| 45mm | 210–225pt | ~92–115pt | ~52pt | Shown |
-| 49mm Ultra | &gt; 230pt | up to 130pt | up to 58pt | Shown |
+| 40–41mm | &lt; 200pt | ~96–105pt | ~46pt | Hidden (&lt; 200pt band) |
+| 45mm | 210–225pt | ~105–125pt | ~52pt | Shown |
+| 49mm Ultra | &gt; 230pt | up to **135pt** | up to 58pt | Shown |
 
-The hero ring is width-driven (`contentWidth − 6`, capped at 130pt) but bounded by leftover height (`contentHeight − heroReserve`) so non-scroll pages fill the face without clipping. Touch targets use **44pt minimum height** on primary buttons and stat cards.
+The hero ring is width-driven (`contentWidth − 4`, capped at **135pt**) with height bounded by `contentHeight − heroReserve` (inline header + stats + spacing). Touch targets use **44pt minimum height** on primary buttons and stat cards.
 
 Hydration UI uses dedicated **neon blue** (`#00D4FF`) — not macro carbs green or chartreuse brand accent.
 
