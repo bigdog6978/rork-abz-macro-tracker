@@ -1,7 +1,10 @@
 import * as Clipboard from 'expo-clipboard';
-import { Linking, Platform } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import type { View } from 'react-native';
 import { PHYSIQMACROS_FB_GROUP_URL } from './shareCaption';
+import { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH, type ShareDestination } from './shareConstants';
+
+const CAPTURE_SETTLE_MS = 350;
 
 async function loadSharing() {
   try {
@@ -30,15 +33,22 @@ async function loadViewShot() {
   }
 }
 
+export async function waitForShareCaptureReady(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, CAPTURE_SETTLE_MS));
+}
+
 export async function captureShareCard(ref: React.RefObject<View | null>): Promise<string | null> {
   if (!ref.current) return null;
   const viewShot = await loadViewShot();
   if (!viewShot) return null;
+  await waitForShareCaptureReady();
   try {
     const uri = await viewShot.captureRef(ref, {
       format: 'png',
       quality: 1,
       result: 'tmpfile',
+      width: SHARE_CARD_WIDTH,
+      height: SHARE_CARD_HEIGHT,
     });
     return uri;
   } catch (err) {
@@ -59,6 +69,37 @@ export async function shareImageUri(uri: string): Promise<boolean> {
   } catch (err) {
     if (__DEV__) console.warn('[shareProgress] share failed', err);
     return false;
+  }
+}
+
+export async function shareImageToDestination(
+  uri: string,
+  destination: ShareDestination
+): Promise<boolean> {
+  switch (destination) {
+    case 'facebook_group':
+      await openPhysiqMacrosGroup();
+      return true;
+    case 'save_photos':
+      return saveImageToPhotos(uri);
+    case 'instagram':
+    case 'tiktok':
+    case 'facebook':
+    case 'messages':
+    case 'more':
+      return shareImageUri(uri);
+    default:
+      return shareImageUri(uri);
+  }
+}
+
+export function showShareHandoffToast(destination: ShareDestination): void {
+  if (destination === 'instagram' || destination === 'tiktok') {
+    Alert.alert(
+      'Image ready',
+      'If your app did not open, save to Photos first, then create a new Story or post in the app.',
+      [{ text: 'OK' }]
+    );
   }
 }
 

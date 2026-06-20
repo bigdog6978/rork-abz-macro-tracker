@@ -1,6 +1,8 @@
 import { AccessibilityInfo, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
+
+type ExpoAudioModule = typeof import('expo-audio');
+type AudioPlayerInstance = import('expo-audio').AudioPlayer;
 
 export type FeedbackIntent =
   | 'tap'
@@ -25,9 +27,30 @@ const CONFIRM_SOUND_VOLUME = 0.42;
 const MUTED_SOUND_VOLUME = 0.22;
 
 let soundEffectsEnabled = true;
-let clickSound: Audio.Sound | null = null;
+let clickPlayer: AudioPlayerInstance | null = null;
 let preloadPromise: Promise<void> | null = null;
 let lastClickAt = 0;
+
+let audioModule: ExpoAudioModule | null = null;
+let audioModuleUnavailable = false;
+
+/**
+ * Lazily resolves `expo-audio`. Wrapped in try/catch so a missing or unbuilt
+ * native module can never throw at module-load time (which would make any
+ * component importing this file render as `undefined`). Falls back to
+ * haptics-only when audio is unavailable.
+ */
+function loadAudioModule(): ExpoAudioModule | null {
+  if (audioModule || audioModuleUnavailable) return audioModule;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    audioModule = require('expo-audio') as ExpoAudioModule;
+  } catch {
+    audioModuleUnavailable = true;
+    audioModule = null;
+  }
+  return audioModule;
+}
 
 export function setSoundEffectsEnabled(enabled: boolean): void {
   soundEffectsEnabled = enabled;
@@ -47,20 +70,20 @@ export async function preloadInteractionSounds(): Promise<void> {
   }
 
   preloadPromise = (async () => {
+    const audio = loadAudioModule();
+    if (!audio) return;
     try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await audio.setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'mixWithOthers',
+        shouldPlayInBackground: false,
+        shouldRouteThroughEarpiece: false,
       });
-      const { sound } = await Audio.Sound.createAsync(
-        require('../assets/sounds/ui-click.wav'),
-        { volume: SOUND_VOLUME, shouldPlay: false }
-      );
-      clickSound = sound;
+      const player = audio.createAudioPlayer(require('../assets/sounds/ui-click.wav'));
+      player.volume = SOUND_VOLUME;
+      clickPlayer = player;
     } catch {
-      clickSound = null;
+      clickPlayer = null;
     }
   })();
 
@@ -74,10 +97,11 @@ async function playClickSound(intent: FeedbackIntent): Promise<void> {
   if (now - lastClickAt < CLICK_DEBOUNCE_MS) return;
   lastClickAt = now;
 
-  if (!clickSound) {
+  if (!clickPlayer) {
     await preloadInteractionSounds();
   }
-  if (!clickSound) return;
+  const player = clickPlayer;
+  if (!player) return;
 
   try {
     const volume =
@@ -86,9 +110,9 @@ async function playClickSound(intent: FeedbackIntent): Promise<void> {
         : intent === 'destructive'
           ? MUTED_SOUND_VOLUME
           : SOUND_VOLUME;
-    await clickSound.setVolumeAsync(volume);
-    await clickSound.setPositionAsync(0);
-    await clickSound.replayAsync();
+    player.volume = volume;
+    await player.seekTo(0);
+    player.play();
   } catch {
     // Ignore playback errors — haptics still fire.
   }

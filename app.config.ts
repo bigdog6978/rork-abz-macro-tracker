@@ -91,6 +91,7 @@ export default (): ExpoConfig => ({
       },
     ],
     'expo-sqlite',
+    'expo-audio',
     [
       'react-native-health',
       {

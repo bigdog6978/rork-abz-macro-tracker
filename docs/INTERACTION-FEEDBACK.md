@@ -35,7 +35,8 @@ For programmatic outcomes (toast after save), call `playFeedback('success')` onc
 ### Audio
 
 - Asset: `assets/sounds/ui-click.wav` (~40ms synthetic click).
-- `expo-av` with `playsInSilentModeIOS: true` (ambient UI click while muted).
+- `expo-audio` (`createAudioPlayer` + `setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' })`) so the ambient UI click plays even while muted without ducking other audio.
+- `expo-audio` is lazy-`require`d inside a `try/catch`; if the native module is unavailable (e.g. stale dev build), feedback silently degrades to **haptics-only** and never breaks rendering.
 - Debounced to 80ms between clicks.
 
 ## watchOS (SwiftUI)

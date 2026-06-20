@@ -17,7 +17,7 @@ import {
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon } from 'lucide-react-native';
+import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon, Share2 } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
@@ -306,6 +306,11 @@ export default function DashboardScreen() {
     return undefined;
   })();
 
+  const showShareNudge =
+    todayEntries.length > 0 &&
+    macros.calories > 0 &&
+    todayTotals.calories / macros.calories >= 0.9;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <Stack.Screen options={{ title: greeting, headerShown: false }} />
@@ -334,6 +339,17 @@ export default function DashboardScreen() {
           ]}
         >
           <GreetingHeader firstName={profile.firstName} progress={progress} statusText={statusText} />
+          {showShareNudge ? (
+            <PhysiqPressable
+              feedback="tap"
+              style={styles.shareNudge}
+              onPress={() => router.push('/share-progress?template=daily_macros' as never)}
+            >
+              <Share2 size={16} color={colors.primary} />
+              <Text style={styles.shareNudgeText}>Share today&apos;s win</Text>
+              <ChevronRight size={16} color={colors.textTertiary} />
+            </PhysiqPressable>
+          ) : null}
           <View style={styles.strategyRow}>
             <View style={styles.strategyTag}>
               <Text style={styles.strategyTagText}>
@@ -793,6 +809,24 @@ const createStyles = (colors: AppColors) =>
     },
     greetingBlock: {
       marginTop: 10,
+    },
+    shareNudge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: Spacing.sm,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: Radius.md,
+      backgroundColor: colors.primaryMuted,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    shareNudgeText: {
+      flex: 1,
+      color: colors.primary,
+      fontSize: 14,
+      fontWeight: '700',
     },
     strategyRow: {
       flexDirection: 'row',
