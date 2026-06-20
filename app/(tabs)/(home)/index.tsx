@@ -37,6 +37,7 @@ import EmptyState from '../../../components/ui/EmptyState';
 import CalorieGauge from '../../../components/ui/CalorieGauge';
 import { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
+import PhysiqPressable from '../../../components/ui/PhysiqPressable';
 import WhyTheseMacrosCard from '../../../components/ui/WhyTheseMacrosCard';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 import ResponsiveContainer, { useIsTablet } from '../../../components/ui/ResponsiveContainer';
@@ -271,9 +272,6 @@ export default function DashboardScreen() {
   }, [userLoading, profile.firstName, profile.onboardingComplete]);
 
   const handleAddFood = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
     router.push('/add-food' as never);
   }, []);
 
@@ -539,7 +537,7 @@ export default function DashboardScreen() {
                 <View style={styles.hydrationBlock}>
                   <View style={styles.hydrationTop}>
                     <View style={styles.hydrationLabelRow}>
-                      <Droplet size={16} color={Colors.carbs} />
+                      <Droplet size={16} color={Colors.hydration} />
                       <Text style={styles.hydrationTitle}>Hydration</Text>
                     </View>
                     <Text style={styles.hydrationValue}>
@@ -561,17 +559,14 @@ export default function DashboardScreen() {
                   </View>
                   <View style={styles.hydrationChipsRow}>
                     {hydrationQuickAdds(hydrationUnit).map((preset) => (
-                      <TouchableOpacity
+                      <PhysiqPressable
                         key={preset.label}
+                        feedback="select"
                         style={styles.hydrationChip}
-                        onPress={() => {
-                          if (Platform.OS !== 'web') Haptics.selectionAsync();
-                          addHydration(preset.ml);
-                        }}
-                        activeOpacity={0.8}
+                        onPress={() => addHydration(preset.ml)}
                       >
                         <Text style={styles.hydrationChipText}>{preset.label}</Text>
-                      </TouchableOpacity>
+                      </PhysiqPressable>
                     ))}
                   </View>
                 </View>
@@ -1024,7 +1019,7 @@ const createStyles = (colors: AppColors) =>
     hydrationBarFill: {
       height: '100%',
       borderRadius: 999,
-      backgroundColor: Colors.carbs,
+      backgroundColor: Colors.hydration,
     },
     hydrationChipsRow: {
       flexDirection: 'row',
@@ -1036,11 +1031,11 @@ const createStyles = (colors: AppColors) =>
       paddingVertical: 9,
       borderRadius: Radius.sm,
       borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardElevated,
+      borderColor: Colors.hydration,
+      backgroundColor: Colors.hydrationMuted,
     },
     hydrationChipText: {
-      color: colors.text,
+      color: Colors.hydration,
       fontSize: 13,
       fontWeight: '700' as const,
     },

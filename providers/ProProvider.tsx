@@ -43,6 +43,7 @@ import {
 } from '../features/pro/proMacroEngine';
 import { getTodayDateKey } from '../utils/dateKey';
 import { isHealthKitAvailable, readTodayHealthSignals, requestHealthKitPermissions } from '../services/healthkit';
+import { setSoundEffectsEnabled } from '../utils/interactionFeedback';
 
 const defaultHydration: ProHydrationLog = {
   dateKey: '',
@@ -91,6 +92,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     electrolyteNudgesEnabled: false,
     healthPermissionStatus: 'not_connected',
     healthEducationDismissed: false,
+    soundEffectsEnabled: true,
   };
   const athleteProfile = athleteProfileQuery.data ?? defaultAthleteProfile;
   const cycleProfile = athleteCycleProfileQuery.data ?? defaultCycleProfile;
@@ -194,6 +196,10 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     },
     [settings, settingsMutation]
   );
+
+  useEffect(() => {
+    setSoundEffectsEnabled(settings.soundEffectsEnabled !== false);
+  }, [settings.soundEffectsEnabled]);
 
   const refreshHealthSignals = useCallback(async () => {
     if (!settings.healthIntegrationEnabled) return;

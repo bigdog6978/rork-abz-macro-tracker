@@ -13,6 +13,9 @@ enum PhysiqTheme {
   static let protein = Color(red: 0.231, green: 0.510, blue: 0.965) // #3B82F6
   static let carbs = Color(red: 0.518, green: 0.800, blue: 0.086) // #84CC16
   static let fat = Color(red: 0.984, green: 0.749, blue: 0.141) // #FBBF24
+  /// Dedicated water accent — distinct from protein blue and brand chartreuse.
+  static let hydration = Color(red: 0.0, green: 0.831, blue: 1.0) // #00D4FF
+  static let hydrationMuted = Color(red: 0.0, green: 0.831, blue: 1.0, opacity: 0.15)
 
   static func color(hex: String?, fallback: Color) -> Color {
     guard var s = hex?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else {

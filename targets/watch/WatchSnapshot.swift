@@ -20,6 +20,7 @@ struct WatchSnapshot {
   var proteinHex: String?
   var carbsHex: String?
   var fatHex: String?
+  var hydrationHex: String?
   var tier: String
   var athleteSport: String
   var syncState: String
@@ -27,6 +28,10 @@ struct WatchSnapshot {
   var updatedAt: String?
   var dayType: String
   var dayTypeLabel: String
+  var dayTypeOverride: String
+  var dayTypeOverrideLabel: String
+  /// "override" when user picked manual day type; "inferred" when auto from Health.
+  var dayTypeSource: String
   var healthConnected: Bool
   var activeEnergyKcal: Double
   var workoutMinutes: Double
@@ -95,6 +100,7 @@ struct WatchSnapshot {
       proteinHex: context["proteinHex"],
       carbsHex: context["carbsHex"],
       fatHex: context["fatHex"],
+      hydrationHex: context["hydrationHex"],
       tier: context["tier"] ?? "",
       athleteSport: context["athleteSport"] ?? "",
       syncState: context["syncState"] ?? "",
@@ -102,6 +108,9 @@ struct WatchSnapshot {
       updatedAt: context["updatedAt"],
       dayType: context["dayType"] ?? "",
       dayTypeLabel: context["dayTypeLabel"] ?? "",
+      dayTypeOverride: context["dayTypeOverride"] ?? "auto",
+      dayTypeOverrideLabel: context["dayTypeOverrideLabel"] ?? "Auto",
+      dayTypeSource: context["dayTypeSource"] ?? "inferred",
       healthConnected: context["healthConnected"] == "1",
       activeEnergyKcal: d("activeEnergyKcal"),
       workoutMinutes: d("workoutMinutes"),
@@ -119,6 +128,46 @@ struct WatchSnapshot {
   /// Hydration consumed/target rendered in the user's preferred unit.
   var hydrationDisplay: String {
     HydrationFormat.progress(consumedMl: hydrationConsumed, targetMl: hydrationTarget, unit: hydrationUnit)
+  }
+
+  var isManualDayType: Bool {
+    dayTypeOverride != "auto" && !dayTypeOverride.isEmpty
+  }
+
+  var todayHeadline: String {
+    if isManualDayType {
+      switch dayTypeOverride {
+      case "training": return "Training day"
+      case "competition": return "Competition day"
+      case "rest": return "Rest day"
+      default: return dayTypeOverrideLabel
+      }
+    }
+    return dayTypeLabel.isEmpty ? "Set your day" : dayTypeLabel
+  }
+
+  var todaySubtitle: String {
+    if isManualDayType { return "Manual · overrides Apple Health" }
+    if !healthLine.isEmpty { return healthLine }
+    if healthConnected { return "From Apple Health" }
+    return "Connect Apple Health on iPhone"
+  }
+
+  var todayIcon: String {
+    if isManualDayType {
+      switch dayTypeOverride {
+      case "training": return "figure.run"
+      case "competition": return "trophy.fill"
+      case "rest": return "moon.zzz.fill"
+      default: return "calendar"
+      }
+    }
+    switch dayType {
+    case "workout_day": return "figure.run"
+    case "high_activity_day": return "bolt.heart.fill"
+    case "rest_day": return "moon.zzz.fill"
+    default: return "calendar"
+    }
   }
 }
 

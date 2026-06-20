@@ -18,6 +18,7 @@ const DEFAULT_PRO_SETTINGS: ProSettings = {
   healthIntegrationEnabled: false,
   electrolyteNudgesEnabled: false,
   healthPermissionStatus: 'not_connected',
+  soundEffectsEnabled: true,
 };
 
 const DEFAULT_ATHLETE_PROFILE: AthleteProfile = {

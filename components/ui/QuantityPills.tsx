@@ -10,7 +10,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import PhysiqPressable from './PhysiqPressable';
 import Colors from '../../constants/colors';
 import type { UnitId, UnitKind } from '../../src/lib/units';
 import { MASS_UNITS, VOLUME_UNITS, SERVING_UNITS } from '../../src/lib/units';
@@ -78,7 +78,6 @@ export default function QuantityPills({
       : primaryUnits;
 
   const handleKindChange = (k: UnitKind) => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
     onKindChange(k);
     if (k === 'mass') onUnitChange('g');
     else if (k === 'volume') onUnitChange('ml');
@@ -86,13 +85,11 @@ export default function QuantityPills({
   };
 
   const handleUnitChange = (u: UnitId) => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
     onUnitChange(u);
     if (moreVolumeVisible) setMoreVolumeVisible(false);
   };
 
   const openMoreVolume = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMoreVolumeVisible(true);
   };
 
@@ -111,44 +108,44 @@ export default function QuantityPills({
         <View style={styles.unitGroup}>
           <View style={styles.tierA}>
             {(['mass', 'volume', 'serving'] as UnitKind[]).map((k) => (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={k}
+                feedback="select"
                 style={[styles.pill, kind === k && styles.pillSelected]}
                 onPress={() => handleKindChange(k)}
                 accessibilityLabel={`${KIND_LABELS[k]} - ${k}`}
-                accessibilityRole="button"
                 accessibilityState={{ selected: kind === k }}
               >
                 <Text style={[styles.pillText, kind === k && styles.pillTextSelected]}>
                   {KIND_LABELS[k]}
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             ))}
           </View>
           <View style={styles.tierB}>
             {displayUnits.map((u) => (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={u}
+                feedback="select"
                 style={[styles.pill, unit === u && styles.pillSelected]}
                 onPress={() => handleUnitChange(u)}
                 accessibilityLabel={`${UNIT_LABELS[u]}`}
-                accessibilityRole="button"
                 accessibilityState={{ selected: unit === u }}
               >
                 <Text style={[styles.pillText, unit === u && styles.pillTextSelected]}>
                   {UNIT_LABELS[u]}
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             ))}
             {kind === 'volume' && (
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.moreBtn}
                 onPress={openMoreVolume}
                 accessibilityLabel="More volume units"
-                accessibilityRole="button"
               >
                 <Text style={styles.moreText}>More</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             )}
           </View>
         </View>
@@ -180,17 +177,17 @@ export default function QuantityPills({
             <View style={styles.moreHandle} />
             <Text style={styles.moreTitle}>Volume units</Text>
             {MORE_VOLUME.map((u) => (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={u}
+                feedback="select"
                 style={[styles.moreItem, unit === u && styles.moreItemSelected]}
                 onPress={() => handleUnitChange(u)}
                 accessibilityLabel={UNIT_LABELS[u]}
-                accessibilityRole="button"
               >
                 <Text style={[styles.moreItemText, unit === u && styles.moreItemTextSelected]}>
                   {UNIT_LABELS[u]}
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             ))}
           </Pressable>
         </Pressable>

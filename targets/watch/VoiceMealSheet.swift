@@ -47,7 +47,10 @@ struct VoiceMealSheet: View {
       }
 
       if phase == .ready || phase == .listening {
-        Button(action: toggleListening) {
+        Button {
+          WatchInteractionFeedback.play(phase == .listening ? .confirm : .tap)
+          toggleListening()
+        } label: {
           Label(
             phase == .listening ? "Done speaking" : "Start speaking",
             systemImage: phase == .listening ? "stop.fill" : "mic.fill"
@@ -56,8 +59,11 @@ struct VoiceMealSheet: View {
           .frame(maxWidth: .infinity)
           .padding(.vertical, 10)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(PhysiqTheme.defaultAccent)
+        .buttonStyle(PhysiqPressableButtonStyle())
+        .foregroundStyle(PhysiqTheme.background)
+        .background(
+          RoundedRectangle(cornerRadius: 12, style: .continuous).fill(PhysiqTheme.defaultAccent)
+        )
       }
 
       if phase == .sending {
@@ -66,8 +72,12 @@ struct VoiceMealSheet: View {
       }
 
       if phase == .done || phase == .error {
-        Button("Close") { dismiss() }
-          .font(.system(size: 12, weight: .bold, design: .rounded))
+        Button("Close") {
+          WatchInteractionFeedback.play(.tap)
+          dismiss()
+        }
+        .font(.system(size: 12, weight: .bold, design: .rounded))
+        .buttonStyle(PhysiqPressableButtonStyle())
       }
     }
     .padding(10)

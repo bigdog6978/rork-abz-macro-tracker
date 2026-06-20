@@ -16,6 +16,7 @@ import AppBackground from "../components/ui/AppBackground";
 import ErrorBoundary from "../components/ui/ErrorBoundary";
 import PostProHealthFlow from "../components/ui/PostProHealthFlow";
 import PhysiqWatchSync from "../components/PhysiqWatchSync";
+import InteractionFeedbackInit from "../components/InteractionFeedbackInit";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -233,6 +234,7 @@ export default function RootLayout() {
                       <PhotosProvider>
                         <AppBackground>
                           <PostProHealthFlow />
+                          <InteractionFeedbackInit />
                           <PhysiqWatchSync />
                           <AppContent />
                         </AppBackground>

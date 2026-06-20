@@ -84,6 +84,9 @@ Design north star: on-brand, simple, beautiful, icon-led.
 - watchOS complications (calories left, hydration %, day type).
 - Quick actions over `physiq-watch-connectivity`: log water in user units, quick-add saved
   meal/protein, mark today's day type. Subtle haptics; 1–2 type weights.
+- **Interaction feedback:** unified tap/select/confirm haptics + optional UI click on phone;
+  system click haptics on Watch (`WatchInteractionFeedback`, `PhysiqPressableButtonStyle`).
+  See `docs/INTERACTION-FEEDBACK.md`.
 
 No on-watch HealthKit (stays phone-driven).
 

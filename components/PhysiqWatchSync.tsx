@@ -9,11 +9,19 @@ import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS } from '../types';
 import Colors from '../constants/colors';
 import { processVoiceMealTranscript } from '../features/food/processVoiceMealTranscript';
 import * as foodService from '../features/food/foodService';
+import type { ProDayTypeOverride } from '../features/pro/types';
 
 const DAY_TYPE_LABELS: Record<string, string> = {
   workout_day: 'Workout day',
   high_activity_day: 'High activity',
   rest_day: 'Rest day',
+};
+
+const DAY_TYPE_OVERRIDE_LABELS: Record<ProDayTypeOverride, string> = {
+  auto: 'Auto',
+  training: 'Training',
+  competition: 'Competition',
+  rest: 'Rest',
 };
 
 const VOICE_FEEDBACK_TTL_MS = 45_000;
@@ -24,7 +32,7 @@ const VOICE_FEEDBACK_TTL_MS = 45_000;
  */
 export default function PhysiqWatchSync() {
   const { profile, macros } = useUser();
-  const { todayTotals, todayEntries, getStreak, addEntries } = useDailyLog();
+  const { todayTotals, getStreak, addEntries } = useDailyLog();
   const colors = useThemeColors();
   const {
     hydration,
@@ -63,6 +71,9 @@ export default function PhysiqWatchSync() {
       ? ''
       : 'Finish onboarding on iPhone to sync macro targets.';
     const dayTypeLabel = DAY_TYPE_LABELS[inferredDayType] ?? inferredDayType;
+    const dayTypeOverride = settings.dayTypeOverride ?? 'auto';
+    const dayTypeOverrideLabel = DAY_TYPE_OVERRIDE_LABELS[dayTypeOverride];
+    const dayTypeSource = dayTypeOverride !== 'auto' ? 'override' : 'inferred';
     const healthLine = healthSignals
       ? `${Math.round(healthSignals.activeEnergyKcal)} kcal active · ${healthSignals.workoutMinutes} min training`
       : '';
@@ -93,12 +104,16 @@ export default function PhysiqWatchSync() {
       proteinHex: Colors.protein,
       carbsHex: Colors.carbs,
       fatHex: Colors.fat,
+      hydrationHex: Colors.hydration,
       tier: 'unlocked',
       athleteSport: athleteProfile.enabled ? athleteProfile.sport : '',
       syncState,
       syncMessage,
       dayType: inferredDayType,
       dayTypeLabel,
+      dayTypeOverride,
+      dayTypeOverrideLabel,
+      dayTypeSource,
       healthConnected: healthConnectionStatus === 'connected' ? '1' : '0',
       activeEnergyKcal: healthSignals ? String(Math.round(healthSignals.activeEnergyKcal)) : '0',
       workoutMinutes: healthSignals ? String(healthSignals.workoutMinutes) : '0',
@@ -125,6 +140,7 @@ export default function PhysiqWatchSync() {
     athleteProfile.enabled,
     athleteProfile.sport,
     inferredDayType,
+    settings.dayTypeOverride,
     healthSignals,
     healthConnectionStatus,
     getStreak,

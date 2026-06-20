@@ -66,4 +66,7 @@ export const Motion = {
     friction: 12,
     useNativeDriver: true,
   },
+  pressScale: 0.96,
+  pressSpring: { tension: 150, friction: 8, useNativeDriver: true },
+  pressDurationMs: 120,
 } as const;

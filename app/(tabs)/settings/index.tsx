@@ -22,6 +22,7 @@ import { ACCENT_THEMES, type AccentThemeId } from '../../../theme/accentThemes';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import TabScreenTitle from '../../../components/ui/TabScreenTitle';
 import ResponsiveContainer from '../../../components/ui/ResponsiveContainer';
+import PhysiqPressable from '../../../components/ui/PhysiqPressable';
 import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { usePro } from '../../../providers/ProProvider';
@@ -517,7 +518,21 @@ export default function SettingsScreen() {
                     colors={colors}
                     styles={styles}
                   />
+                  <Chip
+                    active={proSettings.soundEffectsEnabled !== false}
+                    label="Sound Effects"
+                    onPress={() =>
+                      updateProSettings({
+                        soundEffectsEnabled: proSettings.soundEffectsEnabled === false,
+                      })
+                    }
+                    colors={colors}
+                    styles={styles}
+                  />
                 </View>
+                <Text style={styles.feedbackHint}>
+                  Sound effects play a soft click on taps. Haptics follow your device settings.
+                </Text>
                 <View style={styles.healthStatusRow}>
                   <Text style={styles.healthStatusLabel} numberOfLines={1}>
                     Health connection
@@ -951,16 +966,16 @@ function Chip({
   styles: ReturnType<typeof createStyles>;
 }) {
   return (
-    <TouchableOpacity
+    <PhysiqPressable
+      feedback="select"
       style={[
         styles.chip,
         active && { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
       ]}
       onPress={onPress}
-      activeOpacity={0.8}
     >
       <Text style={[styles.chipText, active && { color: colors.primary }]}>{label}</Text>
-    </TouchableOpacity>
+    </PhysiqPressable>
   );
 }
 
@@ -1315,6 +1330,13 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  feedbackHint: {
+    color: Colors.textTertiary,
+    fontSize: 12,
+    fontWeight: '500' as const,
+    lineHeight: 17,
+    marginTop: 4,
   },
   chip: {
     paddingHorizontal: 14,

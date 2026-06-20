@@ -22,7 +22,7 @@
 | Piece | Role |
 |--------|------|
 | `@bacons/apple-targets` | Generates the watchOS app target and embeds it in the iOS app (Continuous Native Generation). |
-| `targets/watch/` | SwiftUI app: `PhysiqWatchApp`, `ContentView`, `WatchConnectivityManager`, `PhysiqTheme`, `WatchSnapshot`, `RingGaugeView`. |
+| `targets/watch/` | SwiftUI app: `PhysiqWatchApp`, `ContentView`, `DayTypePicker`, `WatchPageContainer`, `WatchLayoutMetrics`, `WatchConnectivityManager`, `WatchInteractionFeedback`, `PhysiqPressableButtonStyle`, `PhysiqTheme`, `WatchSnapshot`, `RingGaugeView`. |
 | `physiq-watch-connectivity` | Expo module (`PhysiqWatch`) on **iPhone**: `sendProSnapshot`, events `onWatchPayload` / `onActivationChange`. |
 | `components/PhysiqWatchSync.tsx` | React: builds **dashboard-aligned** payload (same sources as the home screen) for **all** signed-in users on iOS—not Pro-gated. |
 | App Group | `group.app.rork.abz-macro-tracker` (entitlements on main app + synced to watch via apple-targets). Optional for future `ExtensionStorage` / shared files. |
@@ -49,8 +49,13 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 | `dietLine` | Eating style + dietary modifiers, e.g. `Standard · Low Glycemic`. |
 | `primaryHex` | Theme accent from `ThemeProvider` (e.g. chartreuse `#DEFF00`). |
 | `proteinHex` / `carbsHex` / `fatHex` | Macro dial colors (`constants/colors.ts`). |
+| `hydrationHex` | Neon water blue `#00D4FF` for the Hydration page (not carbs green or brand accent). |
 | `tier` | `core` / `pro` / `athlete` from Pro. |
 | `athleteSport` | Sport when Athlete tier; empty otherwise. |
+| `dayType` / `dayTypeLabel` | Inferred day type from Health + override engine (`workout_day`, etc.). |
+| `dayTypeOverride` | Manual selection: `auto` \| `training` \| `competition` \| `rest` (mirrors Training Mode on iPhone). |
+| `dayTypeOverrideLabel` | Human label: Auto, Training, Competition, Rest. |
+| `dayTypeSource` | `override` when manual; `inferred` when Auto + Health. |
 | `updatedAt` | ISO-8601 timestamp set at send time. |
 
 ### Legacy keys (older builds)
@@ -66,6 +71,35 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 
 - `sendMessage` / `updateApplicationContext` with `action: hydration_ack`; iPhone adds **250 ml** via `addHydration(250)` in `ProProvider` (listener is iOS-wide, not Pro-gated).
 - `action: voice_meal` with `transcript` — iPhone runs the same voice meal parser/resolver as Add Food, auto-adds high/medium-confidence matches, and pushes `voiceMealFeedback` back in the next snapshot.
+- `action: set_day_type` with `dayType` (`auto` \| `training` \| `competition` \| `rest`) — iPhone updates `ProSettings.dayTypeOverride`; next snapshot includes `dayTypeOverride` + labels for Watch selected state.
+
+## Safe layout (watch UI)
+
+Paged screens use **`WatchPageContainer`** + **`WatchLayoutMetrics`** (`targets/watch/`) so content never overlaps system chrome:
+
+| Zone | Purpose | How it's computed |
+|------|---------|-------------------|
+| **Top inset** | System time / status bar | `max(safeAreaInsets.top, 28–30pt)` |
+| **Bottom inset** | TabView page-indicator dots | `safeAreaInsets.bottom + 22–26pt` (taller on 40–41mm) |
+| **Horizontal** | Bezel clearance | 8pt each side |
+
+Non-scroll pages (**Calories**, **Hydration**) vertically center content inside the safe band. Scroll pages (**Macros**, **Today**) respect the same insets and scroll only when content exceeds the band.
+
+**Scaled components** (from available safe height/width):
+
+| Watch class | Approx. height | Hero ring | Mini ring | Streak row |
+|-------------|----------------|-----------|-----------|------------|
+| 40–41mm | &lt; 210pt | ~88–96pt | ~40–44pt | Hidden if band &lt; 198pt |
+| 45mm | 210–240pt | ~100–108pt | ~46–48pt | Shown when space allows |
+| 49mm Ultra | &gt; 240pt | up to 112pt | up to 48pt | Shown |
+
+Touch targets use **44pt minimum height** on primary buttons and stat cards.
+
+Hydration UI uses dedicated **neon blue** (`#00D4FF`) — not macro carbs green or chartreuse brand accent.
+
+## Interaction feedback
+
+Primary buttons use **`WatchInteractionFeedback`** (`.click`, `.success`, etc.) plus **`PhysiqPressableButtonStyle`** / **`PhysiqSelectButtonStyle`** for a subtle press scale (respects Reduce Motion). No custom audio on Watch — system click haptics cover sound + tactile feedback. See `docs/INTERACTION-FEEDBACK.md`.
 
 ## Local development
 
@@ -114,4 +148,5 @@ Set **`APPLE_TEAM_ID`** in EAS secrets or `eas.json` env so `app.config.ts` can 
 - [ ] Watch UI shows macro snapshot after onboarding completes on phone (core user OK).
 - [ ] Hydration button on watch increments hydration on phone when paired.
 - [ ] Speak meal on watch adds resolved foods on phone (iPhone app running or reachable).
+- [ ] Today page: day-type buttons show selected state; Auto / Train / Comp / Rest sync with iPhone Training Mode.
 - [ ] Archive in Xcode includes both **PhysiqMacroTracker** and **watch** targets.

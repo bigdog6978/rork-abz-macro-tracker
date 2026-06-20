@@ -123,11 +123,17 @@ final class PhysiqPhoneWatchSession: NSObject, WCSessionDelegate {
     replyHandler: @escaping ([String: Any]) -> Void
   ) {
     emitPayload(message, source: "message")
-    if let action = message["action"] as? String, action == "voice_meal" {
-      replyHandler(["status": "processing"])
-    } else {
-      replyHandler(["ok": true])
+    if let action = message["action"] as? String {
+      if action == "voice_meal" {
+        replyHandler(["status": "processing"])
+        return
+      }
+      if action == "set_day_type", let dayType = message["dayType"] as? String {
+        replyHandler(["status": "ok", "dayTypeOverride": dayType])
+        return
+      }
     }
+    replyHandler(["ok": true])
   }
 
   private func emitPayload(_ raw: [String: Any], source: String) {

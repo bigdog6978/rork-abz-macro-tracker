@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sunrise, Sun, Moon, Cookie, ArrowLeftRight, X, Check, Save, Bookmark, ShoppingCart, Copy, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
+import { playFeedback } from '../../../utils/interactionFeedback';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Colors from '../../../constants/colors';
@@ -157,6 +157,7 @@ function FoodItemRow({
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(() => {
+    playFeedback('select');
     Animated.timing(scaleAnim, {
       toValue: 1.05,
       duration: 100,
@@ -463,7 +464,7 @@ function GrocerySection({
 
   const toggleItem = useCallback((itemKey: string) => {
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      playFeedback('tap');
     }
     setChecklist((prev) => {
       const updated = { ...prev, [itemKey]: !prev[itemKey] };
@@ -493,7 +494,7 @@ function GrocerySection({
     const text = formatGroceryListAsText(listWithChecks);
     await Clipboard.setStringAsync(text);
     if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      playFeedback('success');
     }
     showToast('Copied to clipboard');
   }, [groceryList, checklist, showToast]);
@@ -502,7 +503,7 @@ function GrocerySection({
     setChecklist({});
     saveChecklist(planId, {});
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      playFeedback('confirm');
     }
     showToast('Checklist reset');
   }, [planId, showToast]);
@@ -1218,9 +1219,6 @@ export default function PlanScreen() {
 
   const handleLogToggle = useCallback(
     (food: MealSuggestion) => {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       const logged = todayEntries.find((e) => e.source === 'mealPlan' && e.sourceRefId === food.id);
       if (logged) {
         removeEntry(logged.id);
@@ -1243,7 +1241,7 @@ export default function PlanScreen() {
   const handleLogMeal = useCallback(
     (mealIndex: number, meal: MealSlot) => {
       if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        playFeedback('tap');
       }
 
       const missingEntries: FoodEntry[] = [];
@@ -1415,7 +1413,7 @@ export default function PlanScreen() {
       queryClient.invalidateQueries({ queryKey: ['saved_meal_plans'] });
       queryClient.invalidateQueries({ queryKey: ['active_meal_plan'] });
       if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        playFeedback('success');
       }
       showToast(`Saved "${savedPlan.name}"`);
       console.log('[PlanScreen] Plan saved:', savedPlan.name);
@@ -1534,7 +1532,7 @@ export default function PlanScreen() {
     if (!selectedFood) return;
 
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      playFeedback('confirm');
     }
 
     const newItem = applySubstitution(selectedFood, result, selectedMealIdx, selectedFoodIdx);
@@ -1642,7 +1640,7 @@ export default function PlanScreen() {
               <TouchableOpacity
                 style={[styles.headerActionBtn, { backgroundColor: colors.primaryMuted }]}
                 onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (Platform.OS !== 'web') playFeedback('tap');
                   const keyToClear = planKey;
                   const resetState = () => {
                     setSubstitutionMap({});

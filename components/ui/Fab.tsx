@@ -1,9 +1,9 @@
-import React, { useRef, useCallback, useMemo } from 'react';
-import { StyleSheet, Animated, TouchableWithoutFeedback, Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import React, { useCallback, useMemo } from 'react';
+import { StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { Shadows } from '../../theme/tokens';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import PhysiqPressable from './PhysiqPressable';
 
 interface FabProps {
   onPress: () => void;
@@ -15,46 +15,21 @@ interface FabProps {
 export default function Fab({ onPress, icon, testID, accessibilityLabel = 'Add food' }: FabProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 0.9,
-      useNativeDriver: true,
-      tension: 150,
-      friction: 8,
-    }).start();
-  }, [scale]);
-
-  const handlePressOut = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 150,
-      friction: 8,
-    }).start();
-  }, [scale]);
 
   const handlePress = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
     onPress();
   }, [onPress]);
 
   return (
-    <TouchableWithoutFeedback
+    <PhysiqPressable
+      feedback="confirm"
       onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       testID={testID}
-      accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      style={styles.fab}
     >
-      <Animated.View style={[styles.fab, { transform: [{ scale }] }]}>
-        {icon ?? <Plus size={26} color={colors.onPrimary} />}
-      </Animated.View>
-    </TouchableWithoutFeedback>
+      {icon ?? <Plus size={26} color={colors.onPrimary} />}
+    </PhysiqPressable>
   );
 }
 

@@ -17,7 +17,7 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import PhysiqPressable from './PhysiqPressable';
 import { MoreVertical } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import type { UnitId, UnitKind } from '../../src/lib/units';
@@ -99,7 +99,6 @@ export default function QuantityPillsCompact({
       : primaryUnits;
 
   const handleKindChange = (k: UnitKind) => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
     onKindChange(k);
     if (k === 'mass') onUnitChange('g');
     else if (k === 'volume') onUnitChange('ml');
@@ -107,13 +106,11 @@ export default function QuantityPillsCompact({
   };
 
   const handleUnitChange = (u: UnitId) => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
     onUnitChange(u);
     if (moreVisible) setMoreVisible(false);
   };
 
   const openMore = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setMoreVisible(true);
   };
 
@@ -146,8 +143,9 @@ export default function QuantityPillsCompact({
           {/* Row 1: UnitKind (Wt / Vol / Srv) */}
           <View style={[styles.tierA, { height: PILL_H + 4, borderRadius: RADIUS - 2 }]}>
             {(['mass', 'volume', 'serving'] as UnitKind[]).map((k) => (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={k}
+                feedback="select"
                 style={[
                   ...pillBase,
                   styles.kindPill,
@@ -155,7 +153,6 @@ export default function QuantityPillsCompact({
                 ]}
                 onPress={() => handleKindChange(k)}
                 accessibilityLabel={`${KIND_LABELS[k]} - ${k}`}
-                accessibilityRole="button"
                 accessibilityState={{ selected: kind === k }}
               >
                 <Text
@@ -165,7 +162,7 @@ export default function QuantityPillsCompact({
                 >
                   {KIND_LABELS[k]}
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             ))}
           </View>
 
@@ -173,8 +170,9 @@ export default function QuantityPillsCompact({
           <View style={[styles.tierB, { gap: ROW_GAP }]}>
             <View style={styles.unitGrid}>
               {displayUnits.map((u) => (
-                <TouchableOpacity
+                <PhysiqPressable
                   key={u}
+                  feedback="select"
                   style={[
                     ...pillBase,
                     styles.unitPill,
@@ -182,7 +180,6 @@ export default function QuantityPillsCompact({
                   ]}
                   onPress={() => handleUnitChange(u)}
                   accessibilityLabel={UNIT_LABELS[u]}
-                  accessibilityRole="button"
                   accessibilityState={{ selected: unit === u }}
                 >
                   <Text
@@ -192,18 +189,18 @@ export default function QuantityPillsCompact({
                   >
                     {UNIT_LABELS[u]}
                   </Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               ))}
             </View>
             {kind === 'volume' && (
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={[styles.moreBtn, { width: MORE_BTN_WIDTH }]}
                 onPress={openMore}
                 accessibilityLabel="More volume units"
-                accessibilityRole="button"
               >
                 <MoreVertical size={20} color={colors.primary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             )}
           </View>
         </View>
@@ -235,12 +232,12 @@ export default function QuantityPillsCompact({
             <View style={styles.moreHandle} />
             <Text style={styles.moreTitle}>Volume units</Text>
             {MORE_VOLUME.map((u) => (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={u}
+                feedback="select"
                 style={[styles.moreItem, unit === u && styles.moreItemSelected]}
                 onPress={() => handleUnitChange(u)}
                 accessibilityLabel={UNIT_LABELS[u]}
-                accessibilityRole="button"
               >
                 <Text
                   style={[styles.moreItemText, unit === u && styles.moreItemTextSelected]}
@@ -248,7 +245,7 @@ export default function QuantityPillsCompact({
                 >
                   {UNIT_LABELS[u]}
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             ))}
           </Pressable>
         </Pressable>

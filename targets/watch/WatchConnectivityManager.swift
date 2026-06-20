@@ -3,13 +3,16 @@ import SwiftUI
 import WatchConnectivity
 
 /// Watch-side WatchConnectivity: receives Pro snapshot from iPhone via `applicationContext`
-/// and immediate `sendMessage` when reachable; sends quick actions (e.g. hydration ack) back.
+/// and immediate `sendMessage` when reachable; sends quick actions back to the phone.
 final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
   static let shared = WatchConnectivityManager()
 
   @Published var context: [String: String] = [:]
   @Published var activationLabel: String = "…"
   @Published var phoneReachable: Bool = false
+  /// Optimistic override until the next phone snapshot confirms the selection.
+  @Published var pendingDayTypeOverride: String?
+  @Published var dayTypeFeedback: String?
 
   func activate() {
     guard WCSession.isSupported() else {
@@ -21,11 +24,16 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     session.activate()
   }
 
+  func resolvedDayTypeOverride(fallback: String = "auto") -> String {
+    if let pending = pendingDayTypeOverride { return pending }
+    let fromPhone = context["dayTypeOverride"] ?? fallback
+    return fromPhone.isEmpty ? "auto" : fromPhone
+  }
+
   func sendHydrationAck() {
     send(["action": "hydration_ack"])
   }
 
-  /// Log a specific amount of water (milliliters) from the wrist.
   func logWater(ml: Int) {
     send(["action": "log_water", "ml": String(ml)])
   }
@@ -36,47 +44,50 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     case failed(String)
   }
 
-  /// Send a spoken meal transcript to iPhone for parsing + food lookup.
   func sendVoiceMeal(transcript: String, completion: @escaping (VoiceMealSendResult) -> Void) {
     let message: [String: String] = [
       "action": "voice_meal",
       "transcript": transcript,
     ]
-
-    if WCSession.default.isReachable {
-      WCSession.default.sendMessage(
-        message,
-        replyHandler: { reply in
-          let status = reply["status"] as? String ?? "processing"
-          DispatchQueue.main.async {
-            completion(status == "processing" ? .processing : .processing)
-          }
-        },
-        errorHandler: { _ in
-          do {
-            try WCSession.default.updateApplicationContext(message)
-            DispatchQueue.main.async { completion(.queued) }
-          } catch {
-            DispatchQueue.main.async { completion(.failed("Could not reach iPhone.")) }
-          }
-        }
-      )
-    } else {
-      do {
-        try WCSession.default.updateApplicationContext(message)
-        DispatchQueue.main.async { completion(.queued) }
-      } catch {
-        DispatchQueue.main.async { completion(.failed("Could not reach iPhone.")) }
-      }
+    sendWithReply(message) { reply in
+      let status = reply["status"] as? String ?? "processing"
+      completion(status == "processing" ? .processing : .processing)
+    } onQueued: {
+      completion(.queued)
+    } onFailed: { message in
+      completion(.failed(message))
     }
   }
 
-  /// Override today's day type (auto / training / competition / rest).
-  func setDayType(_ dayType: String) {
-    send(["action": "set_day_type", "dayType": dayType])
+  enum DayTypeSendResult {
+    case ok
+    case queued
+    case failed(String)
   }
 
-  /// Sends an action to the phone, falling back to application context when unreachable.
+  /// Override today's day type (auto / training / competition / rest).
+  func setDayType(_ dayType: String, completion: ((DayTypeSendResult) -> Void)? = nil) {
+    pendingDayTypeOverride = dayType
+    dayTypeFeedback = nil
+    let message: [String: String] = [
+      "action": "set_day_type",
+      "dayType": dayType,
+    ]
+    sendWithReply(message, onReply: { reply in
+      if let confirmed = reply["dayTypeOverride"] as? String, confirmed == dayType {
+        self.pendingDayTypeOverride = nil
+      }
+      completion?(.ok)
+    }, onQueued: {
+      self.dayTypeFeedback = "Queued — open Physiq on iPhone"
+      completion?(.queued)
+    }, onFailed: { err in
+      self.pendingDayTypeOverride = nil
+      self.dayTypeFeedback = err
+      completion?(.failed(err))
+    })
+  }
+
   private func send(_ message: [String: String]) {
     if WCSession.default.isReachable {
       WCSession.default.sendMessage(
@@ -91,6 +102,37 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     }
   }
 
+  private func sendWithReply(
+    _ message: [String: String],
+    onReply: @escaping ([String: Any]) -> Void,
+    onQueued: @escaping () -> Void,
+    onFailed: @escaping (String) -> Void
+  ) {
+    if WCSession.default.isReachable {
+      WCSession.default.sendMessage(
+        message,
+        replyHandler: { reply in
+          DispatchQueue.main.async { onReply(reply) }
+        },
+        errorHandler: { _ in
+          do {
+            try WCSession.default.updateApplicationContext(message)
+            DispatchQueue.main.async { onQueued() }
+          } catch {
+            DispatchQueue.main.async { onFailed("Could not reach iPhone.") }
+          }
+        }
+      )
+    } else {
+      do {
+        try WCSession.default.updateApplicationContext(message)
+        DispatchQueue.main.async { onQueued() }
+      } catch {
+        DispatchQueue.main.async { onFailed("Could not reach iPhone.") }
+      }
+    }
+  }
+
   private func mergeSnapshot(_ raw: [String: Any]) {
     var strings: [String: String] = [:]
     for (k, v) in raw {
@@ -102,6 +144,12 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     }
     DispatchQueue.main.async {
       self.context.merge(strings) { _, new in new }
+      if let pending = self.pendingDayTypeOverride,
+         let confirmed = strings["dayTypeOverride"],
+         confirmed == pending {
+        self.pendingDayTypeOverride = nil
+        self.dayTypeFeedback = nil
+      }
       #if DEBUG
       print("[PhysiqWatch] context merged keys: \(strings.keys.sorted().joined(separator: ", "))")
       #endif

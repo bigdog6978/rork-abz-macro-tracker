@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -152,9 +153,6 @@ export default function OnboardingScreen() {
   );
 
   const goNext = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
-    }
     if (step < TOTAL_STEPS - 1) {
       const nextStep = step + 1;
       setStep(nextStep);
@@ -164,9 +162,6 @@ export default function OnboardingScreen() {
 
   const goBack = useCallback(() => {
     if (step === 0) return;
-    if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
-    }
     const nextStep = step - 1;
     setStep(nextStep);
     animateProgress(nextStep);
@@ -1016,26 +1011,30 @@ export default function OnboardingScreen() {
 
       <View style={[styles.footerBar, { paddingBottom: footerBottomInset }]}>
         <View style={styles.footerRow}>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="tap"
             style={[styles.footerBackButton, step === 0 && styles.footerBackButtonDisabled]}
             onPress={goBack}
             disabled={step === 0}
-            activeOpacity={0.8}
           >
             {step > 0 ? <ChevronLeft size={16} color={Colors.textSecondary} /> : null}
             <Text style={[styles.footerBackText, step === 0 && styles.footerBackTextDisabled]}>Back</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
 
           {!isLastStep ? (
-            <TouchableOpacity style={styles.footerContinueButton} onPress={goNext} activeOpacity={0.85}>
-              <Text style={styles.footerContinueText}>Continue</Text>
-              <ChevronRight size={16} color={colors.onPrimary} />
-            </TouchableOpacity>
+            <PhysiqPressable feedback="confirm" style={styles.footerContinueButton} onPress={goNext}>
+              <View style={styles.footerContinueInner}>
+                <Text style={styles.footerContinueText}>Continue</Text>
+                <ChevronRight size={16} color={colors.onPrimary} />
+              </View>
+            </PhysiqPressable>
           ) : (
-            <TouchableOpacity style={styles.footerContinueButton} onPress={finishOnboarding} activeOpacity={0.85}>
-              <Text style={styles.footerContinueText}>Continue</Text>
-              <ChevronRight size={16} color={colors.onPrimary} />
-            </TouchableOpacity>
+            <PhysiqPressable feedback="confirm" style={styles.footerContinueButton} onPress={finishOnboarding}>
+              <View style={styles.footerContinueInner}>
+                <Text style={styles.footerContinueText}>Continue</Text>
+                <ChevronRight size={16} color={colors.onPrimary} />
+              </View>
+            </PhysiqPressable>
           )}
         </View>
       </View>
@@ -1475,6 +1474,9 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     height: FOOTER_BUTTON_HEIGHT,
     borderRadius: Radius.md,
     backgroundColor: colors.primary,
+  },
+  footerContinueInner: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

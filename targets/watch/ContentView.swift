@@ -14,51 +14,55 @@ struct ContentView: View {
     PhysiqTheme.color(hex: snapshot.primaryHex, fallback: PhysiqTheme.defaultAccent)
   }
 
+  private var hydrationColor: Color {
+    PhysiqTheme.color(hex: snapshot.hydrationHex, fallback: PhysiqTheme.hydration)
+  }
+
   var body: some View {
     Group {
       if snapshot.hasData {
         TabView {
-          page { caloriesPage }
-          page { macrosPage }
-          page { hydrationPage }
-          page { todayPage }
+          WatchPageContainer { metrics in
+            caloriesPage(metrics: metrics)
+          }
+          WatchPageContainer(scrollable: true) { metrics in
+            macrosPage(metrics: metrics)
+          }
+          WatchPageContainer { metrics in
+            hydrationPage(metrics: metrics)
+          }
+          WatchPageContainer(scrollable: true) { metrics in
+            todayPage(metrics: metrics)
+          }
         }
         .tabViewStyle(PageTabViewStyle())
       } else {
-        ScrollView { emptyState.padding(10) }
+        WatchPageContainer(scrollable: true) { _ in
+          emptyState
+        }
       }
     }
     .background(PhysiqTheme.background.ignoresSafeArea())
   }
 
-  @ViewBuilder
-  private func page<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-    ScrollView {
-      VStack(spacing: 10) { content() }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-    }
-  }
-
   // MARK: - Calories
 
-  private var caloriesPage: some View {
-    VStack(spacing: 10) {
+  private func caloriesPage(metrics: WatchLayoutMetrics) -> some View {
+    VStack(spacing: metrics.pageSpacing) {
       pageHeader(icon: "flame.fill", title: "Calories")
       ZStack {
         RingGaugeView(
           progress: snapshot.progress(consumed: snapshot.caloriesConsumed, target: snapshot.caloriesTarget),
           color: accent,
-          lineWidth: 9,
-          size: 120
+          lineWidth: metrics.heroRingLineWidth,
+          size: metrics.heroRingSize
         )
         VStack(spacing: 1) {
           Image(systemName: "flame.fill")
-            .font(.system(size: 14))
+            .font(.system(size: max(12, metrics.heroRingSize * 0.12)))
             .foregroundStyle(accent)
           Text(formatInt(snapshot.caloriesRemaining))
-            .font(.system(size: 30, weight: .bold, design: .rounded))
+            .font(.system(size: metrics.heroCalorieFontSize, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(PhysiqTheme.textPrimary)
             .minimumScaleFactor(0.6)
@@ -69,10 +73,10 @@ struct ContentView: View {
         }
       }
       HStack(spacing: 8) {
-        miniStat("Target", formatInt(snapshot.caloriesTarget), accentValue: false)
-        miniStat("Eaten", formatInt(snapshot.caloriesConsumed), accentValue: true)
+        miniStat("Target", formatInt(snapshot.caloriesTarget), accentValue: false, metrics: metrics)
+        miniStat("Eaten", formatInt(snapshot.caloriesConsumed), accentValue: true, metrics: metrics)
       }
-      if snapshot.streak > 0 {
+      if metrics.showsStreakRow, snapshot.streak > 0 {
         HStack(spacing: 4) {
           Image(systemName: "flame.fill").font(.system(size: 11)).foregroundStyle(accent)
           Text("\(snapshot.streak) day streak")
@@ -85,18 +89,21 @@ struct ContentView: View {
 
   // MARK: - Macros
 
-  private var macrosPage: some View {
-    VStack(spacing: 10) {
+  private func macrosPage(metrics: WatchLayoutMetrics) -> some View {
+    VStack(spacing: metrics.pageSpacing) {
       pageHeader(icon: "chart.bar.fill", title: "Macros")
       HStack(spacing: 6) {
         macroCell("Protein", icon: "bolt.fill", consumed: snapshot.proteinConsumed, target: snapshot.proteinTarget,
-                  ring: PhysiqTheme.color(hex: snapshot.proteinHex, fallback: PhysiqTheme.protein))
+                  ring: PhysiqTheme.color(hex: snapshot.proteinHex, fallback: PhysiqTheme.protein),
+                  metrics: metrics)
         macroCell("Carbs", icon: "leaf.fill", consumed: snapshot.carbsConsumed, target: snapshot.carbsTarget,
-                  ring: PhysiqTheme.color(hex: snapshot.carbsHex, fallback: PhysiqTheme.carbs))
+                  ring: PhysiqTheme.color(hex: snapshot.carbsHex, fallback: PhysiqTheme.carbs),
+                  metrics: metrics)
         macroCell("Fat", icon: "drop.triangle.fill", consumed: snapshot.fatConsumed, target: snapshot.fatTarget,
-                  ring: PhysiqTheme.color(hex: snapshot.fatHex, fallback: PhysiqTheme.fat))
+                  ring: PhysiqTheme.color(hex: snapshot.fatHex, fallback: PhysiqTheme.fat),
+                  metrics: metrics)
       }
-      actionButton(icon: "mic.fill", label: "Speak meal") {
+      actionButton(icon: "mic.fill", label: "Speak meal", metrics: metrics) {
         voiceMealSheetVisible = true
       }
       if !snapshot.voiceMealFeedback.isEmpty {
@@ -104,7 +111,7 @@ struct ContentView: View {
           .font(.system(size: 10, weight: .medium, design: .rounded))
           .foregroundStyle(PhysiqTheme.textSecondary)
           .multilineTextAlignment(.center)
-          .lineLimit(3)
+          .lineLimit(2)
           .frame(maxWidth: .infinity)
       }
     }
@@ -114,11 +121,25 @@ struct ContentView: View {
     }
   }
 
-  private func macroCell(_ title: String, icon: String, consumed: Double, target: Double, ring: Color) -> some View {
+  private func macroCell(
+    _ title: String,
+    icon: String,
+    consumed: Double,
+    target: Double,
+    ring: Color,
+    metrics: WatchLayoutMetrics
+  ) -> some View {
     VStack(spacing: 4) {
       ZStack {
-        RingGaugeView(progress: snapshot.progress(consumed: consumed, target: target), color: ring, lineWidth: 5, size: 50)
-        Image(systemName: icon).font(.system(size: 13)).foregroundStyle(ring)
+        RingGaugeView(
+          progress: snapshot.progress(consumed: consumed, target: target),
+          color: ring,
+          lineWidth: metrics.miniRingLineWidth,
+          size: metrics.miniRingSize
+        )
+        Image(systemName: icon)
+          .font(.system(size: max(11, metrics.miniRingSize * 0.26)))
+          .foregroundStyle(ring)
       }
       Text(title.uppercased())
         .font(.system(size: 8, weight: .heavy, design: .rounded))
@@ -129,28 +150,33 @@ struct ContentView: View {
         .foregroundStyle(PhysiqTheme.textPrimary)
     }
     .frame(maxWidth: .infinity)
-    .padding(.vertical, 8)
+    .padding(.vertical, 6)
     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(PhysiqTheme.card))
   }
 
   // MARK: - Hydration
 
-  private var hydrationPage: some View {
-    VStack(spacing: 10) {
-      pageHeader(icon: "drop.fill", title: "Hydration")
+  private func hydrationPage(metrics: WatchLayoutMetrics) -> some View {
+    VStack(spacing: metrics.pageSpacing) {
+      pageHeader(
+        icon: "drop.fill",
+        title: "Hydration",
+        iconColor: hydrationColor,
+        statusDotColor: hydrationColor
+      )
       ZStack {
         RingGaugeView(
           progress: snapshot.progress(consumed: snapshot.hydrationConsumed, target: snapshot.hydrationTarget),
-          color: PhysiqTheme.color(hex: snapshot.carbsHex, fallback: PhysiqTheme.carbs),
-          lineWidth: 9,
-          size: 110
+          color: hydrationColor,
+          lineWidth: metrics.heroRingLineWidth,
+          size: metrics.heroRingSize
         )
         VStack(spacing: 1) {
           Image(systemName: "drop.fill")
-            .font(.system(size: 16))
-            .foregroundStyle(PhysiqTheme.color(hex: snapshot.carbsHex, fallback: PhysiqTheme.carbs))
+            .font(.system(size: max(14, metrics.heroRingSize * 0.14)))
+            .foregroundStyle(hydrationColor)
           Text(snapshot.hydrationDisplay)
-            .font(.system(size: 16, weight: .bold, design: .rounded))
+            .font(.system(size: min(16, metrics.heroRingSize * 0.14), weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(PhysiqTheme.textPrimary)
             .minimumScaleFactor(0.6)
@@ -162,7 +188,7 @@ struct ContentView: View {
       }
       HStack(spacing: 6) {
         ForEach(HydrationFormat.quickAdds(snapshot.hydrationUnit), id: \.label) { preset in
-          actionButton(icon: "plus", label: preset.label) {
+          hydrationActionButton(label: preset.label, metrics: metrics) {
             connectivity.logWater(ml: preset.ml)
           }
         }
@@ -172,73 +198,82 @@ struct ContentView: View {
 
   // MARK: - Today / Training
 
-  private var todayPage: some View {
-    VStack(spacing: 10) {
-      pageHeader(icon: dayTypeIcon, title: "Today")
+  private func todayPage(metrics: WatchLayoutMetrics) -> some View {
+    let selectedOverride = connectivity.resolvedDayTypeOverride(fallback: snapshot.dayTypeOverride)
+    return VStack(spacing: metrics.pageSpacing) {
+      pageHeader(icon: snapshot.todayIcon, title: "Today")
       VStack(alignment: .leading, spacing: 6) {
         HStack(spacing: 6) {
-          Image(systemName: dayTypeIcon).font(.system(size: 14)).foregroundStyle(accent)
-          Text(snapshot.dayTypeLabel.isEmpty ? "Set your day" : snapshot.dayTypeLabel)
+          Image(systemName: snapshot.todayIcon).font(.system(size: 14)).foregroundStyle(accent)
+          Text(snapshot.todayHeadline)
             .font(.system(size: 15, weight: .bold, design: .rounded))
             .foregroundStyle(PhysiqTheme.textPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
         }
-        if !snapshot.healthLine.isEmpty {
-          Text(snapshot.healthLine)
-            .font(.system(size: 11, weight: .medium, design: .rounded))
-            .foregroundStyle(PhysiqTheme.textSecondary)
-            .lineLimit(2)
-        } else if snapshot.healthConnected {
-          Text("Apple Health connected")
-            .font(.system(size: 11, weight: .medium, design: .rounded))
-            .foregroundStyle(PhysiqTheme.textSecondary)
-        }
+        Text(snapshot.todaySubtitle)
+          .font(.system(size: 11, weight: .medium, design: .rounded))
+          .foregroundStyle(PhysiqTheme.textSecondary)
+          .lineLimit(2)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(10)
       .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(PhysiqTheme.card))
 
       VStack(spacing: 6) {
-        Text("Mark day type")
+        Text("Day type")
           .font(.system(size: 10, weight: .heavy, design: .rounded))
           .foregroundStyle(PhysiqTheme.textTertiary)
           .frame(maxWidth: .infinity, alignment: .leading)
-        HStack(spacing: 6) {
-          actionButton(icon: "figure.run", label: "Train") { connectivity.setDayType("training") }
-          actionButton(icon: "trophy.fill", label: "Comp") { connectivity.setDayType("competition") }
-          actionButton(icon: "moon.zzz.fill", label: "Rest") { connectivity.setDayType("rest") }
+        DayTypePicker(
+          accent: accent,
+          selectedId: selectedOverride,
+          minTouchHeight: metrics.minTouchHeight
+        ) { dayType in
+          connectivity.setDayType(dayType)
         }
-      }
-      if let u = snapshot.updatedAt {
-        Text("Updated \(shortTime(u))")
-          .font(.system(size: 9, weight: .medium, design: .rounded))
-          .foregroundStyle(PhysiqTheme.textTertiary)
+        if let feedback = connectivity.dayTypeFeedback, !feedback.isEmpty {
+          Text(feedback)
+            .font(.system(size: 10, weight: .medium, design: .rounded))
+            .foregroundStyle(PhysiqTheme.textSecondary)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity)
+        }
       }
     }
   }
 
   private var dayTypeIcon: String {
-    switch snapshot.dayType {
-    case "workout_day": return "figure.run"
-    case "high_activity_day": return "bolt.heart.fill"
-    case "rest_day": return "moon.zzz.fill"
-    default: return "calendar"
-    }
+    snapshot.todayIcon
   }
 
   // MARK: - Shared pieces
 
-  private func pageHeader(icon: String, title: String) -> some View {
+  private func pageHeader(
+    icon: String,
+    title: String,
+    iconColor: Color? = nil,
+    statusDotColor: Color? = nil
+  ) -> some View {
     HStack(spacing: 6) {
-      Image(systemName: icon).font(.system(size: 12, weight: .bold)).foregroundStyle(accent)
+      Image(systemName: icon)
+        .font(.system(size: 12, weight: .bold))
+        .foregroundStyle(iconColor ?? accent)
       Text(title)
         .font(.system(size: 13, weight: .heavy, design: .rounded))
         .foregroundStyle(PhysiqTheme.textPrimary)
       Spacer(minLength: 0)
-      Circle().fill(statusColor).frame(width: 6, height: 6)
+      Circle().fill(statusDotColor ?? statusColor).frame(width: 6, height: 6)
     }
   }
 
-  private func miniStat(_ title: String, _ value: String, accentValue: Bool) -> some View {
+  private func miniStat(
+    _ title: String,
+    _ value: String,
+    accentValue: Bool,
+    metrics: WatchLayoutMetrics
+  ) -> some View {
     VStack(spacing: 2) {
       Text(title.uppercased())
         .font(.system(size: 9, weight: .heavy, design: .rounded))
@@ -247,14 +282,47 @@ struct ContentView: View {
         .font(.system(size: 16, weight: .bold, design: .rounded))
         .monospacedDigit()
         .foregroundStyle(accentValue ? accent : PhysiqTheme.textPrimary)
+        .minimumScaleFactor(0.7)
+        .lineLimit(1)
     }
-    .frame(maxWidth: .infinity)
-    .padding(.vertical, 8)
+    .frame(maxWidth: .infinity, minHeight: metrics.minTouchHeight, alignment: .center)
+    .padding(.vertical, 6)
     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(PhysiqTheme.card))
   }
 
-  private func actionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
+  private func hydrationActionButton(
+    label: String,
+    metrics: WatchLayoutMetrics,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button {
+      WatchInteractionFeedback.play(.tap)
+      action()
+    } label: {
+      VStack(spacing: 3) {
+        Image(systemName: "plus").font(.system(size: 14, weight: .bold))
+        Text(label)
+          .font(.system(size: 11, weight: .bold, design: .rounded))
+          .minimumScaleFactor(0.7)
+          .lineLimit(1)
+      }
+      .frame(maxWidth: .infinity, minHeight: metrics.minTouchHeight)
+    }
+    .buttonStyle(PhysiqPressableButtonStyle())
+    .foregroundStyle(PhysiqTheme.background)
+    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(hydrationColor))
+  }
+
+  private func actionButton(
+    icon: String,
+    label: String,
+    metrics: WatchLayoutMetrics,
+    action: @escaping () -> Void
+  ) -> some View {
+    Button {
+      WatchInteractionFeedback.play(.tap)
+      action()
+    } label: {
       VStack(spacing: 3) {
         Image(systemName: icon).font(.system(size: 14, weight: .bold))
         Text(label)
@@ -262,10 +330,9 @@ struct ContentView: View {
           .minimumScaleFactor(0.7)
           .lineLimit(1)
       }
-      .frame(maxWidth: .infinity)
-      .padding(.vertical, 9)
+      .frame(maxWidth: .infinity, minHeight: metrics.minTouchHeight)
     }
-    .buttonStyle(.plain)
+    .buttonStyle(PhysiqPressableButtonStyle())
     .foregroundStyle(PhysiqTheme.background)
     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(accent))
   }

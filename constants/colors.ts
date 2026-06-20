@@ -17,6 +17,8 @@ const Colors = {
   carbsMuted: 'rgba(132, 204, 22, 0.15)',
   fat: '#FBBF24',
   fatMuted: 'rgba(251, 191, 36, 0.15)',
+  hydration: '#00D4FF',
+  hydrationMuted: 'rgba(0, 212, 255, 0.15)',
   calories: '#EF4444',
   caloriesMuted: 'rgba(239, 68, 68, 0.15)',
   text: '#F5F5F5',

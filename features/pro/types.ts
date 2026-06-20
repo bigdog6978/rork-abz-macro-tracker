@@ -24,6 +24,8 @@ export interface ProSettings {
   hydrationUnit?: HydrationUnit;
   /** User manually overrides the inferred day type for Adaptive Targets. */
   dayTypeOverride?: ProDayTypeOverride;
+  /** Play a soft click on button taps (haptics always follow system settings). */
+  soundEffectsEnabled?: boolean;
 }
 
 /** Manual day-type selection; 'auto' defers to Health-inferred day type. */
