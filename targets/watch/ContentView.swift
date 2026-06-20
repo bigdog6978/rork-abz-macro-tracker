@@ -4,6 +4,7 @@ import SwiftUI
 /// Physiq brand (dark background, chartreuse accent). All data is phone-driven via WatchConnectivity.
 struct ContentView: View {
   @EnvironmentObject private var connectivity: WatchConnectivityManager
+  @State private var voiceMealSheetVisible = false
 
   private var snapshot: WatchSnapshot {
     WatchSnapshot.parse(connectivity.context)
@@ -95,9 +96,21 @@ struct ContentView: View {
         macroCell("Fat", icon: "drop.triangle.fill", consumed: snapshot.fatConsumed, target: snapshot.fatTarget,
                   ring: PhysiqTheme.color(hex: snapshot.fatHex, fallback: PhysiqTheme.fat))
       }
-      actionButton(icon: "fork.knife", label: "+30g Protein") {
-        connectivity.addProtein(grams: 30)
+      actionButton(icon: "mic.fill", label: "Speak meal") {
+        voiceMealSheetVisible = true
       }
+      if !snapshot.voiceMealFeedback.isEmpty {
+        Text(snapshot.voiceMealFeedback)
+          .font(.system(size: 10, weight: .medium, design: .rounded))
+          .foregroundStyle(PhysiqTheme.textSecondary)
+          .multilineTextAlignment(.center)
+          .lineLimit(3)
+          .frame(maxWidth: .infinity)
+      }
+    }
+    .sheet(isPresented: $voiceMealSheetVisible) {
+      VoiceMealSheet()
+        .environmentObject(connectivity)
     }
   }
 

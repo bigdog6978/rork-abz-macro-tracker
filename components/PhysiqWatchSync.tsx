@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { sendProSnapshotToWatch, subscribePhysiqWatch } from 'physiq-watch-connectivity';
 import { useUser } from '../providers/UserProvider';
@@ -7,6 +7,8 @@ import { useThemeColors } from '../providers/ThemeProvider';
 import { usePro } from '../providers/ProProvider';
 import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS } from '../types';
 import Colors from '../constants/colors';
+import { processVoiceMealTranscript } from '../features/food/processVoiceMealTranscript';
+import * as foodService from '../features/food/foodService';
 
 const DAY_TYPE_LABELS: Record<string, string> = {
   workout_day: 'Workout day',
@@ -14,13 +16,15 @@ const DAY_TYPE_LABELS: Record<string, string> = {
   rest_day: 'Rest day',
 };
 
+const VOICE_FEEDBACK_TTL_MS = 45_000;
+
 /**
  * Pushes dashboard-aligned macro + hydration snapshot to watchOS via WatchConnectivity.
  * Runs for all signed-in iOS users (not Pro-gated) so the Watch mirrors the phone dashboard.
  */
 export default function PhysiqWatchSync() {
   const { profile, macros } = useUser();
-  const { todayTotals, todayEntries, getStreak, addEntry } = useDailyLog();
+  const { todayTotals, todayEntries, getStreak, addEntries } = useDailyLog();
   const colors = useThemeColors();
   const {
     hydration,
@@ -33,8 +37,17 @@ export default function PhysiqWatchSync() {
     healthConnectionStatus,
   } = usePro();
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceProcessingRef = useRef(false);
+  const [voiceMealFeedback, setVoiceMealFeedback] = useState('');
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const targets = settings.dynamicMacrosEnabled ? dynamicTargets : macros;
+
+  const showVoiceFeedback = useCallback((message: string) => {
+    setVoiceMealFeedback(message);
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => setVoiceMealFeedback(''), VOICE_FEEDBACK_TTL_MS);
+  }, []);
 
   const payload = useMemo((): Record<string, string> => {
     const caloriesRemaining = Math.max(targets.calories - todayTotals.calories, 0);
@@ -90,6 +103,7 @@ export default function PhysiqWatchSync() {
       activeEnergyKcal: healthSignals ? String(Math.round(healthSignals.activeEnergyKcal)) : '0',
       workoutMinutes: healthSignals ? String(healthSignals.workoutMinutes) : '0',
       healthLine,
+      voiceMealFeedback,
     };
   }, [
     profile.firstName,
@@ -114,7 +128,7 @@ export default function PhysiqWatchSync() {
     healthSignals,
     healthConnectionStatus,
     getStreak,
-    todayEntries.length,
+    voiceMealFeedback,
   ]);
 
   const send = useCallback((data: Record<string, string>, attempt = 0) => {
@@ -131,6 +145,33 @@ export default function PhysiqWatchSync() {
       console.log('[PhysiqWatchSync] snapshot keys', Object.keys(withTime).sort().join(', '));
     }
   }, []);
+
+  const handleWatchVoiceMeal = useCallback(
+    async (transcript: string) => {
+      if (voiceProcessingRef.current) return;
+      voiceProcessingRef.current = true;
+      showVoiceFeedback('Processing spoken meal…');
+
+      try {
+        const { result, entries, resolvedItems } = await processVoiceMealTranscript(transcript);
+        if (entries.length > 0) {
+          addEntries(entries);
+          await Promise.all(
+            resolvedItems.map((item) => foodService.addToRecent(item.food, item.grams))
+          );
+        }
+        showVoiceFeedback(result.summary);
+      } catch (err) {
+        if (__DEV__) {
+          console.warn('[PhysiqWatchSync] voice meal failed', err);
+        }
+        showVoiceFeedback('Could not log meal. Open Physiq on iPhone.');
+      } finally {
+        voiceProcessingRef.current = false;
+      }
+    },
+    [addEntries, showVoiceFeedback]
+  );
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -155,24 +196,19 @@ export default function PhysiqWatchSync() {
     if (Platform.OS !== 'ios') return;
     const sub = subscribePhysiqWatch('onWatchPayload', (body) => {
       const data = (body.payload as Record<string, string> | undefined) ?? {};
-      if (data.action !== 'add_protein') return;
-      const grams = Number.parseInt(data.grams ?? '', 10);
-      if (!Number.isFinite(grams) || grams <= 0) return;
-      addEntry({
-        id: `watch_protein_${Date.now()}`,
-        name: `Protein (+${grams}g)`,
-        protein_g: grams,
-        carbs_g: 0,
-        fat_g: 0,
-        calories: grams * 4,
-        timestamp: new Date().toISOString(),
-        providerId: 'manual',
-        source: 'manual',
-        isCustomMacros: true,
-      });
+      if (data.action !== 'voice_meal') return;
+      const transcript = data.transcript?.trim();
+      if (!transcript) {
+        showVoiceFeedback('Nothing heard. Try again.');
+        return;
+      }
+      void handleWatchVoiceMeal(transcript);
     });
-    return () => sub?.remove();
-  }, [addEntry]);
+    return () => {
+      sub?.remove();
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    };
+  }, [handleWatchVoiceMeal, showVoiceFeedback]);
 
   return null;
 }

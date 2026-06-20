@@ -112,13 +112,22 @@ final class PhysiqPhoneWatchSession: NSObject, WCSessionDelegate {
     emitPayload(message, source: "message")
   }
 
+  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    guard let action = applicationContext["action"] as? String, !action.isEmpty else { return }
+    emitPayload(applicationContext, source: "applicationContext")
+  }
+
   func session(
     _ session: WCSession,
     didReceiveMessage message: [String: Any],
     replyHandler: @escaping ([String: Any]) -> Void
   ) {
     emitPayload(message, source: "message")
-    replyHandler(["ok": true])
+    if let action = message["action"] as? String, action == "voice_meal" {
+      replyHandler(["status": "processing"])
+    } else {
+      replyHandler(["ok": true])
+    }
   }
 
   private func emitPayload(_ raw: [String: Any], source: String) {

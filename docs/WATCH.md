@@ -65,6 +65,7 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 ### Watch → phone
 
 - `sendMessage` / `updateApplicationContext` with `action: hydration_ack`; iPhone adds **250 ml** via `addHydration(250)` in `ProProvider` (listener is iOS-wide, not Pro-gated).
+- `action: voice_meal` with `transcript` — iPhone runs the same voice meal parser/resolver as Add Food, auto-adds high/medium-confidence matches, and pushes `voiceMealFeedback` back in the next snapshot.
 
 ## Local development
 
@@ -112,4 +113,5 @@ Set **`APPLE_TEAM_ID`** in EAS secrets or `eas.json` env so `app.config.ts` can 
 - [ ] `WCSession` activates on iPhone (DEBUG logs in `PhysiqWatchModule.swift`).
 - [ ] Watch UI shows macro snapshot after onboarding completes on phone (core user OK).
 - [ ] Hydration button on watch increments hydration on phone when paired.
+- [ ] Speak meal on watch adds resolved foods on phone (iPhone app running or reachable).
 - [ ] Archive in Xcode includes both **PhysiqMacroTracker** and **watch** targets.

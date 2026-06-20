@@ -15,7 +15,7 @@ const PHOTO_LIBRARY_USAGE =
 export default (): ExpoConfig => ({
   name: 'Physiq Macro Tracker',
   slug: 'abz-macro-tracker',
-  version: '1.3.2',
+  version: '1.3.3',
   orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',

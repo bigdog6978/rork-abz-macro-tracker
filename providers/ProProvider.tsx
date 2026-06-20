@@ -250,7 +250,6 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
           break;
         }
         default:
-          // `add_protein` is handled in PhysiqWatchSync where the daily log is available.
           break;
       }
     });

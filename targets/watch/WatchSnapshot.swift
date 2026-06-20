@@ -33,6 +33,8 @@ struct WatchSnapshot {
   var healthLine: String
   /// Preferred hydration unit: "ml" | "oz" | "cup".
   var hydrationUnit: String
+  /// Latest voice-meal result pushed from iPhone after watch dictation.
+  var voiceMealFeedback: String
 
   var hasData: Bool {
     caloriesTarget > 0 || caloriesConsumed > 0 || proteinTarget > 0
@@ -104,7 +106,8 @@ struct WatchSnapshot {
       activeEnergyKcal: d("activeEnergyKcal"),
       workoutMinutes: d("workoutMinutes"),
       healthLine: context["healthLine"] ?? "",
-      hydrationUnit: context["hydrationUnit"] ?? "ml"
+      hydrationUnit: context["hydrationUnit"] ?? "ml",
+      voiceMealFeedback: context["voiceMealFeedback"] ?? ""
     )
   }
 

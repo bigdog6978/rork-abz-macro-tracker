@@ -30,9 +30,45 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     send(["action": "log_water", "ml": String(ml)])
   }
 
-  /// Quick-add protein grams from the wrist.
-  func addProtein(grams: Int) {
-    send(["action": "add_protein", "grams": String(grams)])
+  enum VoiceMealSendResult {
+    case processing
+    case queued
+    case failed(String)
+  }
+
+  /// Send a spoken meal transcript to iPhone for parsing + food lookup.
+  func sendVoiceMeal(transcript: String, completion: @escaping (VoiceMealSendResult) -> Void) {
+    let message: [String: String] = [
+      "action": "voice_meal",
+      "transcript": transcript,
+    ]
+
+    if WCSession.default.isReachable {
+      WCSession.default.sendMessage(
+        message,
+        replyHandler: { reply in
+          let status = reply["status"] as? String ?? "processing"
+          DispatchQueue.main.async {
+            completion(status == "processing" ? .processing : .processing)
+          }
+        },
+        errorHandler: { _ in
+          do {
+            try WCSession.default.updateApplicationContext(message)
+            DispatchQueue.main.async { completion(.queued) }
+          } catch {
+            DispatchQueue.main.async { completion(.failed("Could not reach iPhone.")) }
+          }
+        }
+      )
+    } else {
+      do {
+        try WCSession.default.updateApplicationContext(message)
+        DispatchQueue.main.async { completion(.queued) }
+      } catch {
+        DispatchQueue.main.async { completion(.failed("Could not reach iPhone.")) }
+      }
+    }
   }
 
   /// Override today's day type (auto / training / competition / rest).
