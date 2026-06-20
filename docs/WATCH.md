@@ -73,27 +73,27 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 - `action: voice_meal` with `transcript` — iPhone runs the same voice meal parser/resolver as Add Food, auto-adds high/medium-confidence matches, and pushes `voiceMealFeedback` back in the next snapshot.
 - `action: set_day_type` with `dayType` (`auto` \| `training` \| `competition` \| `rest`) — iPhone updates `ProSettings.dayTypeOverride`; next snapshot includes `dayTypeOverride` + labels for Watch selected state.
 
-## Safe layout (watch UI)
+## Full-screen layout (watch UI)
 
-Paged screens use **`WatchPageContainer`** + **`WatchLayoutMetrics`** (`targets/watch/`) so content never overlaps system chrome:
+Paged screens use **`WatchPageContainer`** + **`WatchLayoutMetrics`** (`targets/watch/`) to fill the **entire watch face**. The `TabView` page already lays content inside the system safe area (below the upper-right clock, above the page-indicator dots), so the container does **not** re-reserve large chrome blocks — it adds only tiny cosmetic insets and **top-aligns** content (no centered band, no `Spacer()` floating a shrunken cluster).
 
-| Zone | Purpose | How it's computed |
-|------|---------|-------------------|
-| **Top inset** | System time / status bar | `max(safeAreaInsets.top, 28–30pt)` |
-| **Bottom inset** | TabView page-indicator dots | `safeAreaInsets.bottom + 22–26pt` (taller on 40–41mm) |
-| **Horizontal** | Bezel clearance | 8pt each side |
+| Zone | Purpose | Reserve |
+|------|---------|---------|
+| **Top inset** | Clear the curved top corner under the clock | `2pt` (system safe area already excludes the clock) |
+| **Bottom inset** | Keep the last control off the page dots | `8pt` |
+| **Horizontal** | Bezel clearance | `6pt` each side |
 
-Non-scroll pages (**Calories**, **Hydration**) vertically center content inside the safe band. Scroll pages (**Macros**, **Today**) respect the same insets and scroll only when content exceeds the band.
+Non-scroll pages (**Calories**, **Hydration**) fill the screen top-aligned with the hero ring as the focal element. Scroll pages (**Macros**, **Today**) use the same insets and scroll only if content genuinely overflows.
 
-**Scaled components** (from available safe height/width):
+**Scaled components** — sizes scale **up** from the real available width/height (never shrunk from over-reserved insets) and cap generously on larger watches:
 
 | Watch class | Approx. height | Hero ring | Mini ring | Streak row |
 |-------------|----------------|-----------|-----------|------------|
-| 40–41mm | &lt; 210pt | ~88–96pt | ~40–44pt | Hidden if band &lt; 198pt |
-| 45mm | 210–240pt | ~100–108pt | ~46–48pt | Shown when space allows |
-| 49mm Ultra | &gt; 240pt | up to 112pt | up to 48pt | Shown |
+| 40–41mm | &lt; 200pt | ~94–101pt | ~46pt | Hidden (&lt; 200pt band) |
+| 45mm | 210–225pt | ~92–115pt | ~52pt | Shown |
+| 49mm Ultra | &gt; 230pt | up to 130pt | up to 58pt | Shown |
 
-Touch targets use **44pt minimum height** on primary buttons and stat cards.
+The hero ring is width-driven (`contentWidth − 6`, capped at 130pt) but bounded by leftover height (`contentHeight − heroReserve`) so non-scroll pages fill the face without clipping. Touch targets use **44pt minimum height** on primary buttons and stat cards.
 
 Hydration UI uses dedicated **neon blue** (`#00D4FF`) — not macro carbs green or chartreuse brand accent.
 

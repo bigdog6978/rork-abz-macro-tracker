@@ -3,13 +3,11 @@ module.exports = (config) => ({
   type: 'watch',
   icon: '../../assets/images/icon.png',
   displayName: 'Physiq',
-  frameworks: ['WatchConnectivity', 'SwiftUI', 'Speech', 'AVFoundation'],
-  deploymentTarget: '8.0',
+  // Speech.framework / SFSpeechRecognizer is unavailable on watchOS; the meal
+  // dictation flow uses TextFieldLink (system dictation), which needs no extra
+  // frameworks, no microphone entitlement, and no speech-recognition entitlement.
+  frameworks: ['WatchConnectivity', 'SwiftUI'],
+  // TextFieldLink requires watchOS 9.0+.
+  deploymentTarget: '9.0',
   bundleIdentifier: '.watch',
-  infoPlist: {
-    NSMicrophoneUsageDescription:
-      'Physiq uses the microphone so you can speak meals into your food log from Apple Watch.',
-    NSSpeechRecognitionUsageDescription:
-      'Physiq uses speech recognition to turn spoken meals into food entries with macros.',
-  },
 });

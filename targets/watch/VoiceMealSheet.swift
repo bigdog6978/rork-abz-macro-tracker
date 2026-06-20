@@ -1,17 +1,19 @@
 import SwiftUI
 
-/// Full-screen dictation flow: listen on-watch, send transcript to iPhone for food lookup.
+/// Dictation flow: capture a spoken meal with watchOS system dictation
+/// (`TextFieldLink`) and send the transcript to iPhone for food lookup.
+/// watchOS has no on-device `SFSpeechRecognizer`; the system input UI handles
+/// dictation/scribble and hands us the recognized text as a plain string.
 struct VoiceMealSheet: View {
   @EnvironmentObject private var connectivity: WatchConnectivityManager
   @Environment(\.dismiss) private var dismiss
 
-  @StateObject private var recorder = WatchVoiceMealRecorder()
+  @State private var transcript = ""
   @State private var phase: Phase = .ready
   @State private var localMessage = ""
 
   private enum Phase {
     case ready
-    case listening
     case sending
     case done
     case error
@@ -35,8 +37,8 @@ struct VoiceMealSheet: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
 
-      if !recorder.transcript.isEmpty {
-        Text(recorder.transcript)
+      if !transcript.isEmpty {
+        Text(transcript)
           .font(.system(size: 12, weight: .semibold, design: .rounded))
           .foregroundStyle(PhysiqTheme.textPrimary)
           .multilineTextAlignment(.center)
@@ -46,18 +48,16 @@ struct VoiceMealSheet: View {
           .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(PhysiqTheme.card))
       }
 
-      if phase == .ready || phase == .listening {
-        Button {
-          WatchInteractionFeedback.play(phase == .listening ? .confirm : .tap)
-          toggleListening()
-        } label: {
-          Label(
-            phase == .listening ? "Done speaking" : "Start speaking",
-            systemImage: phase == .listening ? "stop.fill" : "mic.fill"
-          )
-          .font(.system(size: 12, weight: .bold, design: .rounded))
-          .frame(maxWidth: .infinity)
-          .padding(.vertical, 10)
+      if phase == .ready {
+        TextFieldLink(prompt: Text("Say what you ate")) {
+          Label("Start speaking", systemImage: "mic.fill")
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+        } onSubmit: { spoken in
+          WatchInteractionFeedback.play(.confirm)
+          transcript = spoken
+          submitTranscript()
         }
         .buttonStyle(PhysiqPressableButtonStyle())
         .foregroundStyle(PhysiqTheme.background)
@@ -81,17 +81,12 @@ struct VoiceMealSheet: View {
       }
     }
     .padding(10)
-    .onDisappear {
-      recorder.stopListening()
-    }
   }
 
   private var statusText: String {
     switch phase {
     case .ready:
-      return "Say what you ate, like \"2 eggs and 1 avocado\"."
-    case .listening:
-      return "Listening… tap Done when finished."
+      return "Tap, then dictate what you ate, like \"2 eggs and 1 avocado\"."
     case .sending:
       return "Sending to iPhone…"
     case .done:
@@ -101,27 +96,8 @@ struct VoiceMealSheet: View {
     }
   }
 
-  private func toggleListening() {
-    if phase == .listening {
-      recorder.stopListening()
-      submitTranscript()
-      return
-    }
-
-    Task {
-      let granted = await recorder.requestPermissions()
-      guard granted else {
-        phase = .error
-        localMessage = recorder.errorMessage ?? "Permission denied."
-        return
-      }
-      phase = .listening
-      recorder.startListening()
-    }
-  }
-
   private func submitTranscript() {
-    let text = recorder.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+    let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !text.isEmpty else {
       phase = .error
       localMessage = "Nothing heard. Try again."
@@ -131,11 +107,12 @@ struct VoiceMealSheet: View {
     phase = .sending
     connectivity.sendVoiceMeal(transcript: text) { result in
       switch result {
-      case .processing, .queued:
+      case .processing:
         phase = .done
-        localMessage = result == .queued
-          ? "Queued — open Physiq on iPhone."
-          : "Processing on iPhone…"
+        localMessage = "Processing on iPhone…"
+      case .queued:
+        phase = .done
+        localMessage = "Queued — open Physiq on iPhone."
       case .failed(let message):
         phase = .error
         localMessage = message

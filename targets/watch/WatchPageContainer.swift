@@ -1,6 +1,11 @@
 import SwiftUI
 
-/// Lays out a TabView page inside the safe content band (below time, above page dots).
+/// Lays a TabView page out across the **full** watch face.
+///
+/// The system already keeps content clear of the clock (top) and the page dots
+/// (bottom), so this only applies small cosmetic insets and **top-aligns** the
+/// content — no double safe-area reservation and no `Spacer()` centering that
+/// would float a shrunken cluster in the middle of the screen.
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content
@@ -17,32 +22,21 @@ struct WatchPageContainer<Content: View>: View {
     GeometryReader { geo in
       let metrics = WatchLayoutMetrics.from(geo)
 
-      Group {
-        if scrollable {
-          ScrollView(.vertical, showsIndicators: false) {
-            pageStack(metrics: metrics)
-              .frame(minHeight: metrics.contentHeight, alignment: .top)
-          }
-        } else {
-          VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            pageStack(metrics: metrics)
-            Spacer(minLength: 0)
-          }
+      if scrollable {
+        ScrollView(.vertical, showsIndicators: false) {
+          content(metrics)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .padding(.horizontal, metrics.horizontal)
+            .padding(.top, metrics.topInset)
+            .padding(.bottom, metrics.bottomInset)
         }
+      } else {
+        content(metrics)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+          .padding(.horizontal, metrics.horizontal)
+          .padding(.top, metrics.topInset)
+          .padding(.bottom, metrics.bottomInset)
       }
-      .padding(.top, metrics.safeTop)
-      .padding(.bottom, metrics.safeBottom)
-      .padding(.horizontal, metrics.horizontal)
-      .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
-      .environment(\.watchLayout, metrics)
     }
-  }
-
-  private func pageStack(metrics: WatchLayoutMetrics) -> some View {
-    VStack(spacing: metrics.pageSpacing) {
-      content(metrics)
-    }
-    .frame(maxWidth: .infinity)
   }
 }
