@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// Lays a TabView page out across the **full** watch face.
-///
-/// Top padding is zero so the inline page header shares the system clock row.
-/// Only small bottom/horizontal insets remain for page dots and bezels.
+/// Full-bleed TabView page wrapper. Hero content may extend behind page-indicator dots;
+/// the inline header respects the top safe band so icons/titles are not clipped.
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content
@@ -20,21 +18,19 @@ struct WatchPageContainer<Content: View>: View {
     GeometryReader { geo in
       let metrics = WatchLayoutMetrics.from(geo)
 
-      if scrollable {
-        ScrollView(.vertical, showsIndicators: false) {
+      Group {
+        if scrollable {
+          ScrollView(.vertical, showsIndicators: false) {
+            content(metrics)
+              .frame(maxWidth: .infinity, alignment: .top)
+          }
+        } else {
           content(metrics)
-            .frame(maxWidth: .infinity, alignment: .top)
-            .padding(.horizontal, metrics.horizontal)
-            .padding(.bottom, metrics.bottomInset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .ignoresSafeArea(.container, edges: .top)
-      } else {
-        content(metrics)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-          .padding(.horizontal, metrics.horizontal)
-          .padding(.bottom, metrics.bottomInset)
-          .ignoresSafeArea(.container, edges: .top)
       }
+      .padding(.horizontal, metrics.horizontal)
+      .ignoresSafeArea(.container, edges: [.top, .bottom])
     }
   }
 }

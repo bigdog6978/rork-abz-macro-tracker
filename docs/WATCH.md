@@ -75,30 +75,54 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 
 ## Full-screen layout (watch UI)
 
-Paged screens use **`WatchPageContainer`** + **`WatchLayoutMetrics`** (`targets/watch/`) to fill the **entire watch face**. Page titles use an **inline header** that shares the system clock row: leading icon + title, with **44pt trailing clearance** for the upper-right watchOS time (no custom clock, no separate title band below the status bar).
+Paged screens use **`WatchPageContainer`** + **`WatchLayoutMetrics`** (`targets/watch/`) for an **immersive edge-to-edge** layout. Content uses the **full** `GeometryReader` size; TabView page-indicator dots **overlay** the bottom — hero rings may extend behind them.
 
-| Zone | Purpose | Reserve |
-|------|---------|---------|
-| **Top inset** | Inline header shares the status/time row | `0pt` (header sits at top of page) |
-| **Inline header** | Icon + title + optional status dot (leading) | `20pt` tall |
-| **Header → content** | Gap before hero ring / macro row | `5pt` |
-| **Bottom inset** | Keep the last control off the page dots | `8pt` |
-| **Horizontal** | Bezel clearance | `5pt` each side |
+### Three-layer page model
 
-Non-scroll pages (**Calories**, **Hydration**): inline header → hero ring (minimal gap) → stat/quick-add row. Scroll pages (**Macros**, **Today**): same inline header, then scrollable content below.
+Each page is a `ZStack`:
 
-**Scaled components** — hero ring sized from width and leftover height after the compact inline header (not a standalone title band):
+| Layer | Content | Position |
+|-------|---------|----------|
+| **Hero** | Rings, macro cards | Fills band between header and footer; centered in padded frame |
+| **Footer overlay** | Stats, buttons, day-type grid | Pinned to bottom (`footerBottomPadding` ≈ 4pt above bezel) |
+| **Header overlay** | Icon + title + status dot | `safeTop` below curved corner; 44pt trailing clock clearance |
 
-| Watch class | Approx. height | Hero ring | Mini ring | Streak row |
-|-------------|----------------|-----------|-----------|------------|
-| 40–41mm | &lt; 200pt | ~96–105pt | ~46pt | Hidden (&lt; 200pt band) |
-| 45mm | 210–225pt | ~105–125pt | ~52pt | Shown |
-| 49mm Ultra | &gt; 230pt | up to **135pt** | up to 58pt | Shown |
+### Safe zones
 
-The hero ring is width-driven (`contentWidth − 4`, capped at **135pt**) with height bounded by `contentHeight − heroReserve` (inline header + stats + spacing). Touch targets use **44pt minimum height** on primary buttons and stat cards.
+| Zone | Purpose | Value |
+|------|---------|-------|
+| **safeTop** | Clear top-left bezel / status row | `max(safeAreaInsets.top, 8–10pt by watch height)` |
+| **contentBandTop** | Hero starts below overlaid header | `safeTop + 20pt header + 2pt gap` |
+| **footerBottomPadding** | Footer flush to bottom; dots overlay | **0pt** |
+| **Horizontal** | Minimal bezel clearance | **3pt** each side |
 
-Hydration UI uses dedicated **neon blue** (`#00D4FF`) — not macro carbs green or chartreuse brand accent.
+**Scaled components** — sizes derive from **full** `geo.size.height`, not a reduced “content height”:
 
+| Component | Sizing |
+|-----------|--------|
+| Hero ring (Calories / Hydration) | `min(contentWidth − 2, fullHeight − contentBandTop − footer)` |
+| Macro mini rings | Same band formula; width-driven across 3 columns |
+| Day-type grid cells | `(fullHeight − headline − header band) / 2 rows` |
+| Touch targets | **44pt** minimum |
+
+### Why v2/v3 failed
+
+Earlier passes reserved bottom inset/padding and placed the footer `VStack` + `Spacer` inside `ZStack(alignment: .top)` **without** `.frame(maxHeight: .infinity)` — the spacer never expanded, so footers floated mid-screen leaving a dead band above page dots.
+
+### Instrument dials
+
+Watch rings mirror phone **`CalorieGauge`** and **`MacroRing`** (`components/ui/`):
+
+| Watch view | Phone component | Style |
+|------------|-----------------|-------|
+| `CalorieInstrumentDial` | `CalorieGauge` | Solid top semicircle + 28 bottom tick segments |
+| `MacroInstrumentDial` | `MacroRing` | Locked top semicircle + 20 bottom ticks; **% centered** |
+
+Hydration hero uses the calorie-style dial in hydration blue (`#00D4FF`).
+
+### TabView geometry note
+
+`GeometryReader` inside `TabView` pages can report slightly different heights per watch class. `WatchLayoutMetrics.estimatedSafeTop(for:)` provides a fallback when `safeAreaInsets.top` is 0. DEBUG builds log `[WatchLayout] size=… safeTop=…` to the console.
 ## Interaction feedback
 
 Primary buttons use **`WatchInteractionFeedback`** (`.click`, `.success`, etc.) plus **`PhysiqPressableButtonStyle`** / **`PhysiqSelectButtonStyle`** for a subtle press scale (respects Reduce Motion). No custom audio on Watch — system click haptics cover sound + tactile feedback. See `docs/INTERACTION-FEEDBACK.md`.
