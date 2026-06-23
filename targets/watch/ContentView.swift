@@ -36,6 +36,7 @@ struct ContentView: View {
           }
         }
         .tabViewStyle(PageTabViewStyle())
+        .ignoresSafeArea(.container, edges: [.bottom])
       } else {
         WatchPageContainer(scrollable: true) { _ in
           emptyState
@@ -219,7 +220,7 @@ struct ContentView: View {
           .font(.system(size: max(14, ringSize * 0.14)))
           .foregroundStyle(hydrationColor)
         Text(snapshot.hydrationDisplay)
-          .font(.system(size: min(18, ringSize * 0.14), weight: .bold, design: .rounded))
+          .font(.system(size: min(20, ringSize * 0.15), weight: .bold, design: .rounded))
           .monospacedDigit()
           .foregroundStyle(PhysiqTheme.textPrimary)
           .minimumScaleFactor(0.6)
@@ -244,6 +245,7 @@ struct ContentView: View {
           .padding(.top, metrics.contentBandTop)
         Spacer(minLength: 0)
       }
+      .frame(height: metrics.layoutHeight, alignment: .top)
 
       VStack(spacing: 6) {
         Text("Day type")
@@ -266,12 +268,15 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
         }
       }
+      .padding(.horizontal, max(0, metrics.footerHorizontalInset - metrics.horizontal))
+      .frame(height: metrics.layoutHeight, alignment: .bottom)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
       inlinePageHeader(icon: snapshot.todayIcon, title: "Today")
         .padding(.top, metrics.safeTop)
+        .padding(.leading, max(0, metrics.safeLeading - metrics.horizontal))
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .frame(width: metrics.size.width, height: metrics.layoutHeight, alignment: .top)
   }
 
   private func todayHeadlineCard() -> some View {
@@ -301,7 +306,7 @@ struct ContentView: View {
 
   // MARK: - Shared pieces
 
-  /// Three-layer immersive page: hero fills the band, footer overlays the bottom, header overlays the safe top.
+  /// Three-layer immersive page: hero band, footer pinned to layout bottom, header in safe top band.
   private func immersivePage<Hero: View, Footer: View>(
     metrics: WatchLayoutMetrics,
     icon: String,
@@ -312,13 +317,19 @@ struct ContentView: View {
     @ViewBuilder hero: () -> Hero,
     @ViewBuilder footer: () -> Footer
   ) -> some View {
-    ZStack(alignment: .top) {
+    let heroBand = max(0, metrics.layoutHeight - metrics.contentBandTop - footerHeight)
+    let footerInset = max(0, metrics.footerHorizontalInset - metrics.horizontal)
+    let headerLead = max(0, metrics.safeLeading - metrics.horizontal)
+
+    return ZStack(alignment: .top) {
       hero()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .frame(height: heroBand, alignment: .center)
         .padding(.top, metrics.contentBandTop)
-        .padding(.bottom, footerHeight)
 
       footer()
+        .padding(.horizontal, footerInset)
+        .frame(height: metrics.layoutHeight, alignment: .bottom)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
 
       inlinePageHeader(
@@ -328,8 +339,9 @@ struct ContentView: View {
         statusDotColor: statusDotColor
       )
       .padding(.top, metrics.safeTop)
+      .padding(.leading, headerLead)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .frame(width: metrics.size.width, height: metrics.layoutHeight, alignment: .top)
   }
 
   /// Leading icon + title on the same row as the system clock (trailing clearance only).
@@ -353,7 +365,7 @@ struct ContentView: View {
           .fill(statusDotColor ?? statusColor)
           .frame(width: 5, height: 5)
       }
-      Spacer(minLength: WatchLayoutMetrics.clockClearance)
+      Spacer(minLength: WatchLayoutMetrics.clockTrailingGap)
     }
     .frame(height: WatchLayoutMetrics.inlineHeaderHeight, alignment: .leading)
   }
@@ -376,7 +388,7 @@ struct ContentView: View {
         .lineLimit(1)
     }
     .frame(maxWidth: .infinity, minHeight: metrics.minTouchHeight, alignment: .center)
-    .padding(.vertical, 4)
+    .padding(.vertical, 2)
     .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(PhysiqTheme.card))
   }
 

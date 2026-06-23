@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Full-bleed TabView page wrapper. Hero content may extend behind page-indicator dots;
-/// the inline header respects the top safe band so icons/titles are not clipped.
+/// Full-bleed TabView page. Uses explicit `layoutHeight` so footers reach the physical bottom.
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content
@@ -22,13 +21,13 @@ struct WatchPageContainer<Content: View>: View {
         if scrollable {
           ScrollView(.vertical, showsIndicators: false) {
             content(metrics)
-              .frame(maxWidth: .infinity, alignment: .top)
           }
         } else {
           content(metrics)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
       }
+      .frame(width: geo.size.width, height: metrics.layoutHeight, alignment: .top)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       .padding(.horizontal, metrics.horizontal)
       .ignoresSafeArea(.container, edges: [.top, .bottom])
     }
