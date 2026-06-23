@@ -159,6 +159,9 @@ Set **`APPLE_TEAM_ID`** in EAS secrets or `eas.json` env so `app.config.ts` can 
 | Dashes / stale numbers | Confirm **WCSession** is activated (`Ready` on watch). Toggle the iPhone app to foreground; snapshot is resent on **AppState active** and a few seconds after load. |
 | Hydration button does nothing | Phone must process `hydration_ack` (see `ProProvider`); ensure iOS build includes `physiq-watch-connectivity`. |
 | Simulator oddities | Pair **watch + phone simulators** in Xcode’s Watch Simulator pairing; WatchConnectivity can be flaky—test on **real devices** for release sign-off. |
+| **Xcode “66 issues” but app won’t run** | See **[XCODE-BUILD.md](./XCODE-BUILD.md)** — usually **warnings**, not errors. Confirm ⌘B **Build Succeeded**; fix **simulator** (stock iPhone 16, reset CoreSimulator). Do not change watch Swift for Yoga/Expo pod warnings. |
+| **`build.db locked`** | Quit Xcode; don’t run `expo run:ios` while Xcode builds; clear DerivedData. |
+| **Watch layout changes not visible** | Run `npx expo prebuild --clean -p ios` — Xcode reads generated `ios/`, not `targets/watch/` directly. |
 
 ## Testing checklist
 
