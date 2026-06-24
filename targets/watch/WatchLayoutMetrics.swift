@@ -53,8 +53,12 @@ struct WatchLayoutMetrics: Equatable {
     max(0, faceHeight - Self.headerRowHeight)
   }
 
+  /// Fraction of the body height a hero dial may occupy, leaving vertical breathing
+  /// room so the ring never kisses the clock/title row above or the footer bar below.
+  static let heroDialFill: CGFloat = 0.92
+
   func heroDialSize(bottomBar: CGFloat) -> CGFloat {
-    let body = bodyHeight(bottomBar: bottomBar)
+    let body = bodyHeight(bottomBar: bottomBar) * Self.heroDialFill
     return max(72, min(faceWidth - 4, body))
   }
 
