@@ -73,48 +73,40 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 - `action: voice_meal` with `transcript` — iPhone runs the same voice meal parser/resolver as Add Food, auto-adds high/medium-confidence matches, and pushes `voiceMealFeedback` back in the next snapshot.
 - `action: set_day_type` with `dayType` (`auto` \| `training` \| `competition` \| `rest`) — iPhone updates `ProSettings.dayTypeOverride`; next snapshot includes `dayTypeOverride` + labels for Watch selected state.
 
-## Full-screen layout (watch UI)
+## Full-screen layout (watch UI) — v6
 
-Paged screens use **`WatchPageContainer`** + **`WatchLayoutMetrics`** for an **immersive edge-to-edge** layout on 40mm, 45mm, and 49mm watches.
+Edge-to-edge face filling. **No safe-zone padding.** Three rows on every page:
 
-### Root cause (bottom dead band)
+| Row | Height | Content |
+|-----|--------|---------|
+| **Header** | 22pt | Leading icon + title + status dot; **52pt trailing clock reserve** (no content under system time) |
+| **Body** | flex | Centered hero dial(s) or 2×2 tile grid |
+| **Bottom bar** | 36–44pt | Flush to `layoutHeight` bottom; may extend behind page dots |
 
-`TabView` + `PageTabViewStyle` reports a `GeometryReader` height that **ends above the page-indicator dots**. Prior layouts bottom-pinned footers to that shorter height, leaving a visible empty row between controls and dots. A secondary bug in v2 pinned footers in a `ZStack(alignment: .top)` without `.frame(maxHeight: .infinity)`, so spacers never expanded.
+`layoutHeight = geo.size.height + pageIndicatorReserve` (14–18pt).
 
-**v4 fix:** `layoutHeight = geo.size.height + pageIndicatorReserve` (~14–18pt by watch class). Footers and hero bands use `layoutHeight`; page dots overlay the bottom band.
+### Per-page bottom bars
 
-### Three-layer page model
+| Page | Bottom bar |
+|------|------------|
+| **Calories** | 50/50 Target \| Eaten (36pt) |
+| **Macros** | Full-width mic icon only (44pt) |
+| **Hydration** | 50/50 quick-add buttons (44pt) |
+| **Today** | None — 2×2 equal tiles fill body |
 
-| Layer | Content | Position |
-|-------|---------|----------|
-| **Hero** | Instrument dials / macro cards | Fixed-height band between header and footer |
-| **Footer overlay** | Stats, buttons, day-type grid | `.frame(height: layoutHeight, alignment: .bottom)` |
-| **Header overlay** | Icon + title + status dot | `safeTop` + `safeLeading` below/side of corner radius |
+### Why v5 failed
 
-### Safe zones
-
-| Zone | Purpose | Value |
-|------|---------|-------|
-| **safeTop** | Clear top-left bezel | 10–14pt by watch height |
-| **safeLeading** | Title/icon clear of curve | **6pt** minimum |
-| **footerHorizontalInset** | Buttons follow bottom corners | **8pt** each side |
-| **pageIndicatorReserve** | Reclaim TabView dot band | **14–18pt** |
-| **Horizontal (container)** | Edge bleed for dials | **2pt** |
-
-### System clock
-
-Third-party watchOS apps **cannot hide** the system time. `inlinePageHeader` uses a minimal **8pt** trailing gap (not 44pt). Title stays leading; clock stays system-owned upper-right.
+Reserved `headerZoneHeight` (~30pt) as body padding while also overlaying the header, shrinking the hero. ZStack hero/footer overlap caused graphics collision.
 
 ### Instrument dials
 
-Watch rings mirror phone **`CalorieGauge`** and **`MacroRing`** (`components/ui/`):
+| Watch | Phone | Style |
+|-------|-------|-------|
+| `CalorieInstrumentDial` | `CalorieGauge` | Top arc + 28 bottom ticks |
+| `MacroInstrumentDial` | `MacroRing` | Top arc + 20 ticks; % centered |
 
-| Watch view | Phone component | Style |
-|------------|-----------------|-------|
-| `CalorieInstrumentDial` | `CalorieGauge` | Solid top semicircle + **28** bottom tick segments |
-| `MacroInstrumentDial` | `MacroRing` | Locked top semicircle + **20** bottom ticks; **% centered** |
+DEBUG: `[WatchLayout] geo=… layoutH=… bodyH=… dial=…`
 
-DEBUG builds log `[WatchLayout] geo=… layoutH=… reserve=…` to the console.
 ## Interaction feedback
 
 Primary buttons use **`WatchInteractionFeedback`** (`.click`, `.success`, etc.) plus **`PhysiqPressableButtonStyle`** / **`PhysiqSelectButtonStyle`** for a subtle press scale (respects Reduce Motion). No custom audio on Watch — system click haptics cover sound + tactile feedback. See `docs/INTERACTION-FEEDBACK.md`.

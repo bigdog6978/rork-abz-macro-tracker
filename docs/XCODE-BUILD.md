@@ -68,17 +68,24 @@ Do **not** rewrite watch Swift or app code to fix these.
 
 ## Recommended simulator setup
 
-Use **stock** simulators, not custom clones:
+Use **stock** simulators, not custom clones (avoid **Physiq Phone**, **CaboWabo***, etc.).
+
+### Only iPhone 17 shows in Xcode?
+
+That is normal on **Xcode with iOS 26 SDK** — the destination menu often lists the **latest OS runtime first**. **iPhone 17 (iOS 26.3+)** is a valid primary target. Older devices are still installed; expand the destination list or use **Other…** / search in the run destination picker.
 
 | Device | UUID (example) | Use |
 |--------|----------------|-----|
-| iPhone 16 (iOS 18.5) | `770AA0FB-29C4-4379-9E57-66E3B9045918` | Primary iOS run |
+| **iPhone 17** (iOS 26.3) | `D5D4E72E-CC05-4742-8B42-3E8F7E8F5392` | Primary when Xcode only offers iOS 26 sims |
+| iPhone 16 (iOS 18.5) | `770AA0FB-29C4-4379-9E57-66E3B9045918` | Stable fallback if iOS 26 sim misbehaves |
 | Physiq Watch (watchOS 26.2) | `90FE08C6-59B2-48B9-9F6D-92BD33EE29E1` | Watch UI (pair with iPhone) |
+
+To surface **iPhone 16** in Xcode: **Window → Devices and Simulators → Simulators**, boot **iPhone 16 (18.5)**, then pick it from the scheme destination menu. Or install **iOS 18.5** under **Xcode → Settings → Platforms** if missing.
 
 List yours:
 
 ```bash
-xcrun simctl list devices available | grep "iPhone 16 "
+xcrun simctl list devices available | grep -E "iPhone 17 |iPhone 16 "
 xcrun simctl list devices available | grep "Physiq Watch"
 ```
 
@@ -91,12 +98,13 @@ killall Simulator 2>/dev/null
 killall com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null
 xcrun simctl shutdown all
 
-# Boot stock iPhone 16 (replace UUID if needed)
-xcrun simctl boot 770AA0FB-29C4-4379-9E57-66E3B9045918
+# Boot stock iPhone 17 or iPhone 16 (replace UUID if needed)
+xcrun simctl boot D5D4E72E-CC05-4742-8B42-3E8F7E8F5392   # iPhone 17, iOS 26.3
+# xcrun simctl boot 770AA0FB-29C4-4379-9E57-66E3B9045918  # iPhone 16, iOS 18.5
 open -a Simulator
 ```
 
-In Xcode: scheme **PhysiqMacroTracker**, destination **iPhone 16**, ⌘R.
+In Xcode: scheme **PhysiqMacroTracker**, destination **iPhone 17** (or **iPhone 16**), ⌘R.
 
 Avoid `npx expo run:ios` with custom device names until sim is stable.
 

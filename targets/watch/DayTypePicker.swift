@@ -6,11 +6,11 @@ private struct DayTypeOption: Identifiable {
   let icon: String
 }
 
-/// 2×2 picker matching iPhone Training Mode day-type overrides.
+/// 2×2 equal tile picker for Training Mode day-type overrides.
 struct DayTypePicker: View {
   let accent: Color
   let selectedId: String
-  let minTouchHeight: CGFloat
+  let tileSide: CGFloat
   let onSelect: (String) -> Void
 
   private let options: [DayTypeOption] = [
@@ -21,16 +21,17 @@ struct DayTypePicker: View {
   ]
 
   private let columns = [
-    GridItem(.flexible(), spacing: 6),
-    GridItem(.flexible(), spacing: 6),
+    GridItem(.flexible(), spacing: WatchLayoutMetrics.todayTileGap),
+    GridItem(.flexible(), spacing: WatchLayoutMetrics.todayTileGap),
   ]
 
   var body: some View {
-    LazyVGrid(columns: columns, spacing: 6) {
+    LazyVGrid(columns: columns, spacing: WatchLayoutMetrics.todayTileGap) {
       ForEach(options) { option in
         dayTypeButton(option)
       }
     }
+    .frame(height: tileSide * 2 + WatchLayoutMetrics.todayTileGap)
   }
 
   private func dayTypeButton(_ option: DayTypeOption) -> some View {
@@ -39,25 +40,25 @@ struct DayTypePicker: View {
       WatchInteractionFeedback.play(.select)
       onSelect(option.id)
     } label: {
-      VStack(spacing: 3) {
+      VStack(spacing: 2) {
         Image(systemName: option.icon)
-          .font(.system(size: 13, weight: .bold))
+          .font(.system(size: max(12, tileSide * 0.22), weight: .bold))
         Text(option.label)
-          .font(.system(size: 10, weight: .bold, design: .rounded))
+          .font(.system(size: max(9, tileSide * 0.14), weight: .bold, design: .rounded))
           .minimumScaleFactor(0.7)
           .lineLimit(1)
       }
-      .frame(maxWidth: .infinity, minHeight: minTouchHeight)
+      .frame(width: tileSide, height: tileSide)
     }
     .buttonStyle(PhysiqSelectButtonStyle())
     .foregroundStyle(isSelected ? PhysiqTheme.background : accent)
     .background(
-      RoundedRectangle(cornerRadius: 12, style: .continuous)
-        .fill(isSelected ? accent : PhysiqTheme.card)
+      RoundedRectangle(cornerRadius: 6, style: .continuous)
+        .fill(isSelected ? accent : PhysiqTheme.card.opacity(0.35))
     )
     .overlay(
-      RoundedRectangle(cornerRadius: 12, style: .continuous)
-        .stroke(isSelected ? accent : accent.opacity(0.55), lineWidth: isSelected ? 0 : 1.5)
+      RoundedRectangle(cornerRadius: 6, style: .continuous)
+        .stroke(isSelected ? accent : accent.opacity(0.5), lineWidth: isSelected ? 0 : 1)
     )
   }
 }

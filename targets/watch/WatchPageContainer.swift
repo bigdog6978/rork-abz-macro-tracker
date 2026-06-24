@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Full-bleed TabView page. Uses explicit `layoutHeight` so footers reach the physical bottom.
+/// Full-bleed TabView page. Passes full geometry width; v5 layout uses non-overlapping vertical zones.
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content
@@ -28,7 +28,6 @@ struct WatchPageContainer<Content: View>: View {
       }
       .frame(width: geo.size.width, height: metrics.layoutHeight, alignment: .top)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      .padding(.horizontal, metrics.horizontal)
       .ignoresSafeArea(.container, edges: [.top, .bottom])
     }
   }
