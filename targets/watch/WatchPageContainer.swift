@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Full-bleed TabView page — content fills geo; safe area passed to metrics (v6.2).
+/// Full-bleed TabView page — content fills geo; safe area in metrics (v6.3).
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content

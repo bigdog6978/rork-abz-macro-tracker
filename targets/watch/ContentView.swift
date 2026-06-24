@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Paged Physiq watch UI — edge-to-edge v6.2 layout. Phone-driven via WatchConnectivity.
+/// Paged Physiq watch UI — edge-to-edge v6.3 layout. Phone-driven via WatchConnectivity.
 struct ContentView: View {
   @EnvironmentObject private var connectivity: WatchConnectivityManager
   @State private var voiceMealSheetVisible = false
@@ -35,7 +35,7 @@ struct ContentView: View {
     .background(PhysiqTheme.background.ignoresSafeArea())
   }
 
-  // MARK: - Page shell (ZStack: header overlay + body + bottom-pinned footer)
+  // MARK: - Page shell (VStack: header → body → footer column)
 
   private func watchPageShell<Body: View, Bottom: View>(
     metrics: WatchLayoutMetrics,
@@ -47,50 +47,40 @@ struct ContentView: View {
     @ViewBuilder body: () -> Body,
     @ViewBuilder bottomBar: () -> Bottom
   ) -> some View {
-    let dotBand = metrics.pageDotBandHeight
-    let footerStackHeight = bottomBarHeight > 0 ? bottomBarHeight + dotBand : dotBand
-
-    return ZStack(alignment: .top) {
-      body()
-        .padding(.top, WatchLayoutMetrics.headerRowHeight)
-        .padding(.bottom, footerStackHeight)
-        .frame(width: metrics.faceWidth, height: metrics.faceHeight, alignment: .top)
-
+    VStack(spacing: 0) {
       pageHeaderRow(icon: icon, title: title, iconColor: iconColor, metrics: metrics)
-
+      body()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       if bottomBarHeight > 0 {
-        bottomFooterStack(
+        footerColumn(
           metrics: metrics,
           barHeight: bottomBarHeight,
-          dotBand: dotBand,
           bleedColor: footerBleedColor,
           content: bottomBar
         )
       }
     }
-    .frame(width: metrics.faceWidth, height: metrics.faceHeight)
+    .frame(width: metrics.faceWidth, height: metrics.faceHeight, alignment: .top)
     .ignoresSafeArea(.container, edges: .bottom)
   }
 
-  /// Footer pinned to physical bottom; colored bleed fills TabView dot band (no black gap).
-  private func bottomFooterStack<Content: View>(
+  /// Bottom bar + colored bleed into TabView dot band (last row of VStack).
+  private func footerColumn<Content: View>(
     metrics: WatchLayoutMetrics,
     barHeight: CGFloat,
-    dotBand: CGFloat,
     bleedColor: Color,
     @ViewBuilder content: () -> Content
   ) -> some View {
-    VStack(spacing: 0) {
+    let dotBand = metrics.pageDotBandHeight
+    return VStack(spacing: 0) {
       content()
-        .frame(height: barHeight)
-      bleedColor.frame(height: dotBand)
+        .frame(width: metrics.faceWidth, height: barHeight)
+      bleedColor
+        .frame(width: metrics.faceWidth, height: dotBand)
     }
-    .frame(width: metrics.faceWidth)
-    .frame(maxHeight: .infinity, alignment: .bottom)
-    .ignoresSafeArea(.container, edges: .bottom)
   }
 
-  /// Title row aligned with system clock band — leading icon + title only.
+  /// Title row on the system clock line — leading icon + title.
   private func pageHeaderRow(
     icon: String,
     title: String,
@@ -165,9 +155,8 @@ struct ContentView: View {
       Rectangle().fill(PhysiqTheme.textTertiary.opacity(0.35)).frame(width: 1)
       calorieStatCell("Eaten", formatInt(snapshot.caloriesConsumed), accentValue: true)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(PhysiqTheme.card.opacity(0.5))
     .frame(maxWidth: .infinity)
+    .background(PhysiqTheme.card.opacity(0.5))
   }
 
   private func calorieStatCell(_ title: String, _ value: String, accentValue: Bool) -> some View {
@@ -218,7 +207,7 @@ struct ContentView: View {
                     ring: PhysiqTheme.color(hex: snapshot.fatHex, fallback: PhysiqTheme.fat),
                     ringSize: ringSize, metrics: metrics)
         }
-        .padding(.trailing, WatchLayoutMetrics.clockExclusionWidth * 0.25)
+        .padding(.trailing, WatchLayoutMetrics.macroClockTrailingInset)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     } bottomBar: {
@@ -275,7 +264,6 @@ struct ContentView: View {
     .buttonStyle(PhysiqPressableButtonStyle())
     .foregroundStyle(PhysiqTheme.background)
     .background(accent)
-    .frame(maxWidth: .infinity)
   }
 
   // MARK: - Hydration

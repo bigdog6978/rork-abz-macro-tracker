@@ -73,32 +73,28 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 - `action: voice_meal` with `transcript` — iPhone runs the same voice meal parser/resolver as Add Food, auto-adds high/medium-confidence matches, and pushes `voiceMealFeedback` back in the next snapshot.
 - `action: set_day_type` with `dayType` (`auto` \| `training` \| `competition` \| `rest`) — iPhone updates `ProSettings.dayTypeOverride`; next snapshot includes `dayTypeOverride` + labels for Watch selected state.
 
-## Full-screen layout (watch UI) — v6.2
+## Full-screen layout (watch UI) — v6.3
 
-Edge-to-edge face filling. **ZStack page shell** — header overlay, body, footer bottom-pinned.
+Edge-to-edge face filling. **VStack page shell** — header → flex body → footer column (proven layout; v6.2 ZStack regressed footers to mid-screen).
 
 | Row | Role |
 |-----|------|
-| **Header** | 20pt — icon + title inline with system clock row (leading only; no trailing spacer) |
-| **Body** | Flex between header and footer; macro row inset from clock zone |
-| **Footer** | Bottom-pinned bar + **colored bleed** into TabView dot band (`pageDotBandHeight` ~22–28pt) |
+| **Header** | 22pt — icon + title on system clock row (leading only) |
+| **Body** | Flex between header and footer; dial/tiles sized with `bodyHeight` including dot band |
+| **Footer column** | Bar (36–44pt) + **colored bleed** (`pageDotBandHeight` ~22–28pt) as last VStack row |
 
-`faceHeight = geo.size.height`. Footers use matching `footerBleedColor` below the bar so **no black gap** appears above page dots.
+`bodyHeight(bar) = faceHeight - header - (bar + dotBand)`. No overlay footers; no body bottom padding.
 
 ### Per-page bottom bars
 
 | Page | Bottom bar |
 |------|------------|
 | **Calories** | 50/50 Target \| Eaten (36pt) + card bleed |
-| **Macros** | Full-width mic icon (44pt) + accent bleed — flush to bottom edge |
+| **Macros** | Full-width mic icon (44pt) + accent bleed |
 | **Hydration** | 50/50 quick-add buttons (44pt) + hydration bleed |
-| **Today** | No footer — 2×2 tiles fill body; `todayTileGap` 4pt equal H+V |
+| **Today** | No bar — 2×2 tiles; `todayTileGap` 4pt equal H+V |
 
-### Today tile grid
-
-`DayTypePicker`: `VStack` + `HStack`, `tileSide = min((faceWidth - G)/2, (todayBodyHeight - G)/2)`.
-
-DEBUG: `[WatchLayout] geo=… safeT/B=… dotBand=… faceH=… bodyH=…`
+DEBUG: `[WatchLayout] geo=… safeT/B=… dotBand=… faceH=… bodyH=… footerH=…`
 
 ### Instrument dials
 

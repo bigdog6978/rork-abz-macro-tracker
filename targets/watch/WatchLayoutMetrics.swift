@@ -1,20 +1,20 @@
 import SwiftUI
 
-/// Edge-to-edge watch face geometry (v6.2). ZStack shell; footer bleeds into TabView dot band.
+/// Edge-to-edge watch face geometry (v6.3). VStack shell; footer column includes dot-band bleed.
 struct WatchLayoutMetrics: Equatable {
   let size: CGSize
   let safeAreaInsets: EdgeInsets
 
-  static let headerRowHeight: CGFloat = 20
+  static let headerRowHeight: CGFloat = 22
   static let leadingInset: CGFloat = 8
-  /// Upper-right quadrant — keep hero/macro ticks out of system clock.
+  /// Upper-right — keep macro/hero ticks out of system clock.
   static let clockExclusionWidth: CGFloat = 48
-  static let clockExclusionHeight: CGFloat = 28
   static let bottomBarHeight: CGFloat = 44
   static let caloriesBottomBarHeight: CGFloat = 36
   static let macroLabelHeight: CGFloat = 10
   static let macroRowGap: CGFloat = 2
   static let todayTileGap: CGFloat = 4
+  static let macroClockTrailingInset: CGFloat = 12
 
   static let fallback = WatchLayoutMetrics(
     size: CGSize(width: 184, height: 224),
@@ -29,19 +29,17 @@ struct WatchLayoutMetrics: Equatable {
       "[WatchLayout] geo=\(Int(geo.size.width))×\(Int(geo.size.height)) "
         + "safeT=\(Int(geo.safeAreaInsets.top)) safeB=\(Int(geo.safeAreaInsets.bottom)) "
         + "dotBand=\(Int(metrics.pageDotBandHeight)) faceH=\(Int(metrics.faceHeight)) "
-        + "bodyH=\(Int(body)) dial=\(Int(metrics.heroDialSize(bottomBar: Self.bottomBarHeight)))"
+        + "bodyH=\(Int(body)) footerH=\(Int(metrics.footerStackHeight(bar: Self.bottomBarHeight)))"
     )
     #endif
     return metrics
   }
 
-  /// Drawable page height inside TabView.
   var faceHeight: CGFloat { size.height }
   var faceWidth: CGFloat { size.width }
 
-  /// TabView page-indicator band below content rect (measured + size-class tuned).
+  /// TabView page-indicator strip (tune from DEBUG logs on target sims).
   var pageDotBandHeight: CGFloat {
-    let insetBand = safeAreaInsets.bottom
     let sizeBand: CGFloat
     switch size.height {
     case 250...: sizeBand = 22
@@ -49,27 +47,30 @@ struct WatchLayoutMetrics: Equatable {
     case 210..<230: sizeBand = 28
     default: sizeBand = 26
     }
-    return max(sizeBand, insetBand + 18)
+    return max(sizeBand, safeAreaInsets.bottom + 10)
   }
 
+  func footerStackHeight(bar: CGFloat) -> CGFloat {
+    bar > 0 ? bar + pageDotBandHeight : pageDotBandHeight
+  }
+
+  /// Flex body between header and footer column (bar + dot band).
   func bodyHeight(bottomBar: CGFloat) -> CGFloat {
-    max(0, faceHeight - Self.headerRowHeight - bottomBar)
+    max(0, faceHeight - Self.headerRowHeight - footerStackHeight(bar: bottomBar))
   }
 
-  /// Body height when there is no footer bar (Today) — tiles may use space above dot band.
   func todayBodyHeight() -> CGFloat {
-    max(0, faceHeight - Self.headerRowHeight - pageDotBandHeight)
+    bodyHeight(bottomBar: 0)
   }
 
   func heroDialSize(bottomBar: CGFloat) -> CGFloat {
     let body = bodyHeight(bottomBar: bottomBar)
-    let maxW = faceWidth - 4
-    return max(72, min(maxW, body))
+    return max(72, min(faceWidth - 4, body))
   }
 
   func macroDialSize(bottomBar: CGFloat = bottomBarHeight) -> CGFloat {
     let body = bodyHeight(bottomBar: bottomBar)
-    let rowWidth = faceWidth - Self.clockExclusionWidth * 0.35
+    let rowWidth = faceWidth - Self.macroClockTrailingInset
     let cellWidth = (rowWidth - Self.macroRowGap * 2) / 3
     let heightBased = body - Self.macroLabelHeight - Self.macroRowGap
     return max(36, min(cellWidth, heightBased))
@@ -79,7 +80,6 @@ struct WatchLayoutMetrics: Equatable {
   func heroCalorieFontSize(for ringSize: CGFloat) -> CGFloat { min(44, ringSize * 0.32) }
   func miniRingLineWidth(for ringSize: CGFloat) -> CGFloat { max(4, ringSize * 0.11) }
 
-  /// Square tiles filling Today body — height-first for equal H+V gutters.
   func todayTileSide() -> CGFloat {
     let body = todayBodyHeight()
     let gap = Self.todayTileGap
