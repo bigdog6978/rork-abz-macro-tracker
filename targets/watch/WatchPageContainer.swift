@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Full-bleed TabView page. Passes full geometry width; v5 layout uses non-overlapping vertical zones.
+/// Full-bleed TabView page. Shell is bottom-pinned to geo.height (v6.1).
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content
@@ -26,8 +26,7 @@ struct WatchPageContainer<Content: View>: View {
           content(metrics)
         }
       }
-      .frame(width: geo.size.width, height: metrics.layoutHeight, alignment: .top)
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      .frame(width: geo.size.width, height: metrics.faceHeight, alignment: .bottom)
       .ignoresSafeArea(.container, edges: [.top, .bottom])
     }
   }

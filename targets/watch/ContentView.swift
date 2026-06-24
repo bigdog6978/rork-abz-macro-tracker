@@ -49,11 +49,13 @@ struct ContentView: View {
     VStack(spacing: 0) {
       pageHeaderRow(icon: icon, title: title, iconColor: iconColor, metrics: metrics)
       body()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       bottomBar()
         .frame(width: metrics.faceWidth, height: bottomBarHeight)
+        .padding(.bottom, bottomBarHeight > 0 ? -WatchLayoutMetrics.pageIndicatorOverlap : 0)
+        .ignoresSafeArea(.container, edges: .bottom)
     }
-    .frame(width: metrics.faceWidth, height: metrics.layoutHeight, alignment: .top)
+    .frame(width: metrics.faceWidth, height: metrics.faceHeight, alignment: .top)
   }
 
   private func pageHeaderRow(
@@ -182,7 +184,7 @@ struct ContentView: View {
                     ringSize: ringSize, metrics: metrics)
         }
       }
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     } bottomBar: {
       micBarButton(metrics: metrics) {
         voiceMealSheetVisible = true
@@ -313,6 +315,7 @@ struct ContentView: View {
 
   private func todayPage(metrics: WatchLayoutMetrics) -> some View {
     let selectedOverride = connectivity.resolvedDayTypeOverride(fallback: snapshot.dayTypeOverride)
+    let tileGap = WatchLayoutMetrics.todayTileGap
     let tileSide = metrics.todayTileSide()
 
     return watchPageShell(
@@ -324,11 +327,12 @@ struct ContentView: View {
       DayTypePicker(
         accent: accent,
         selectedId: selectedOverride,
-        tileSide: tileSide
+        tileSide: tileSide,
+        tileGap: tileGap
       ) { dayType in
         connectivity.setDayType(dayType)
       }
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     } bottomBar: {
       EmptyView()
     }

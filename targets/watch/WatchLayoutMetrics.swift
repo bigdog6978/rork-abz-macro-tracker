@@ -1,10 +1,9 @@
 import SwiftUI
 
-/// Edge-to-edge watch face geometry (v6). Three rows: header, body, bottom bar.
-/// No safe-zone padding — bottom bar may extend behind TabView page dots.
+/// Edge-to-edge watch face geometry (v6.1). Three rows: header, body, bottom bar.
+/// faceHeight = geo.height; bottom bars bleed under TabView dots via pageIndicatorOverlap.
 struct WatchLayoutMetrics: Equatable {
   let size: CGSize
-  let pageIndicatorReserve: CGFloat
 
   static let headerRowHeight: CGFloat = 22
   static let leadingInset: CGFloat = 8
@@ -15,40 +14,32 @@ struct WatchLayoutMetrics: Equatable {
   static let macroLabelHeight: CGFloat = 10
   static let macroRowGap: CGFloat = 2
   static let todayTileGap: CGFloat = 2
+  /// Footer background extends under page dots — not added to shell height.
+  static let pageIndicatorOverlap: CGFloat = 14
 
   static let fallback = WatchLayoutMetrics(
-    size: CGSize(width: 184, height: 224),
-    pageIndicatorReserve: 16
+    size: CGSize(width: 184, height: 224)
   )
 
   static func from(_ geo: GeometryProxy) -> WatchLayoutMetrics {
-    let reserve = estimatedPageIndicatorReserve(for: geo.size)
-    let metrics = WatchLayoutMetrics(size: geo.size, pageIndicatorReserve: reserve)
+    let metrics = WatchLayoutMetrics(size: geo.size)
     #if DEBUG
     let body = metrics.bodyHeight(bottomBar: Self.bottomBarHeight)
     print(
       "[WatchLayout] geo=\(Int(geo.size.width))×\(Int(geo.size.height)) "
-        + "layoutH=\(Int(metrics.layoutHeight)) bodyH=\(Int(body)) "
-        + "dial=\(Int(metrics.heroDialSize(bottomBar: Self.bottomBarHeight)))"
+        + "faceH=\(Int(metrics.faceHeight)) bodyH=\(Int(body)) "
+        + "dial=\(Int(metrics.heroDialSize(bottomBar: Self.bottomBarHeight))) "
+        + "footerBottom=\(Int(metrics.faceHeight))"
     )
     #endif
     return metrics
   }
 
-  static func estimatedPageIndicatorReserve(for size: CGSize) -> CGFloat {
-    switch size.height {
-    case 250...: return 14
-    case 230..<250: return 16
-    case 210..<230: return 18
-    default: return 16
-    }
-  }
-
-  var layoutHeight: CGFloat { size.height + pageIndicatorReserve }
+  var faceHeight: CGFloat { size.height }
   var faceWidth: CGFloat { size.width }
 
   func bodyHeight(bottomBar: CGFloat) -> CGFloat {
-    max(0, layoutHeight - Self.headerRowHeight - bottomBar)
+    max(0, faceHeight - Self.headerRowHeight - bottomBar)
   }
 
   func heroDialSize(bottomBar: CGFloat) -> CGFloat {
@@ -70,8 +61,9 @@ struct WatchLayoutMetrics: Equatable {
   /// Square tile side for 2×2 Today grid inside body region.
   func todayTileSide() -> CGFloat {
     let body = bodyHeight(bottomBar: 0)
-    let byWidth = (faceWidth - Self.todayTileGap) / 2
-    let byHeight = (body - Self.todayTileGap) / 2
+    let gap = Self.todayTileGap
+    let byWidth = (faceWidth - gap) / 2
+    let byHeight = (body - gap) / 2
     return max(44, min(byWidth, byHeight))
   }
 

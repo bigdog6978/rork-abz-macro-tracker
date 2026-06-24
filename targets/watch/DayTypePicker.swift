@@ -6,11 +6,12 @@ private struct DayTypeOption: Identifiable {
   let icon: String
 }
 
-/// 2×2 equal tile picker for Training Mode day-type overrides.
+/// 2×2 equal tile picker — one shared gutter for horizontal and vertical spacing.
 struct DayTypePicker: View {
   let accent: Color
   let selectedId: String
   let tileSide: CGFloat
+  let tileGap: CGFloat
   let onSelect: (String) -> Void
 
   private let options: [DayTypeOption] = [
@@ -20,18 +21,22 @@ struct DayTypePicker: View {
     DayTypeOption(id: "rest", label: "Rest", icon: "moon.zzz.fill"),
   ]
 
-  private let columns = [
-    GridItem(.flexible(), spacing: WatchLayoutMetrics.todayTileGap),
-    GridItem(.flexible(), spacing: WatchLayoutMetrics.todayTileGap),
-  ]
+  private var gridWidth: CGFloat { tileSide * 2 + tileGap }
+  private var gridHeight: CGFloat { tileSide * 2 + tileGap }
 
   var body: some View {
-    LazyVGrid(columns: columns, spacing: WatchLayoutMetrics.todayTileGap) {
-      ForEach(options) { option in
-        dayTypeButton(option)
-      }
+    VStack(spacing: tileGap) {
+      tileRow(options[0], options[1])
+      tileRow(options[2], options[3])
     }
-    .frame(height: tileSide * 2 + WatchLayoutMetrics.todayTileGap)
+    .frame(width: gridWidth, height: gridHeight, alignment: .topLeading)
+  }
+
+  private func tileRow(_ left: DayTypeOption, _ right: DayTypeOption) -> some View {
+    HStack(spacing: tileGap) {
+      dayTypeButton(left)
+      dayTypeButton(right)
+    }
   }
 
   private func dayTypeButton(_ option: DayTypeOption) -> some View {

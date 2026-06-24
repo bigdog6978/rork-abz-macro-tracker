@@ -73,17 +73,17 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 - `action: voice_meal` with `transcript` — iPhone runs the same voice meal parser/resolver as Add Food, auto-adds high/medium-confidence matches, and pushes `voiceMealFeedback` back in the next snapshot.
 - `action: set_day_type` with `dayType` (`auto` \| `training` \| `competition` \| `rest`) — iPhone updates `ProSettings.dayTypeOverride`; next snapshot includes `dayTypeOverride` + labels for Watch selected state.
 
-## Full-screen layout (watch UI) — v6
+## Full-screen layout (watch UI) — v6.1
 
 Edge-to-edge face filling. **No safe-zone padding.** Three rows on every page:
 
 | Row | Height | Content |
 |-----|--------|---------|
 | **Header** | 22pt | Leading icon + title + status dot; **52pt trailing clock reserve** (no content under system time) |
-| **Body** | flex | Centered hero dial(s) or 2×2 tile grid |
-| **Bottom bar** | 36–44pt | Flush to `layoutHeight` bottom; may extend behind page dots |
+| **Body** | flex | Hero dial(s) or 2×2 tile grid (top-aligned) |
+| **Bottom bar** | 36–44pt | Pinned to `faceHeight` bottom; bleeds under page dots |
 
-`layoutHeight = geo.size.height + pageIndicatorReserve` (14–18pt).
+`faceHeight = geo.size.height` (no added reserve). `pageIndicatorOverlap` (~14pt) extends footer **background** under TabView dots via negative bottom padding — not added to shell height.
 
 ### Per-page bottom bars
 
@@ -92,11 +92,15 @@ Edge-to-edge face filling. **No safe-zone padding.** Three rows on every page:
 | **Calories** | 50/50 Target \| Eaten (36pt) |
 | **Macros** | Full-width mic icon only (44pt) |
 | **Hydration** | 50/50 quick-add buttons (44pt) |
-| **Today** | None — 2×2 equal tiles fill body |
+| **Today** | None — 2×2 equal tiles fill body (top-aligned, uniform H+V gutters) |
 
-### Why v5 failed
+### Today tile grid
 
-Reserved `headerZoneHeight` (~30pt) as body padding while also overlaying the header, shrinking the hero. ZStack hero/footer overlap caused graphics collision.
+`DayTypePicker` uses explicit `VStack` + `HStack` with one `tileGap` (2pt) for **equal horizontal and vertical** spacing. Tiles sized from body: `min((faceWidth - G) / 2, (bodyHeight - G) / 2)`.
+
+### Why v6 left a bottom dead band
+
+Adding `pageIndicatorReserve` to shell height did not reclaim the TabView dot band — footers sat above the dots. v6.1 pins the shell to `faceHeight` and bleeds the footer under dots instead.
 
 ### Instrument dials
 
@@ -105,7 +109,7 @@ Reserved `headerZoneHeight` (~30pt) as body padding while also overlaying the he
 | `CalorieInstrumentDial` | `CalorieGauge` | Top arc + 28 bottom ticks |
 | `MacroInstrumentDial` | `MacroRing` | Top arc + 20 ticks; % centered |
 
-DEBUG: `[WatchLayout] geo=… layoutH=… bodyH=… dial=…`
+DEBUG: `[WatchLayout] geo=… faceH=… bodyH=… dial=… footerBottom=…`
 
 ## Interaction feedback
 
