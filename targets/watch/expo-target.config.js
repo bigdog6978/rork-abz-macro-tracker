@@ -4,10 +4,11 @@ module.exports = (config) => ({
   icon: '../../assets/images/icon.png',
   displayName: 'Physiq',
   // Speech.framework / SFSpeechRecognizer is unavailable on watchOS; the meal
-  // dictation flow uses TextFieldLink (system dictation), which needs no extra
-  // frameworks, no microphone entitlement, and no speech-recognition entitlement.
+  // dictation flow uses a native SwiftUI TextField (Scribble/Dictation/Emoji),
+  // which needs no extra frameworks, no microphone entitlement, and no
+  // speech-recognition entitlement. On watchOS 9+ it upgrades to TextFieldLink.
   frameworks: ['WatchConnectivity', 'SwiftUI'],
-  // TextFieldLink requires watchOS 9.0+.
-  deploymentTarget: '9.0',
+  // Floor at watchOS 8.0 so Apple Watch Series 3 (42mm) and newer can install.
+  deploymentTarget: '8.0',
   bundleIdentifier: '.watch',
 });

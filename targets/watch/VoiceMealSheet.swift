@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Dictation flow: capture a spoken meal with watchOS system dictation
-/// (`TextFieldLink`) and send the transcript to iPhone for food lookup.
-/// watchOS has no on-device `SFSpeechRecognizer`; the system input UI handles
-/// dictation/scribble and hands us the recognized text as a plain string.
+/// Dictation flow: capture a spoken meal with watchOS system input and send the
+/// transcript to iPhone for food lookup. watchOS has no on-device
+/// `SFSpeechRecognizer`; the system input UI handles dictation/scribble and hands
+/// us the recognized text as a plain string. On watchOS 9+ this upgrades to
+/// `TextFieldLink`; on watchOS 8 it falls back to a native `TextField`.
 struct VoiceMealSheet: View {
   @EnvironmentObject private var connectivity: WatchConnectivityManager
   @Environment(\.dismiss) private var dismiss
@@ -49,21 +50,25 @@ struct VoiceMealSheet: View {
       }
 
       if phase == .ready {
-        TextFieldLink(prompt: Text("Say what you ate")) {
-          Label("Start speaking", systemImage: "mic.fill")
-            .font(.system(size: 12, weight: .bold))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-        } onSubmit: { spoken in
-          WatchInteractionFeedback.play(.confirm)
-          transcript = spoken
-          submitTranscript()
+        if #available(watchOS 9.0, *) {
+          TextFieldLink(prompt: Text("Say what you ate")) {
+            Label("Start speaking", systemImage: "mic.fill")
+              .font(.system(size: 12, weight: .bold))
+              .frame(maxWidth: .infinity)
+              .padding(.vertical, 10)
+          } onSubmit: { spoken in
+            WatchInteractionFeedback.play(.confirm)
+            transcript = spoken
+            submitTranscript()
+          }
+          .buttonStyle(PhysiqPressableButtonStyle())
+          .foregroundStyle(PhysiqTheme.background)
+          .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(PhysiqTheme.defaultAccent)
+          )
+        } else {
+          legacyDictationInput
         }
-        .buttonStyle(PhysiqPressableButtonStyle())
-        .foregroundStyle(PhysiqTheme.background)
-        .background(
-          RoundedRectangle(cornerRadius: 12, style: .continuous).fill(PhysiqTheme.defaultAccent)
-        )
       }
 
       if phase == .sending {
@@ -81,6 +86,36 @@ struct VoiceMealSheet: View {
       }
     }
     .padding(10)
+  }
+
+  /// watchOS 8 fallback: a native TextField opens the system input UI
+  /// (Dictation / Scribble / Emoji) and returns the recognized text as a string.
+  private var legacyDictationInput: some View {
+    VStack(spacing: 8) {
+      TextField("Say what you ate", text: $transcript)
+        .font(.system(size: 13, weight: .semibold))
+        .submitLabel(.done)
+        .onSubmit {
+          WatchInteractionFeedback.play(.confirm)
+          submitTranscript()
+        }
+
+      Button {
+        WatchInteractionFeedback.play(.confirm)
+        submitTranscript()
+      } label: {
+        Label("Send", systemImage: "paperplane.fill")
+          .font(.system(size: 12, weight: .bold))
+          .frame(maxWidth: .infinity)
+          .padding(.vertical, 10)
+      }
+      .buttonStyle(PhysiqPressableButtonStyle())
+      .foregroundStyle(PhysiqTheme.background)
+      .background(
+        RoundedRectangle(cornerRadius: 12, style: .continuous).fill(PhysiqTheme.defaultAccent)
+      )
+      .disabled(transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
   }
 
   private var statusText: String {

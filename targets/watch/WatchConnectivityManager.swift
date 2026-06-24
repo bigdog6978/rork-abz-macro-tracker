@@ -65,18 +65,28 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     case failed(String)
   }
 
+  private static let dayTypeLabels: [String: String] = [
+    "auto": "Auto",
+    "training": "Training",
+    "competition": "Competition",
+    "rest": "Rest",
+  ]
+
   /// Override today's day type (auto / training / competition / rest).
   func setDayType(_ dayType: String, completion: ((DayTypeSendResult) -> Void)? = nil) {
     pendingDayTypeOverride = dayType
     dayTypeFeedback = nil
+    context["dayTypeOverride"] = dayType
+    if let label = Self.dayTypeLabels[dayType] {
+      context["dayTypeOverrideLabel"] = label
+    }
     let message: [String: String] = [
       "action": "set_day_type",
       "dayType": dayType,
     ]
-    sendWithReply(message, onReply: { reply in
-      if let confirmed = reply["dayTypeOverride"] as? String, confirmed == dayType {
-        self.pendingDayTypeOverride = nil
-      }
+    sendWithReply(message, onReply: { _ in
+      // Keep pending until a phone snapshot confirms — clearing on reply alone
+      // causes a brief revert when context still holds the previous override.
       completion?(.ok)
     }, onQueued: {
       self.dayTypeFeedback = "Queued — open Physiq on iPhone"
@@ -143,7 +153,15 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
       }
     }
     DispatchQueue.main.async {
-      self.context.merge(strings) { _, new in new }
+      var incoming = strings
+      if let pending = self.pendingDayTypeOverride,
+         let snapshotDayType = incoming["dayTypeOverride"],
+         snapshotDayType != pending {
+        // Ignore stale day-type fields until the phone snapshot matches the tap.
+        incoming.removeValue(forKey: "dayTypeOverride")
+        incoming.removeValue(forKey: "dayTypeOverrideLabel")
+      }
+      self.context.merge(incoming) { _, new in new }
       if let pending = self.pendingDayTypeOverride,
          let confirmed = strings["dayTypeOverride"],
          confirmed == pending {

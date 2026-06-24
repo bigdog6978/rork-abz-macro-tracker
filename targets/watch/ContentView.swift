@@ -213,13 +213,13 @@ struct ContentView: View {
             .frame(maxWidth: .infinity)
         }
         HStack(spacing: WatchLayoutMetrics.macroRowGap) {
-          macroCell(icon: "fork.knife", consumed: snapshot.proteinConsumed, target: snapshot.proteinTarget,
+          macroCell(title: "Protein", consumed: snapshot.proteinConsumed, target: snapshot.proteinTarget,
                     ring: PhysiqTheme.color(hex: snapshot.proteinHex, fallback: PhysiqTheme.protein),
                     ringSize: ringSize, metrics: metrics)
-          macroCell(icon: "leaf.fill", consumed: snapshot.carbsConsumed, target: snapshot.carbsTarget,
+          macroCell(title: "Carbs", consumed: snapshot.carbsConsumed, target: snapshot.carbsTarget,
                     ring: PhysiqTheme.color(hex: snapshot.carbsHex, fallback: PhysiqTheme.carbs),
                     ringSize: ringSize, metrics: metrics)
-          macroCell(icon: "drop.fill", consumed: snapshot.fatConsumed, target: snapshot.fatTarget,
+          macroCell(title: "Fat", consumed: snapshot.fatConsumed, target: snapshot.fatTarget,
                     ring: PhysiqTheme.color(hex: snapshot.fatHex, fallback: PhysiqTheme.fat),
                     ringSize: ringSize, metrics: metrics)
         }
@@ -238,14 +238,15 @@ struct ContentView: View {
   }
 
   private func macroCell(
-    icon: String,
+    title: String,
     consumed: Double,
     target: Double,
     ring: Color,
     ringSize: CGFloat,
     metrics: WatchLayoutMetrics
   ) -> some View {
-    VStack(spacing: 2) {
+    let labelSize = max(11, ringSize * 0.25)
+    return VStack(spacing: 2) {
       ZStack {
         MacroInstrumentDial(
           progress: snapshot.progress(consumed: consumed, target: target),
@@ -260,9 +261,11 @@ struct ContentView: View {
           .minimumScaleFactor(0.6)
           .lineLimit(1)
       }
-      Image(systemName: icon)
-        .font(.system(size: max(9, ringSize * 0.20), weight: .bold))
-        .foregroundStyle(ring)
+      Text(title)
+        .font(.system(size: labelSize, weight: .heavy))
+        .foregroundStyle(PhysiqTheme.textPrimary)
+        .minimumScaleFactor(0.7)
+        .lineLimit(1)
     }
     .frame(maxWidth: .infinity)
   }
