@@ -1,12 +1,11 @@
 import SwiftUI
 
-/// Edge-to-edge watch face geometry (v6.3). VStack shell; footer column includes dot-band bleed.
+/// Edge-to-edge watch face geometry (v6.5). All safe areas ignored, so geo == full physical face. VStack shell; footer bar at true bottom, page dots overlay.
 struct WatchLayoutMetrics: Equatable {
   let size: CGSize
   let safeAreaInsets: EdgeInsets
 
   static let headerRowHeight: CGFloat = 22
-  static let leadingInset: CGFloat = 8
   /// Upper-right — keep macro/hero ticks out of system clock.
   static let clockExclusionWidth: CGFloat = 48
   static let bottomBarHeight: CGFloat = 44
@@ -14,7 +13,6 @@ struct WatchLayoutMetrics: Equatable {
   static let macroLabelHeight: CGFloat = 10
   static let macroRowGap: CGFloat = 2
   static let todayTileGap: CGFloat = 4
-  static let macroClockTrailingInset: CGFloat = 12
 
   static let fallback = WatchLayoutMetrics(
     size: CGSize(width: 184, height: 224),
@@ -24,12 +22,14 @@ struct WatchLayoutMetrics: Equatable {
   static func from(_ geo: GeometryProxy) -> WatchLayoutMetrics {
     let metrics = WatchLayoutMetrics(size: geo.size, safeAreaInsets: geo.safeAreaInsets)
     #if DEBUG
-    let body = metrics.bodyHeight(bottomBar: Self.bottomBarHeight)
     print(
       "[WatchLayout] geo=\(Int(geo.size.width))×\(Int(geo.size.height)) "
         + "safeT=\(Int(geo.safeAreaInsets.top)) safeB=\(Int(geo.safeAreaInsets.bottom)) "
-        + "dotBand=\(Int(metrics.pageDotBandHeight)) faceH=\(Int(metrics.faceHeight)) "
-        + "bodyH=\(Int(body)) footerH=\(Int(metrics.footerStackHeight(bar: Self.bottomBarHeight)))"
+        + "safeL=\(Int(geo.safeAreaInsets.leading)) safeR=\(Int(geo.safeAreaInsets.trailing)) "
+        + "faceH=\(Int(metrics.faceHeight)) "
+        + "bodyH=\(Int(metrics.bodyHeight(bottomBar: Self.bottomBarHeight))) "
+        + "todayBodyH=\(Int(metrics.todayBodyHeight())) "
+        + "todayTile=\(Int(metrics.todayTileSide()))"
     )
     #endif
     return metrics
@@ -38,29 +38,19 @@ struct WatchLayoutMetrics: Equatable {
   var faceHeight: CGFloat { size.height }
   var faceWidth: CGFloat { size.width }
 
-  /// TabView page-indicator strip (tune from DEBUG logs on target sims).
-  var pageDotBandHeight: CGFloat {
-    let sizeBand: CGFloat
-    switch size.height {
-    case 250...: sizeBand = 22
-    case 230..<250: sizeBand = 26
-    case 210..<230: sizeBand = 28
-    default: sizeBand = 26
-    }
-    return max(sizeBand, safeAreaInsets.bottom + 10)
+  var leadingInset: CGFloat {
+    max(10, safeAreaInsets.leading + 4)
   }
 
-  func footerStackHeight(bar: CGFloat) -> CGFloat {
-    bar > 0 ? bar + pageDotBandHeight : pageDotBandHeight
-  }
-
-  /// Flex body between header and footer column (bar + dot band).
+  /// Flex body between the header and footer bar. All safe areas are ignored, so
+  /// `faceHeight` is the full physical face; the footer bar sits at the true bottom
+  /// and the TabView page dots simply overlay it (no dot-band reservation).
   func bodyHeight(bottomBar: CGFloat) -> CGFloat {
-    max(0, faceHeight - Self.headerRowHeight - footerStackHeight(bar: bottomBar))
+    max(0, faceHeight - Self.headerRowHeight - bottomBar)
   }
 
   func todayBodyHeight() -> CGFloat {
-    bodyHeight(bottomBar: 0)
+    max(0, faceHeight - Self.headerRowHeight)
   }
 
   func heroDialSize(bottomBar: CGFloat) -> CGFloat {
@@ -70,7 +60,9 @@ struct WatchLayoutMetrics: Equatable {
 
   func macroDialSize(bottomBar: CGFloat = bottomBarHeight) -> CGFloat {
     let body = bodyHeight(bottomBar: bottomBar)
-    let rowWidth = faceWidth - Self.macroClockTrailingInset
+    // Rings are vertically centered below the clock, so they use the full width
+    // (minus a small edge margin) rather than reserving the top-right clock column.
+    let rowWidth = faceWidth - 12
     let cellWidth = (rowWidth - Self.macroRowGap * 2) / 3
     let heightBased = body - Self.macroLabelHeight - Self.macroRowGap
     return max(36, min(cellWidth, heightBased))
@@ -85,6 +77,6 @@ struct WatchLayoutMetrics: Equatable {
     let gap = Self.todayTileGap
     let byHeight = (body - gap) / 2
     let byWidth = (faceWidth - gap) / 2
-    return max(40, min(byWidth, byHeight))
+    return max(40, min(byHeight, byWidth))
   }
 }

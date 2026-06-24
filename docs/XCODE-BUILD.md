@@ -34,6 +34,38 @@ Run **one scheme at a time** — parallel builds cause `build.db locked`.
 
 ---
 
+## Verify the watch UI in the simulator (no paired phone)
+
+The watch app shows an empty state until the phone pushes data, so a DEBUG harness ([`targets/watch/WatchDebugHarness.swift`](../targets/watch/WatchDebugHarness.swift)) seeds mock data and lets you screenshot any page from the CLI. All harness code is `#if DEBUG` only.
+
+```bash
+cd ios
+WATCH=<watchOS-sim-udid>            # xcrun simctl list devices | grep Watch
+BUNDLE=app.rork.abz-macro-tracker.watch
+
+# 1. Build the standalone watchsimulator product
+xcodebuild -scheme watch -workspace PhysiqMacroTracker.xcworkspace \
+  -destination "platform=watchOS Simulator,id=$WATCH" \
+  -configuration Debug -derivedDataPath build/watch build
+APP=build/watch/Build/Products/Debug-watchsimulator/watch.app
+
+# 2. Boot + install
+xcrun simctl boot "$WATCH"; xcrun simctl install "$WATCH" "$APP"
+
+# 3. Launch a specific page with mock data, then screenshot
+#    pages: 0 Calories, 1 Macros, 2 Hydration, 3 Today
+xcrun simctl launch --console-pty "$WATCH" "$BUNDLE" \
+  -PhysiqMockData YES -PhysiqInitialPage 1 -PhysiqClockProbe YES &
+sleep 8
+xcrun simctl io "$WATCH" screenshot /tmp/macros.png
+```
+
+- `-PhysiqClockProbe YES` overlays the header band + top-right clock box to verify clock clearance.
+- The same `watch.app` (arm64) installs across watch sim sizes without rebuilding — handy for checking 40mm vs 49mm.
+- `[WatchLayout]` lines print to the `--console-pty` stream for measuring `geo` / safe insets.
+
+---
+
 ## “66 issues” in Issue Navigator
 
 Xcode counts **warnings + errors** as “issues.” Most are **yellow warnings** from third-party pods — **not build failures**.

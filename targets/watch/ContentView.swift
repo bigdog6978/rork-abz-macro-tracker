@@ -1,9 +1,18 @@
 import SwiftUI
 
-/// Paged Physiq watch UI — edge-to-edge v6.3 layout. Phone-driven via WatchConnectivity.
+/// Paged Physiq watch UI — true edge-to-edge v6.5 layout (all safe areas ignored). Phone-driven via WatchConnectivity.
 struct ContentView: View {
   @EnvironmentObject private var connectivity: WatchConnectivityManager
   @State private var voiceMealSheetVisible = false
+  @State private var selectedPage: Int
+
+  init() {
+    #if DEBUG
+    _selectedPage = State(initialValue: WatchDebugHarness.initialPage)
+    #else
+    _selectedPage = State(initialValue: 0)
+    #endif
+  }
 
   private var snapshot: WatchSnapshot {
     WatchSnapshot.parse(connectivity.context)
@@ -20,22 +29,29 @@ struct ContentView: View {
   var body: some View {
     Group {
       if snapshot.hasData {
-        TabView {
-          WatchPageContainer { metrics in caloriesPage(metrics: metrics) }
-          WatchPageContainer { metrics in macrosPage(metrics: metrics) }
-          WatchPageContainer { metrics in hydrationPage(metrics: metrics) }
-          WatchPageContainer { metrics in todayPage(metrics: metrics) }
+        TabView(selection: $selectedPage) {
+          WatchPageContainer { metrics in caloriesPage(metrics: metrics) }.tag(0)
+          WatchPageContainer { metrics in macrosPage(metrics: metrics) }.tag(1)
+          WatchPageContainer { metrics in hydrationPage(metrics: metrics) }.tag(2)
+          WatchPageContainer { metrics in todayPage(metrics: metrics) }.tag(3)
         }
         .tabViewStyle(PageTabViewStyle())
-        .ignoresSafeArea(.container, edges: [.bottom])
+        .ignoresSafeArea()
       } else {
         WatchPageContainer(scrollable: true) { _ in emptyState }
       }
     }
     .background(PhysiqTheme.background.ignoresSafeArea())
+    .overlay {
+      #if DEBUG
+      if WatchDebugHarness.isClockProbeEnabled {
+        ClockProbeOverlay()
+      }
+      #endif
+    }
   }
 
-  // MARK: - Page shell (VStack: header → body → footer column)
+  // MARK: - Page shell (VStack: header → body → footer bar)
 
   private func watchPageShell<Body: View, Bottom: View>(
     metrics: WatchLayoutMetrics,
@@ -43,7 +59,7 @@ struct ContentView: View {
     title: String,
     iconColor: Color? = nil,
     bottomBarHeight: CGFloat,
-    footerBleedColor: Color = .clear,
+    footerBackgroundColor: Color = .clear,
     @ViewBuilder body: () -> Body,
     @ViewBuilder bottomBar: () -> Bottom
   ) -> some View {
@@ -55,7 +71,7 @@ struct ContentView: View {
         footerColumn(
           metrics: metrics,
           barHeight: bottomBarHeight,
-          bleedColor: footerBleedColor,
+          backgroundColor: footerBackgroundColor,
           content: bottomBar
         )
       }
@@ -64,20 +80,19 @@ struct ContentView: View {
     .ignoresSafeArea(.container, edges: .bottom)
   }
 
-  /// Bottom bar + colored bleed into TabView dot band (last row of VStack).
+  /// Bottom action bar; background extends behind TabView page dots.
   private func footerColumn<Content: View>(
     metrics: WatchLayoutMetrics,
     barHeight: CGFloat,
-    bleedColor: Color,
+    backgroundColor: Color,
     @ViewBuilder content: () -> Content
   ) -> some View {
-    let dotBand = metrics.pageDotBandHeight
-    return VStack(spacing: 0) {
-      content()
-        .frame(width: metrics.faceWidth, height: barHeight)
-      bleedColor
-        .frame(width: metrics.faceWidth, height: dotBand)
-    }
+    content()
+      .frame(width: metrics.faceWidth, height: barHeight)
+      .background {
+        backgroundColor
+          .ignoresSafeArea(.container, edges: .bottom)
+      }
   }
 
   /// Title row on the system clock line — leading icon + title.
@@ -100,7 +115,7 @@ struct ContentView: View {
         .frame(width: 5, height: 5)
       Spacer(minLength: 0)
     }
-    .padding(.leading, WatchLayoutMetrics.leadingInset)
+    .padding(.leading, metrics.leadingInset)
     .frame(width: metrics.faceWidth, height: WatchLayoutMetrics.headerRowHeight, alignment: .leading)
   }
 
@@ -115,7 +130,7 @@ struct ContentView: View {
       icon: "flame.fill",
       title: "Calories",
       bottomBarHeight: bottomH,
-      footerBleedColor: PhysiqTheme.card.opacity(0.5)
+      footerBackgroundColor: PhysiqTheme.card.opacity(0.5)
     ) {
       caloriesHeroRing(ringSize: ringSize, metrics: metrics)
     } bottomBar: {
@@ -185,9 +200,9 @@ struct ContentView: View {
       icon: "chart.bar.fill",
       title: "Macros",
       bottomBarHeight: bottomH,
-      footerBleedColor: accent
+      footerBackgroundColor: accent
     ) {
-      VStack(spacing: 0) {
+      VStack(spacing: 4) {
         if !snapshot.voiceMealFeedback.isEmpty {
           Text(snapshot.voiceMealFeedback)
             .font(.system(size: 9, weight: .medium, design: .rounded))
@@ -207,9 +222,9 @@ struct ContentView: View {
                     ring: PhysiqTheme.color(hex: snapshot.fatHex, fallback: PhysiqTheme.fat),
                     ringSize: ringSize, metrics: metrics)
         }
-        .padding(.trailing, WatchLayoutMetrics.macroClockTrailingInset)
+        .padding(.horizontal, 6)
       }
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     } bottomBar: {
       micBarButton(metrics: metrics) {
         voiceMealSheetVisible = true
@@ -278,7 +293,7 @@ struct ContentView: View {
       title: "Hydration",
       iconColor: hydrationColor,
       bottomBarHeight: bottomH,
-      footerBleedColor: hydrationColor
+      footerBackgroundColor: hydrationColor
     ) {
       hydrationHeroRing(ringSize: ringSize, metrics: metrics)
     } bottomBar: {
@@ -358,8 +373,7 @@ struct ContentView: View {
       ) { dayType in
         connectivity.setDayType(dayType)
       }
-      .frame(maxWidth: .infinity, alignment: .center)
-      .frame(maxHeight: .infinity, alignment: .top)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     } bottomBar: {
       EmptyView()
     }

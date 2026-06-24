@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Full-bleed TabView page — content fills geo; safe area in metrics (v6.3).
+/// Full-bleed TabView page — content fills the entire face; all safe areas ignored (v6.5).
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content
@@ -27,7 +27,8 @@ struct WatchPageContainer<Content: View>: View {
         }
       }
       .frame(width: geo.size.width, height: geo.size.height)
-      .ignoresSafeArea(.container, edges: [.top, .bottom])
+      .ignoresSafeArea()
     }
+    .ignoresSafeArea()
   }
 }

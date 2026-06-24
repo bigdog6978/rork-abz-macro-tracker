@@ -6,6 +6,11 @@ struct PhysiqWatchApp: App {
 
   init() {
     WatchConnectivityManager.shared.activate()
+    #if DEBUG
+    if WatchDebugHarness.isMockEnabled {
+      WatchConnectivityManager.shared.context = WatchDebugHarness.mockContext
+    }
+    #endif
   }
 
   var body: some Scene {
