@@ -107,7 +107,7 @@ struct ContentView: View {
         .font(.system(size: 11, weight: .bold))
         .foregroundStyle(iconColor ?? accent)
       Text(title)
-        .font(.system(size: 12, weight: .heavy, design: .rounded))
+        .font(.system(size: 12, weight: .heavy))
         .foregroundStyle(PhysiqTheme.textPrimary)
         .lineLimit(1)
       Circle()
@@ -116,7 +116,8 @@ struct ContentView: View {
       Spacer(minLength: 0)
     }
     .padding(.leading, metrics.leadingInset)
-    .frame(width: metrics.faceWidth, height: WatchLayoutMetrics.headerRowHeight, alignment: .leading)
+    .padding(.top, WatchLayoutMetrics.headerTopInset)
+    .frame(width: metrics.faceWidth, height: WatchLayoutMetrics.headerBandHeight, alignment: .leading)
   }
 
   // MARK: - Calories
@@ -151,13 +152,13 @@ struct ContentView: View {
           .font(.system(size: max(12, ringSize * 0.12)))
           .foregroundStyle(accent)
         Text(formatInt(snapshot.caloriesRemaining))
-          .font(.system(size: metrics.heroCalorieFontSize(for: ringSize), weight: .bold, design: .rounded))
+          .font(.system(size: metrics.heroCalorieFontSize(for: ringSize), weight: .bold))
           .monospacedDigit()
           .foregroundStyle(PhysiqTheme.textPrimary)
           .minimumScaleFactor(0.6)
           .lineLimit(1)
         Text("cal left")
-          .font(.system(size: 10, weight: .semibold, design: .rounded))
+          .font(.system(size: 10, weight: .semibold))
           .foregroundStyle(PhysiqTheme.textSecondary)
       }
     }
@@ -168,7 +169,7 @@ struct ContentView: View {
     HStack(spacing: 0) {
       calorieStatCell("Target", formatInt(snapshot.caloriesTarget), accentValue: false)
       Rectangle().fill(PhysiqTheme.textTertiary.opacity(0.35)).frame(width: 1)
-      calorieStatCell("Eaten", formatInt(snapshot.caloriesConsumed), accentValue: true)
+      calorieStatCell("Consumed", formatInt(snapshot.caloriesConsumed), accentValue: true)
     }
     .frame(maxWidth: .infinity)
     .background(PhysiqTheme.card.opacity(0.5))
@@ -176,11 +177,11 @@ struct ContentView: View {
 
   private func calorieStatCell(_ title: String, _ value: String, accentValue: Bool) -> some View {
     VStack(spacing: 1) {
-      Text(title.uppercased())
-        .font(.system(size: 8, weight: .heavy, design: .rounded))
+      Text(title)
+        .font(.system(size: 8, weight: .heavy))
         .foregroundStyle(PhysiqTheme.textTertiary)
       Text(value)
-        .font(.system(size: 15, weight: .bold, design: .rounded))
+        .font(.system(size: 15, weight: .bold))
         .monospacedDigit()
         .foregroundStyle(accentValue ? accent : PhysiqTheme.textPrimary)
         .minimumScaleFactor(0.7)
@@ -205,20 +206,20 @@ struct ContentView: View {
       VStack(spacing: 4) {
         if !snapshot.voiceMealFeedback.isEmpty {
           Text(snapshot.voiceMealFeedback)
-            .font(.system(size: 9, weight: .medium, design: .rounded))
+            .font(.system(size: 9, weight: .medium))
             .foregroundStyle(PhysiqTheme.textSecondary)
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .frame(maxWidth: .infinity)
         }
         HStack(spacing: WatchLayoutMetrics.macroRowGap) {
-          macroCell("Protein", consumed: snapshot.proteinConsumed, target: snapshot.proteinTarget,
+          macroCell(icon: "fork.knife", consumed: snapshot.proteinConsumed, target: snapshot.proteinTarget,
                     ring: PhysiqTheme.color(hex: snapshot.proteinHex, fallback: PhysiqTheme.protein),
                     ringSize: ringSize, metrics: metrics)
-          macroCell("Carbs", consumed: snapshot.carbsConsumed, target: snapshot.carbsTarget,
+          macroCell(icon: "leaf.fill", consumed: snapshot.carbsConsumed, target: snapshot.carbsTarget,
                     ring: PhysiqTheme.color(hex: snapshot.carbsHex, fallback: PhysiqTheme.carbs),
                     ringSize: ringSize, metrics: metrics)
-          macroCell("Fat", consumed: snapshot.fatConsumed, target: snapshot.fatTarget,
+          macroCell(icon: "drop.fill", consumed: snapshot.fatConsumed, target: snapshot.fatTarget,
                     ring: PhysiqTheme.color(hex: snapshot.fatHex, fallback: PhysiqTheme.fat),
                     ringSize: ringSize, metrics: metrics)
         }
@@ -237,7 +238,7 @@ struct ContentView: View {
   }
 
   private func macroCell(
-    _ title: String,
+    icon: String,
     consumed: Double,
     target: Double,
     ring: Color,
@@ -253,16 +254,15 @@ struct ContentView: View {
           size: ringSize
         )
         Text("\(percent(consumed, target))%")
-          .font(.system(size: max(9, ringSize * 0.22), weight: .heavy, design: .rounded))
+          .font(.system(size: max(9, ringSize * 0.22), weight: .heavy))
           .monospacedDigit()
           .foregroundStyle(ring)
           .minimumScaleFactor(0.6)
           .lineLimit(1)
       }
-      Text(title.uppercased())
-        .font(.system(size: 7, weight: .heavy, design: .rounded))
-        .foregroundStyle(PhysiqTheme.textTertiary)
-        .lineLimit(1)
+      Image(systemName: icon)
+        .font(.system(size: max(9, ringSize * 0.20), weight: .bold))
+        .foregroundStyle(ring)
     }
     .frame(maxWidth: .infinity)
   }
@@ -314,13 +314,13 @@ struct ContentView: View {
           .font(.system(size: max(12, ringSize * 0.12)))
           .foregroundStyle(hydrationColor)
         Text(snapshot.hydrationDisplay)
-          .font(.system(size: min(18, ringSize * 0.14), weight: .bold, design: .rounded))
+          .font(.system(size: min(18, ringSize * 0.14), weight: .bold))
           .monospacedDigit()
           .foregroundStyle(PhysiqTheme.textPrimary)
           .minimumScaleFactor(0.6)
           .lineLimit(1)
         Text(HydrationFormat.unitLabel(snapshot.hydrationUnit))
-          .font(.system(size: 9, weight: .semibold, design: .rounded))
+          .font(.system(size: 9, weight: .semibold))
           .foregroundStyle(PhysiqTheme.textSecondary)
       }
     }
@@ -339,7 +339,7 @@ struct ContentView: View {
           connectivity.logWater(ml: preset.ml)
         } label: {
           Text(preset.label)
-            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .font(.system(size: 12, weight: .bold))
             .minimumScaleFactor(0.7)
             .lineLimit(1)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -389,10 +389,10 @@ struct ContentView: View {
     VStack(alignment: .leading, spacing: 6) {
       Image(systemName: "iphone.gen3").font(.system(size: 20)).foregroundStyle(accent)
       Text("No data yet")
-        .font(.system(size: 14, weight: .semibold, design: .rounded))
+        .font(.system(size: 14, weight: .semibold))
         .foregroundStyle(PhysiqTheme.textPrimary)
       Text("Open Physiq on your iPhone — targets sync automatically when the app is running.")
-        .font(.system(size: 11, weight: .medium, design: .rounded))
+        .font(.system(size: 11, weight: .medium))
         .foregroundStyle(PhysiqTheme.textSecondary)
         .fixedSize(horizontal: false, vertical: true)
     }

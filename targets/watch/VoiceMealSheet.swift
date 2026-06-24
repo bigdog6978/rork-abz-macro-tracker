@@ -26,20 +26,20 @@ struct VoiceMealSheet: View {
           .font(.system(size: 12, weight: .bold))
           .foregroundStyle(PhysiqTheme.defaultAccent)
         Text("Speak meal")
-          .font(.system(size: 13, weight: .heavy, design: .rounded))
+          .font(.system(size: 13, weight: .heavy))
           .foregroundStyle(PhysiqTheme.textPrimary)
         Spacer(minLength: 0)
       }
 
       Text(statusText)
-        .font(.system(size: 11, weight: .medium, design: .rounded))
+        .font(.system(size: 11, weight: .medium))
         .foregroundStyle(PhysiqTheme.textSecondary)
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
 
       if !transcript.isEmpty {
         Text(transcript)
-          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .font(.system(size: 12, weight: .semibold))
           .foregroundStyle(PhysiqTheme.textPrimary)
           .multilineTextAlignment(.center)
           .lineLimit(4)
@@ -51,7 +51,7 @@ struct VoiceMealSheet: View {
       if phase == .ready {
         TextFieldLink(prompt: Text("Say what you ate")) {
           Label("Start speaking", systemImage: "mic.fill")
-            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .font(.system(size: 12, weight: .bold))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
         } onSubmit: { spoken in
@@ -76,7 +76,7 @@ struct VoiceMealSheet: View {
           WatchInteractionFeedback.play(.tap)
           dismiss()
         }
-        .font(.system(size: 12, weight: .bold, design: .rounded))
+        .font(.system(size: 12, weight: .bold))
         .buttonStyle(PhysiqPressableButtonStyle())
       }
     }

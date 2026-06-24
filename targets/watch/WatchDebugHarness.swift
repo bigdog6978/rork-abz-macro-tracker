@@ -51,11 +51,11 @@ struct ClockProbeOverlay: View {
     ZStack(alignment: .topLeading) {
       Rectangle()
         .fill(Color.red.opacity(0.22))
-        .frame(height: WatchLayoutMetrics.headerRowHeight)
+        .frame(height: WatchLayoutMetrics.headerBandHeight)
       Rectangle()
         .stroke(Color.cyan, lineWidth: 1)
         .frame(width: WatchLayoutMetrics.clockExclusionWidth,
-               height: WatchLayoutMetrics.headerRowHeight + 8)
+               height: WatchLayoutMetrics.headerBandHeight + 8)
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

@@ -49,7 +49,7 @@ struct DayTypePicker: View {
         Image(systemName: option.icon)
           .font(.system(size: max(12, tileSide * 0.22), weight: .bold))
         Text(option.label)
-          .font(.system(size: max(9, tileSide * 0.14), weight: .bold, design: .rounded))
+          .font(.system(size: max(9, tileSide * 0.14), weight: .bold))
           .minimumScaleFactor(0.7)
           .lineLimit(1)
       }

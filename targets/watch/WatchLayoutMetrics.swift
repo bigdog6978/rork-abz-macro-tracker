@@ -6,13 +6,18 @@ struct WatchLayoutMetrics: Equatable {
   let safeAreaInsets: EdgeInsets
 
   static let headerRowHeight: CGFloat = 22
+  /// Nudge title row down so it aligns with the system clock baseline.
+  static let headerTopInset: CGFloat = 6
+  static var headerBandHeight: CGFloat { headerRowHeight + headerTopInset }
   /// Upper-right — keep macro/hero ticks out of system clock.
   static let clockExclusionWidth: CGFloat = 48
   static let bottomBarHeight: CGFloat = 44
   static let caloriesBottomBarHeight: CGFloat = 36
-  static let macroLabelHeight: CGFloat = 10
+  static let macroIconHeight: CGFloat = 10
   static let macroRowGap: CGFloat = 2
   static let todayTileGap: CGFloat = 4
+  /// Shrink the 2×2 grid uniformly so tiles have even margin inside the body.
+  static let todayGridFill: CGFloat = 0.86
 
   static let fallback = WatchLayoutMetrics(
     size: CGSize(width: 184, height: 224),
@@ -46,16 +51,16 @@ struct WatchLayoutMetrics: Equatable {
   /// `faceHeight` is the full physical face; the footer bar sits at the true bottom
   /// and the TabView page dots simply overlay it (no dot-band reservation).
   func bodyHeight(bottomBar: CGFloat) -> CGFloat {
-    max(0, faceHeight - Self.headerRowHeight - bottomBar)
+    max(0, faceHeight - Self.headerBandHeight - bottomBar)
   }
 
   func todayBodyHeight() -> CGFloat {
-    max(0, faceHeight - Self.headerRowHeight)
+    max(0, faceHeight - Self.headerBandHeight)
   }
 
   /// Fraction of the body height a hero dial may occupy, leaving vertical breathing
   /// room so the ring never kisses the clock/title row above or the footer bar below.
-  static let heroDialFill: CGFloat = 0.92
+  static let heroDialFill: CGFloat = 0.88
 
   func heroDialSize(bottomBar: CGFloat) -> CGFloat {
     let body = bodyHeight(bottomBar: bottomBar) * Self.heroDialFill
@@ -68,7 +73,7 @@ struct WatchLayoutMetrics: Equatable {
     // (minus a small edge margin) rather than reserving the top-right clock column.
     let rowWidth = faceWidth - 12
     let cellWidth = (rowWidth - Self.macroRowGap * 2) / 3
-    let heightBased = body - Self.macroLabelHeight - Self.macroRowGap
+    let heightBased = body - Self.macroIconHeight - Self.macroRowGap
     return max(36, min(cellWidth, heightBased))
   }
 
@@ -79,8 +84,9 @@ struct WatchLayoutMetrics: Equatable {
   func todayTileSide() -> CGFloat {
     let body = todayBodyHeight()
     let gap = Self.todayTileGap
-    let byHeight = (body - gap) / 2
-    let byWidth = (faceWidth - gap) / 2
+    let fill = Self.todayGridFill
+    let byHeight = (body - gap) / 2 * fill
+    let byWidth = (faceWidth - gap) / 2 * fill
     return max(40, min(byHeight, byWidth))
   }
 }
