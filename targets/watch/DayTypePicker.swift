@@ -29,7 +29,7 @@ struct DayTypePicker: View {
       tileRow(options[0], options[1])
       tileRow(options[2], options[3])
     }
-    .frame(width: gridWidth, height: gridHeight, alignment: .topLeading)
+    .frame(width: gridWidth, height: gridHeight)
   }
 
   private func tileRow(_ left: DayTypeOption, _ right: DayTypeOption) -> some View {

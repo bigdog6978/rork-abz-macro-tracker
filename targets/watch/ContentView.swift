@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Paged Physiq watch UI — edge-to-edge v6 layout. Phone-driven via WatchConnectivity.
+/// Paged Physiq watch UI — edge-to-edge v6.2 layout. Phone-driven via WatchConnectivity.
 struct ContentView: View {
   @EnvironmentObject private var connectivity: WatchConnectivityManager
   @State private var voiceMealSheetVisible = false
@@ -35,7 +35,7 @@ struct ContentView: View {
     .background(PhysiqTheme.background.ignoresSafeArea())
   }
 
-  // MARK: - Page shell
+  // MARK: - Page shell (ZStack: header overlay + body + bottom-pinned footer)
 
   private func watchPageShell<Body: View, Bottom: View>(
     metrics: WatchLayoutMetrics,
@@ -43,28 +43,61 @@ struct ContentView: View {
     title: String,
     iconColor: Color? = nil,
     bottomBarHeight: CGFloat,
+    footerBleedColor: Color = .clear,
     @ViewBuilder body: () -> Body,
     @ViewBuilder bottomBar: () -> Bottom
   ) -> some View {
-    VStack(spacing: 0) {
-      pageHeaderRow(icon: icon, title: title, iconColor: iconColor, metrics: metrics)
+    let dotBand = metrics.pageDotBandHeight
+    let footerStackHeight = bottomBarHeight > 0 ? bottomBarHeight + dotBand : dotBand
+
+    return ZStack(alignment: .top) {
       body()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      bottomBar()
-        .frame(width: metrics.faceWidth, height: bottomBarHeight)
-        .padding(.bottom, bottomBarHeight > 0 ? -WatchLayoutMetrics.pageIndicatorOverlap : 0)
-        .ignoresSafeArea(.container, edges: .bottom)
+        .padding(.top, WatchLayoutMetrics.headerRowHeight)
+        .padding(.bottom, footerStackHeight)
+        .frame(width: metrics.faceWidth, height: metrics.faceHeight, alignment: .top)
+
+      pageHeaderRow(icon: icon, title: title, iconColor: iconColor, metrics: metrics)
+
+      if bottomBarHeight > 0 {
+        bottomFooterStack(
+          metrics: metrics,
+          barHeight: bottomBarHeight,
+          dotBand: dotBand,
+          bleedColor: footerBleedColor,
+          content: bottomBar
+        )
+      }
     }
-    .frame(width: metrics.faceWidth, height: metrics.faceHeight, alignment: .top)
+    .frame(width: metrics.faceWidth, height: metrics.faceHeight)
+    .ignoresSafeArea(.container, edges: .bottom)
   }
 
+  /// Footer pinned to physical bottom; colored bleed fills TabView dot band (no black gap).
+  private func bottomFooterStack<Content: View>(
+    metrics: WatchLayoutMetrics,
+    barHeight: CGFloat,
+    dotBand: CGFloat,
+    bleedColor: Color,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    VStack(spacing: 0) {
+      content()
+        .frame(height: barHeight)
+      bleedColor.frame(height: dotBand)
+    }
+    .frame(width: metrics.faceWidth)
+    .frame(maxHeight: .infinity, alignment: .bottom)
+    .ignoresSafeArea(.container, edges: .bottom)
+  }
+
+  /// Title row aligned with system clock band — leading icon + title only.
   private func pageHeaderRow(
     icon: String,
     title: String,
     iconColor: Color? = nil,
     metrics: WatchLayoutMetrics
   ) -> some View {
-    HStack(spacing: 4) {
+    HStack(alignment: .center, spacing: 4) {
       Image(systemName: icon)
         .font(.system(size: 11, weight: .bold))
         .foregroundStyle(iconColor ?? accent)
@@ -76,7 +109,6 @@ struct ContentView: View {
         .fill(statusColor)
         .frame(width: 5, height: 5)
       Spacer(minLength: 0)
-      Color.clear.frame(width: WatchLayoutMetrics.clockReserve)
     }
     .padding(.leading, WatchLayoutMetrics.leadingInset)
     .frame(width: metrics.faceWidth, height: WatchLayoutMetrics.headerRowHeight, alignment: .leading)
@@ -92,7 +124,8 @@ struct ContentView: View {
       metrics: metrics,
       icon: "flame.fill",
       title: "Calories",
-      bottomBarHeight: bottomH
+      bottomBarHeight: bottomH,
+      footerBleedColor: PhysiqTheme.card.opacity(0.5)
     ) {
       caloriesHeroRing(ringSize: ringSize, metrics: metrics)
     } bottomBar: {
@@ -134,6 +167,7 @@ struct ContentView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(PhysiqTheme.card.opacity(0.5))
+    .frame(maxWidth: .infinity)
   }
 
   private func calorieStatCell(_ title: String, _ value: String, accentValue: Bool) -> some View {
@@ -161,7 +195,8 @@ struct ContentView: View {
       metrics: metrics,
       icon: "chart.bar.fill",
       title: "Macros",
-      bottomBarHeight: bottomH
+      bottomBarHeight: bottomH,
+      footerBleedColor: accent
     ) {
       VStack(spacing: 0) {
         if !snapshot.voiceMealFeedback.isEmpty {
@@ -183,6 +218,7 @@ struct ContentView: View {
                     ring: PhysiqTheme.color(hex: snapshot.fatHex, fallback: PhysiqTheme.fat),
                     ringSize: ringSize, metrics: metrics)
         }
+        .padding(.trailing, WatchLayoutMetrics.clockExclusionWidth * 0.25)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     } bottomBar: {
@@ -239,6 +275,7 @@ struct ContentView: View {
     .buttonStyle(PhysiqPressableButtonStyle())
     .foregroundStyle(PhysiqTheme.background)
     .background(accent)
+    .frame(maxWidth: .infinity)
   }
 
   // MARK: - Hydration
@@ -252,7 +289,8 @@ struct ContentView: View {
       icon: "drop.fill",
       title: "Hydration",
       iconColor: hydrationColor,
-      bottomBarHeight: bottomH
+      bottomBarHeight: bottomH,
+      footerBleedColor: hydrationColor
     ) {
       hydrationHeroRing(ringSize: ringSize, metrics: metrics)
     } bottomBar: {
@@ -305,10 +343,10 @@ struct ContentView: View {
         }
         .buttonStyle(PhysiqPressableButtonStyle())
         .foregroundStyle(PhysiqTheme.background)
-        .background(hydrationColor)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(hydrationColor)
   }
 
   // MARK: - Today
@@ -332,7 +370,8 @@ struct ContentView: View {
       ) { dayType in
         connectivity.setDayType(dayType)
       }
-      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+      .frame(maxWidth: .infinity, alignment: .center)
+      .frame(maxHeight: .infinity, alignment: .top)
     } bottomBar: {
       EmptyView()
     }

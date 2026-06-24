@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Full-bleed TabView page. Shell is bottom-pinned to geo.height (v6.1).
+/// Full-bleed TabView page — content fills geo; safe area passed to metrics (v6.2).
 struct WatchPageContainer<Content: View>: View {
   let scrollable: Bool
   @ViewBuilder let content: (WatchLayoutMetrics) -> Content
@@ -26,7 +26,7 @@ struct WatchPageContainer<Content: View>: View {
           content(metrics)
         }
       }
-      .frame(width: geo.size.width, height: metrics.faceHeight, alignment: .bottom)
+      .frame(width: geo.size.width, height: geo.size.height)
       .ignoresSafeArea(.container, edges: [.top, .bottom])
     }
   }
