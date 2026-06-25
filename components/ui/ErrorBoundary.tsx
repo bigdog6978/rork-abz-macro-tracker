@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Colors from '../../constants/colors';
+import PhysiqPressable from './PhysiqPressable';
 
 type Props = {
   children: React.ReactNode;
@@ -40,14 +41,14 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           <Text style={styles.body}>
             An unexpected error occurred. Your data is safe — try again to reload the screen.
           </Text>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="confirm"
             style={styles.button}
             onPress={this.handleRetry}
-            accessibilityRole="button"
             accessibilityLabel="Try again"
           >
             <Text style={styles.buttonText}>Try again</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
       );
     }

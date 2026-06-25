@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
@@ -168,9 +167,6 @@ export default function OnboardingScreen() {
   }, [animateProgress, step]);
 
   const toggleDislikedFood = useCallback((foodId: string) => {
-    if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
-    }
     setDislikedFoodIds((prev) =>
       prev.includes(foodId)
         ? prev.filter((id) => id !== foodId)
@@ -179,23 +175,18 @@ export default function OnboardingScreen() {
   }, []);
 
   const toggleSport = useCallback((sport: string) => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
     setSelectedSports((prev) =>
       prev.includes(sport) ? prev.filter((s) => s !== sport) : [...prev, sport]
     );
   }, []);
 
   const toggleActivity = useCallback((activity: ActivityType) => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
     setSelectedActivities((prev) =>
       prev.includes(activity) ? prev.filter((a) => a !== activity) : [...prev, activity]
     );
   }, []);
 
   const toggleDietModifier = useCallback((modifier: DietaryModifier) => {
-    if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
-    }
     setDietModifiers((current) =>
       current.includes(modifier)
         ? current.filter((item) => item !== modifier)
@@ -351,11 +342,11 @@ export default function OnboardingScreen() {
   ) => {
     const selected = value === selectedValue;
     return (
-      <TouchableOpacity
+      <PhysiqPressable
         key={value}
+        feedback="select"
         style={[styles.choiceCard, selected && styles.choiceCardSelected]}
         onPress={() => onSelect(value)}
-        activeOpacity={0.8}
       >
         <View style={styles.choiceCopy}>
           <Text style={[styles.choiceTitle, selected && styles.choiceTitleSelected]}>{label}</Text>
@@ -366,14 +357,11 @@ export default function OnboardingScreen() {
           ) : null}
         </View>
         {selected ? <View style={styles.choiceDot} /> : null}
-      </TouchableOpacity>
+      </PhysiqPressable>
     );
   };
 
   const openDefinitionSheet = useCallback((title: string, sections: LearnMoreSection[]) => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     setDefinitionSheetTitle(title);
     setDefinitionSheetSections(sections);
     setDefinitionSheetVisible(true);
@@ -384,14 +372,14 @@ export default function OnboardingScreen() {
       <View style={styles.stepHeaderRow}>
         <Text style={styles.stepTitle}>{title}</Text>
         {onLearnMore ? (
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="tap"
             style={styles.learnMoreButton}
             onPress={onLearnMore}
-            activeOpacity={0.8}
           >
             <Info size={14} color={colors.primary} />
             <Text style={styles.learnMoreText}>Learn More</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         ) : null}
       </View>
       <Text style={styles.stepSubtitle}>{subtitle}</Text>
@@ -417,36 +405,40 @@ export default function OnboardingScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Sex</Text>
           <View style={styles.segmentRow}>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="select"
               style={[styles.segment, sex === 'male' && styles.segmentActive]}
               onPress={() => setSex('male')}
             >
               <Text style={[styles.segmentText, sex === 'male' && styles.segmentTextActive]}>Male</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </PhysiqPressable>
+            <PhysiqPressable
+              feedback="select"
               style={[styles.segment, sex === 'female' && styles.segmentActive]}
               onPress={() => setSex('female')}
             >
               <Text style={[styles.segmentText, sex === 'female' && styles.segmentTextActive]}>Female</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         </View>
       </View>
 
       <Text style={styles.label}>Units</Text>
       <View style={styles.segmentRow}>
-        <TouchableOpacity
+        <PhysiqPressable
+          feedback="select"
           style={[styles.segment, measurementSystem === 'us' && styles.segmentActive]}
           onPress={() => setMeasurementSystem('us')}
         >
           <Text style={[styles.segmentText, measurementSystem === 'us' && styles.segmentTextActive]}>US</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </PhysiqPressable>
+        <PhysiqPressable
+          feedback="select"
           style={[styles.segment, measurementSystem === 'metric' && styles.segmentActive]}
           onPress={() => setMeasurementSystem('metric')}
         >
           <Text style={[styles.segmentText, measurementSystem === 'metric' && styles.segmentTextActive]}>Metric</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
 
       {measurementSystem === 'us' ? (
@@ -609,14 +601,14 @@ export default function OnboardingScreen() {
             {ATHLETE_SPORTS.map((sport) => {
               const active = selectedSports.includes(sport);
               return (
-                <TouchableOpacity
+                <PhysiqPressable
                   key={sport}
+                  feedback="select"
                   style={[styles.chip, active && styles.chipActive]}
                   onPress={() => toggleSport(sport)}
-                  activeOpacity={0.8}
                 >
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>{sport}</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               );
             })}
           </View>
@@ -626,16 +618,16 @@ export default function OnboardingScreen() {
             {(Object.keys(COMPETITION_LEVEL_LABELS) as AthleteCompetitionLevel[]).map((level) => {
               const active = competitionLevel === level;
               return (
-                <TouchableOpacity
+                <PhysiqPressable
                   key={level}
+                  feedback="select"
                   style={[styles.chip, active && styles.chipActive]}
                   onPress={() => setCompetitionLevel(level)}
-                  activeOpacity={0.8}
                 >
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>
                     {COMPETITION_LEVEL_LABELS[level]}
                   </Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               );
             })}
           </View>
@@ -643,15 +635,16 @@ export default function OnboardingScreen() {
           <Text style={styles.label}>Current season</Text>
           <View style={styles.segmentRow}>
             {(['preseason', 'in_season', 'off_season'] as AthleteSeasonPhase[]).map((phase) => (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={phase}
+                feedback="select"
                 style={[styles.segment, seasonPhase === phase && styles.segmentActive]}
                 onPress={() => setSeasonPhase(phase)}
               >
                 <Text style={[styles.segmentText, seasonPhase === phase && styles.segmentTextActive]}>
                   {phase === 'in_season' ? 'In-season' : phase === 'off_season' ? 'Off-season' : 'Preseason'}
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             ))}
           </View>
         </>
@@ -664,14 +657,14 @@ export default function OnboardingScreen() {
             {ACTIVITY_TYPES.map((activity) => {
               const active = selectedActivities.includes(activity.id);
               return (
-                <TouchableOpacity
+                <PhysiqPressable
                   key={activity.id}
+                  feedback="select"
                   style={[styles.chip, active && styles.chipActive]}
                   onPress={() => toggleActivity(activity.id)}
-                  activeOpacity={0.8}
                 >
                   <Text style={[styles.chipText, active && styles.chipTextActive]}>{activity.label}</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               );
             })}
           </View>
@@ -716,11 +709,11 @@ export default function OnboardingScreen() {
           const selected = value === eatingStyle;
           const isPsmf = value === 'psmf';
           return (
-            <TouchableOpacity
+            <PhysiqPressable
               key={value}
+              feedback="select"
               style={[styles.choiceCard, selected && styles.choiceCardSelected]}
               onPress={() => handleEatingStyleSelect(value)}
-              activeOpacity={0.8}
             >
               <View style={styles.choiceCopy}>
                 <View style={styles.choiceTitleRow}>
@@ -738,7 +731,7 @@ export default function OnboardingScreen() {
                 </Text>
               </View>
               {selected ? <View style={styles.choiceDot} /> : null}
-            </TouchableOpacity>
+            </PhysiqPressable>
           );
         })}
       </View>
@@ -753,16 +746,16 @@ export default function OnboardingScreen() {
           const food = FOODS[foodId];
           const active = dislikedFoodIds.includes(foodId);
           return (
-            <TouchableOpacity
+            <PhysiqPressable
               key={foodId}
+              feedback="select"
               style={[styles.foodChip, active && styles.foodChipActive]}
               onPress={() => toggleDislikedFood(foodId)}
-              activeOpacity={0.8}
             >
               <Text style={[styles.foodChipText, active && styles.foodChipTextActive]}>
                 {food.name}
               </Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           );
         })}
       </View>
@@ -799,16 +792,16 @@ export default function OnboardingScreen() {
         {(Object.keys(DIETARY_MODIFIER_LABELS) as DietaryModifier[]).map((modifier) => {
           const active = dietModifiers.includes(modifier);
           return (
-            <TouchableOpacity
+            <PhysiqPressable
               key={modifier}
+              feedback="select"
               style={[styles.chip, active && styles.chipActive]}
               onPress={() => toggleDietModifier(modifier)}
-              activeOpacity={0.8}
             >
               <Text style={[styles.chipText, active && styles.chipTextActive]}>
                 {DIETARY_MODIFIER_LABELS[modifier]}
               </Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           );
         })}
       </View>
@@ -863,10 +856,10 @@ export default function OnboardingScreen() {
         >
           {PRO_COPY.headline}
         </Text>
-        <TouchableOpacity style={styles.learnMoreButton} onPress={() => setProInfoVisible(true)}>
+        <PhysiqPressable feedback="tap" style={styles.learnMoreButton} onPress={() => setProInfoVisible(true)}>
           <Info size={14} color={colors.primary} />
           <Text style={styles.learnMoreText}>Info</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
       <Text
         style={[
@@ -931,28 +924,28 @@ export default function OnboardingScreen() {
         </View>
       )}
       <View style={styles.baselineActions}>
-        <TouchableOpacity
+        <PhysiqPressable
+          feedback="confirm"
           style={styles.baselinePrimaryBtn}
           disabled={baselinePhotoSaving}
           onPress={() => void handleBaselineCapture('camera')}
-          activeOpacity={0.85}
         >
           <Camera size={16} color={colors.onPrimary ?? Colors.white} />
           <Text style={styles.baselinePrimaryBtnText}>{baselinePhotoSaving ? 'Opening…' : 'Take Photo'}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </PhysiqPressable>
+        <PhysiqPressable
+          feedback="tap"
           style={styles.baselineSecondaryBtn}
           disabled={baselinePhotoSaving}
           onPress={() => void handleBaselineCapture('library')}
-          activeOpacity={0.85}
         >
           <ImageIcon size={16} color={colors.primary} />
           <Text style={styles.baselineSecondaryBtnText}>Choose from Library</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
-      <TouchableOpacity onPress={goNext} style={styles.skipLink}>
+      <PhysiqPressable feedback="tap" onPress={goNext} style={styles.skipLink}>
         <Text style={styles.skipLinkText}>Skip for now</Text>
-      </TouchableOpacity>
+      </PhysiqPressable>
     </View>
   );
 

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import Colors from '../constants/colors';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
+import PhysiqPressable from './ui/PhysiqPressable';
 
 export interface SegmentOption<T extends string = string> {
   label: string;
@@ -30,11 +31,11 @@ function SegmentedToggle<T extends string = string>({
       {options.map((option) => {
         const selected = option.value === value;
         return (
-          <TouchableOpacity
+          <PhysiqPressable
             key={option.value}
+            feedback="select"
             style={[styles.segment, selected && styles.segmentSelected]}
             onPress={() => onChange(option.value)}
-            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityState={{ selected }}
             accessibilityLabel={option.label}
@@ -42,7 +43,7 @@ function SegmentedToggle<T extends string = string>({
             <Text style={[styles.label, selected && styles.labelSelected]}>
               {option.label}
             </Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         );
       })}
     </View>

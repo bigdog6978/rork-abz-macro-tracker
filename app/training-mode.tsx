@@ -1,12 +1,11 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
-import { Platform } from 'react-native';
 import Colors from '../constants/colors';
 import { Radius, Spacing } from '../theme/tokens';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { usePro } from '../providers/ProProvider';
 import {
   ACTIVITY_TYPES,
@@ -27,10 +26,6 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SESSION_TYPES: AthleteSessionType[] = ['practice', 'training', 'game', 'rest'];
 const INTENSITIES: AthleteIntensity[] = ['low', 'moderate', 'high'];
 
-function haptic() {
-  if (Platform.OS !== 'web') Haptics.selectionAsync();
-}
-
 export default function TrainingModeScreen() {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
@@ -41,12 +36,10 @@ export default function TrainingModeScreen() {
   const derivedUserType = deriveAthleteUserType(athleteProfile.competitionLevel);
 
   const setPersona = (next: TrainingPersona) => {
-    haptic();
     void updateAthleteProfile({ persona: next, enabled: next !== 'general' ? true : athleteProfile.enabled });
   };
 
   const toggleSport = (sport: string) => {
-    haptic();
     const exists = athleteProfile.sports.includes(sport);
     const sports = exists
       ? athleteProfile.sports.filter((s) => s !== sport)
@@ -55,7 +48,6 @@ export default function TrainingModeScreen() {
   };
 
   const toggleActivity = (activity: ActivityType) => {
-    haptic();
     const exists = athleteProfile.activities.includes(activity);
     const activities = exists
       ? athleteProfile.activities.filter((a) => a !== activity)
@@ -64,7 +56,6 @@ export default function TrainingModeScreen() {
   };
 
   const setCompetitionLevel = (level: AthleteCompetitionLevel) => {
-    haptic();
     void updateAthleteProfile({
       competitionLevel: level,
       userType: athleteProfile.userTypeManualOverride ? athleteProfile.userType : deriveAthleteUserType(level),
@@ -72,17 +63,14 @@ export default function TrainingModeScreen() {
   };
 
   const setSeason = (phase: AthleteSeasonPhase) => {
-    haptic();
     void updateAthleteProfile({ season: { ...athleteProfile.season, phase } });
   };
 
   const setDayTypeOverride = (override: ProDayTypeOverride) => {
-    haptic();
     updateSettings({ dayTypeOverride: override });
   };
 
   const addSession = (dayOfWeek: number) => {
-    haptic();
     const entry: AthleteScheduleEntry = {
       id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       dayOfWeek,
@@ -100,7 +88,6 @@ export default function TrainingModeScreen() {
   };
 
   const removeSession = (id: string) => {
-    haptic();
     void updateAthleteProfile({ schedule: athleteProfile.schedule.filter((e) => e.id !== id) });
   };
 
@@ -235,9 +222,9 @@ export default function TrainingModeScreen() {
                 <View key={dayLabel} style={styles.dayBlock}>
                   <View style={styles.dayHeader}>
                     <Text style={styles.dayName}>{dayLabel}</Text>
-                    <TouchableOpacity onPress={() => addSession(dayIndex)} style={styles.addBtn}>
+                    <PhysiqPressable feedback="tap" onPress={() => addSession(dayIndex)} style={styles.addBtn}>
                       <Text style={styles.addBtnText}>+ Session</Text>
-                    </TouchableOpacity>
+                    </PhysiqPressable>
                   </View>
                   {sessions.length === 0 ? (
                     <Text style={styles.restText}>Rest</Text>
@@ -258,7 +245,8 @@ export default function TrainingModeScreen() {
                         </View>
                         <View style={styles.sessionControls}>
                           <View style={styles.stepper}>
-                            <TouchableOpacity
+                            <PhysiqPressable
+                              feedback="select"
                               style={styles.stepBtn}
                               onPress={() =>
                                 updateSession(session.id, {
@@ -267,9 +255,10 @@ export default function TrainingModeScreen() {
                               }
                             >
                               <Text style={styles.stepBtnText}>−</Text>
-                            </TouchableOpacity>
+                            </PhysiqPressable>
                             <Text style={styles.stepValue}>{session.durationMin}m</Text>
-                            <TouchableOpacity
+                            <PhysiqPressable
+                              feedback="select"
                               style={styles.stepBtn}
                               onPress={() =>
                                 updateSession(session.id, {
@@ -278,11 +267,11 @@ export default function TrainingModeScreen() {
                               }
                             >
                               <Text style={styles.stepBtnText}>+</Text>
-                            </TouchableOpacity>
+                            </PhysiqPressable>
                           </View>
-                          <TouchableOpacity onPress={() => removeSession(session.id)}>
+                          <PhysiqPressable feedback="destructive" onPress={() => removeSession(session.id)}>
                             <Text style={styles.removeText}>Remove</Text>
-                          </TouchableOpacity>
+                          </PhysiqPressable>
                         </View>
                         <View style={styles.chipWrap}>
                           {INTENSITIES.map((intensity) => (
@@ -348,10 +337,10 @@ function Row({
   styles: ReturnType<typeof createStyles>;
 }) {
   return (
-    <TouchableOpacity style={[styles.row, active && styles.rowActive]} onPress={onPress} activeOpacity={0.85}>
+    <PhysiqPressable feedback="select" style={[styles.row, active && styles.rowActive]} onPress={onPress}>
       <Text style={[styles.rowText, active && styles.rowTextActive]}>{label}</Text>
       {active ? <View style={styles.dot} /> : null}
-    </TouchableOpacity>
+    </PhysiqPressable>
   );
 }
 
@@ -369,13 +358,13 @@ function Chip({
   small?: boolean;
 }) {
   return (
-    <TouchableOpacity
+    <PhysiqPressable
+      feedback="select"
       style={[styles.chip, small && styles.chipSmall, active && styles.chipActive]}
       onPress={onPress}
-      activeOpacity={0.85}
     >
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </TouchableOpacity>
+    </PhysiqPressable>
   );
 }
 
@@ -391,9 +380,9 @@ function Segment({
   styles: ReturnType<typeof createStyles>;
 }) {
   return (
-    <TouchableOpacity style={[styles.segment, active && styles.segmentActive]} onPress={onPress} activeOpacity={0.85}>
+    <PhysiqPressable feedback="select" style={[styles.segment, active && styles.segmentActive]} onPress={onPress}>
       <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
-    </TouchableOpacity>
+    </PhysiqPressable>
   );
 }
 

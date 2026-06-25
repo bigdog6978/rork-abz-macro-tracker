@@ -6,9 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  TextInput,View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -261,9 +259,6 @@ export default function SettingsScreen() {
 
   const handleAccentThemePress = useCallback(async (themeId: AccentThemeId) => {
     await setAccentTheme(themeId);
-    if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
-    }
   }, [setAccentTheme]);
 
   const completeHealthConnect = useCallback(async () => {
@@ -359,7 +354,7 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.sectionCard}>
-          <TouchableOpacity style={styles.settingsRow} activeOpacity={1}>
+          <View style={styles.settingsRow}>
             <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
               <Zap size={16} color={colors.primary} />
             </View>
@@ -367,7 +362,8 @@ export default function SettingsScreen() {
               <Text style={styles.rowTitle}>{selectedProductTitle}</Text>
               <Text style={styles.rowSubtitle}>{selectedProductSubtitle}</Text>
             </View>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="tap"
               style={styles.proInfoIconBtn}
               onPress={() => setProExpanded((prev) => !prev)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -377,15 +373,16 @@ export default function SettingsScreen() {
               ) : (
                 <ChevronDown size={14} color={Colors.textSecondary} />
               )}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </PhysiqPressable>
+            <PhysiqPressable
+              feedback="tap"
               style={styles.proInfoIconBtn}
               onPress={() => setProInfoVisible(true)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <FileText size={14} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          </TouchableOpacity>
+            </PhysiqPressable>
+          </View>
           {!proExpanded ? (
             <View style={styles.collapsedProWrap}>
               <View style={styles.healthStatusRow}>
@@ -413,22 +410,23 @@ export default function SettingsScreen() {
                 <View style={styles.healthBanner}>
                   <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
                   <Text style={styles.healthBannerBody}>{PRO_COPY.healthRequiredBannerBody}</Text>
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="confirm"
                     style={styles.healthBannerCta}
                     onPress={() => setHealthPermissionVisible(true)}
-                    activeOpacity={0.85}
                   >
                     <Text style={styles.healthBannerCtaText}>{PRO_COPY.healthRequiredBannerCta}</Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </View>
               ) : null}
               <Text style={styles.watchRequiredNote}>{PRO_COPY.watchRequiredNote}</Text>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.proCollapsedCta}
                 onPress={() => setProExpanded(true)}
               >
                 <Text style={styles.proCollapsedCtaText}>Expand</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           ) : (
             <View style={styles.editor}>
@@ -436,13 +434,13 @@ export default function SettingsScreen() {
                   <View style={styles.healthBanner}>
                     <Text style={styles.healthBannerTitle}>{PRO_COPY.healthRequiredBannerTitle}</Text>
                     <Text style={styles.healthBannerBody}>{PRO_COPY.healthRequiredBannerBody}</Text>
-                    <TouchableOpacity
+                    <PhysiqPressable
+                      feedback="confirm"
                       style={styles.healthBannerCta}
                       onPress={() => setHealthPermissionVisible(true)}
-                      activeOpacity={0.85}
                     >
                       <Text style={styles.healthBannerCtaText}>{PRO_COPY.healthRequiredBannerCta}</Text>
-                    </TouchableOpacity>
+                    </PhysiqPressable>
                   </View>
                 ) : null}
                 <Text style={styles.rowSubtitle}>Day Type: {inferredDayType.replace('_', ' ')}</Text>
@@ -457,10 +455,10 @@ export default function SettingsScreen() {
                     ))}
                   </View>
                 ) : null}
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={styles.premiumNavRow}
                   onPress={() => router.push('/training-mode' as never)}
-                  activeOpacity={0.85}
                 >
                   <View style={styles.rowCopy}>
                     <Text style={styles.rowTitle}>Training Mode</Text>
@@ -471,12 +469,12 @@ export default function SettingsScreen() {
                     </Text>
                   </View>
                   <ChevronRight size={16} color={Colors.textSecondary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
                 {profile.sex === 'female' ? (
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="tap"
                     style={styles.premiumNavRow}
                     onPress={() => router.push('/cycle-sync' as never)}
-                    activeOpacity={0.85}
                   >
                     <View style={styles.rowCopy}>
                       <Text style={styles.rowTitle}>Cycle Sync</Text>
@@ -487,7 +485,7 @@ export default function SettingsScreen() {
                       </Text>
                     </View>
                     <ChevronRight size={16} color={Colors.textSecondary} />
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 ) : null}
                 <View style={styles.chipWrap}>
                   <Chip
@@ -552,7 +550,8 @@ export default function SettingsScreen() {
                         {healthStatusLabel}
                       </Text>
                     </View>
-                    <TouchableOpacity
+                    <PhysiqPressable
+                      feedback="tap"
                       style={styles.healthActionBtn}
                       onPress={() => {
                         if (healthConnectionStatus === 'connected') {
@@ -568,18 +567,18 @@ export default function SettingsScreen() {
                       <Text style={styles.healthActionBtnText} numberOfLines={1}>
                         {healthActionLabel}
                       </Text>
-                    </TouchableOpacity>
+                    </PhysiqPressable>
                   </View>
                 </View>
                 <Text style={styles.watchRequiredNote}>{PRO_COPY.watchRequiredNote}</Text>
                 <Text style={styles.watchOptionalNote}>{PRO_COPY.watchOptionalNote}</Text>
                 <View style={styles.proActionRow}>
-                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => void refreshHealthSignals()}>
+                  <PhysiqPressable feedback="tap" style={styles.proOutlineBtn} onPress={() => void refreshHealthSignals()}>
                     <Text style={styles.proOutlineBtnText}>Refresh Health</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.proOutlineBtn} onPress={() => router.push('/pro-report' as never)}>
+                  </PhysiqPressable>
+                  <PhysiqPressable feedback="tap" style={styles.proOutlineBtn} onPress={() => router.push('/pro-report' as never)}>
                     <Text style={styles.proOutlineBtnText}>Open Pro Report</Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </View>
                 <Text style={styles.rowSubtitle}>
                   Hydration: {formatHydrationProgress(hydration.consumedMl, hydration.targetMl, hydrationUnit)}
@@ -598,29 +597,30 @@ export default function SettingsScreen() {
                 </View>
                 <View style={styles.proActionRow}>
                   {hydrationQuickAdds(hydrationUnit).map((preset) => (
-                    <TouchableOpacity
+                    <PhysiqPressable
+                      feedback="tap"
                       key={preset.label}
                       style={styles.proOutlineBtn}
                       onPress={() => addHydration(preset.ml)}
                     >
                       <Text style={styles.proOutlineBtnText}>{preset.label}</Text>
-                    </TouchableOpacity>
+                    </PhysiqPressable>
                   ))}
                 </View>
                 <View style={styles.proLegalLinks}>
-                  <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
+                  <PhysiqPressable feedback="tap" onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
                     <Text style={styles.proLegalLinkText}>Terms of Use</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
+                  </PhysiqPressable>
+                  <PhysiqPressable feedback="tap" onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
                     <Text style={styles.proLegalLinkText}>Privacy Policy</Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </View>
           </View>
           )}
         </View>
 
         <View style={styles.sectionCard}>
-          <TouchableOpacity style={styles.settingsRow} onPress={() => setEditMode(editMode === 'profile' ? 'none' : 'profile')}>
+          <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => setEditMode(editMode === 'profile' ? 'none' : 'profile')}>
             <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
               <User size={16} color={colors.primary} />
             </View>
@@ -629,13 +629,14 @@ export default function SettingsScreen() {
               <Text style={styles.rowSubtitle}>{profile.age}y · {profile.sex} · {currentWeightLabel}</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
 
           {editMode === 'profile' ? (
             <View style={styles.editor}>
               <Text style={styles.fieldLabel}>Units</Text>
               <View style={styles.segmentRow}>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="select"
                   style={[
                     styles.segment,
                     measurementSystem === 'us' && {
@@ -646,8 +647,9 @@ export default function SettingsScreen() {
                   onPress={() => setMeasurementSystem('us')}
                 >
                   <Text style={[styles.segmentText, measurementSystem === 'us' && { color: colors.primary }]}>US</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PhysiqPressable>
+                <PhysiqPressable
+                  feedback="select"
                   style={[
                     styles.segment,
                     measurementSystem === 'metric' && {
@@ -658,7 +660,7 @@ export default function SettingsScreen() {
                   onPress={() => setMeasurementSystem('metric')}
                 >
                   <Text style={[styles.segmentText, measurementSystem === 'metric' && { color: colors.primary }]}>Metric</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
 
               {measurementSystem === 'us' ? (
@@ -709,15 +711,15 @@ export default function SettingsScreen() {
                 placeholderTextColor={Colors.textTertiary}
               />
 
-              <TouchableOpacity style={styles.primaryButton} onPress={handleSaveProfile}>
+              <PhysiqPressable feedback="confirm" style={styles.primaryButton} onPress={handleSaveProfile}>
                 <Text style={styles.primaryButtonText}>Save Body Stats</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           ) : null}
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.settingsRow} onPress={() => setEditMode(editMode === 'nutrition' ? 'none' : 'nutrition')}>
+          <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => setEditMode(editMode === 'nutrition' ? 'none' : 'nutrition')}>
             <View style={[styles.iconBadge, { backgroundColor: Colors.fatMuted }]}>
               <RefreshCw size={16} color={Colors.fat} />
             </View>
@@ -728,7 +730,7 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
 
           {editMode === 'nutrition' ? (
             <View style={styles.editor}>
@@ -790,15 +792,15 @@ export default function SettingsScreen() {
                 placeholderTextColor={Colors.textTertiary}
               />
 
-              <TouchableOpacity style={styles.primaryButton} onPress={handleSaveNutrition}>
+              <PhysiqPressable feedback="confirm" style={styles.primaryButton} onPress={handleSaveNutrition}>
                 <Text style={styles.primaryButtonText}>Save Nutrition Setup</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           ) : null}
         </View>
 
         <View style={styles.sectionCard}>
-          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/settings/allergies' as never)}>
+          <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => router.push('/settings/allergies' as never)}>
             <View style={[styles.iconBadge, { backgroundColor: Colors.warningMuted }]}>
               <AlertCircle size={16} color={Colors.warning} />
             </View>
@@ -807,11 +809,11 @@ export default function SettingsScreen() {
               <Text style={styles.rowSubtitle}>{allergySummary}</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
 
         <View style={styles.sectionCard}>
-          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/settings/food-preferences' as never)}>
+          <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => router.push('/settings/food-preferences' as never)}>
             <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
               <Utensils size={16} color={colors.primary} />
             </View>
@@ -820,7 +822,7 @@ export default function SettingsScreen() {
               <Text style={styles.rowSubtitle}>{dislikedFoodsSummary}</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
 
         <View style={styles.sectionCard}>
@@ -837,7 +839,8 @@ export default function SettingsScreen() {
             {Object.entries(ACCENT_THEMES).map(([themeId, theme]) => {
               const active = accentTheme === themeId;
               return (
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="select"
                   key={themeId}
                   style={[
                     styles.themeChip,
@@ -847,7 +850,6 @@ export default function SettingsScreen() {
                     },
                   ]}
                   onPress={() => void handleAccentThemePress(themeId as AccentThemeId)}
-                  activeOpacity={0.85}
                 >
                   <View style={[styles.themeDot, { backgroundColor: theme.primary }]} />
                   <Text
@@ -858,14 +860,14 @@ export default function SettingsScreen() {
                   >
                     {theme.label}
                   </Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               );
             })}
           </View>
         </View>
 
         <View style={styles.sectionCard}>
-          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
+          <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'privacy' } })}>
             <View style={[styles.iconBadge, { backgroundColor: Colors.carbsMuted }]}>
               <Shield size={16} color={Colors.carbs} />
             </View>
@@ -873,9 +875,9 @@ export default function SettingsScreen() {
               <Text style={styles.rowTitle}>Privacy Policy</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
+          <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
             <View style={[styles.iconBadge, { backgroundColor: Colors.warningMuted }]}>
               <FileText size={16} color={Colors.warning} />
             </View>
@@ -883,9 +885,9 @@ export default function SettingsScreen() {
               <Text style={styles.rowTitle}>Terms of Use</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'contact' } })}>
+          <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'contact' } })}>
             <View style={[styles.iconBadge, { backgroundColor: Colors.successMuted }]}>
               <Mail size={16} color={Colors.success} />
             </View>
@@ -893,9 +895,9 @@ export default function SettingsScreen() {
               <Text style={styles.rowTitle}>Contact & Support</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/settings/nutrition-science' as never)}>
+          <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => router.push('/settings/nutrition-science' as never)}>
             <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
               <FileText size={16} color={colors.primary} />
             </View>
@@ -903,27 +905,27 @@ export default function SettingsScreen() {
               <Text style={styles.rowTitle}>Nutrition Science & References</Text>
             </View>
             <ChevronRight size={16} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
 
         <View style={styles.sectionCard}>
-          <TouchableOpacity style={styles.settingsRow} onPress={handleResetData}>
+          <PhysiqPressable feedback="destructive" style={styles.settingsRow} onPress={handleResetData}>
             <View style={[styles.iconBadge, { backgroundColor: Colors.dangerMuted }]}>
               <Trash2 size={16} color={Colors.danger} />
             </View>
             <View style={styles.rowCopy}>
               <Text style={[styles.rowTitle, { color: Colors.danger }]}>Clear Food Logs</Text>
             </View>
-          </TouchableOpacity>
+          </PhysiqPressable>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.settingsRow} onPress={handleResetProfile}>
+          <PhysiqPressable feedback="destructive" style={styles.settingsRow} onPress={handleResetProfile}>
             <View style={[styles.iconBadge, { backgroundColor: Colors.dangerMuted }]}>
               <Trash2 size={16} color={Colors.danger} />
             </View>
             <View style={styles.rowCopy}>
               <Text style={[styles.rowTitle, { color: Colors.danger }]}>Reset Everything</Text>
             </View>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
         </ResponsiveContainer>
       </ScrollView>

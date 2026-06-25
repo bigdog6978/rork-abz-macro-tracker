@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 import { PRO_COPY } from '../../src/content/proMicrocopy';
+import PhysiqPressable from './PhysiqPressable';
 
 type Props = {
   visible: boolean;
@@ -16,13 +17,13 @@ export default function ProInfoModal({ visible, onClose }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <PhysiqPressable feedback="tap" style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.headerRow}>
             <Text style={styles.title}>{PRO_COPY.infoTitle}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <PhysiqPressable feedback="tap" onPress={onClose} style={styles.closeBtn}>
               <X size={16} color={Colors.textSecondary} />
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.body}>{PRO_COPY.infoBody}</Text>
@@ -33,7 +34,7 @@ export default function ProInfoModal({ visible, onClose }: Props) {
             <Text style={styles.includedNote}>{PRO_COPY.includedLine}</Text>
           </ScrollView>
         </Pressable>
-      </Pressable>
+      </PhysiqPressable>
     </Modal>
   );
 }

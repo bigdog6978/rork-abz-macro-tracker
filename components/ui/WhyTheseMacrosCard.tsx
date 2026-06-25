@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import Colors from '../../constants/colors';
 import { Radius } from '../../theme/tokens';
@@ -7,6 +7,7 @@ import { MacroTargets } from '../../types';
 import { formatNumber } from '../../utils/formatNumber';
 import { MACRO_SOURCE_BLURB } from '../../src/content/nutritionScience';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import PhysiqPressable from './PhysiqPressable';
 
 interface WhyTheseMacrosCardProps {
   macros: MacroTargets;
@@ -76,16 +77,12 @@ export default function WhyTheseMacrosCard({
     <View style={styles.container}>
       <Text style={styles.sourceText}>{MACRO_SOURCE_BLURB}</Text>
 
-      <TouchableOpacity
-        style={styles.toggle}
-        onPress={toggleExpanded}
-        activeOpacity={0.85}
-      >
+      <PhysiqPressable feedback="select" style={styles.toggle} onPress={toggleExpanded}>
         <Text style={styles.toggleTitle}>Why These Macros?</Text>
         <Animated.View style={iconStyle}>
           <ChevronDown size={18} color={Colors.textSecondary} />
         </Animated.View>
-      </TouchableOpacity>
+      </PhysiqPressable>
 
       <Animated.View style={[styles.expandWrap, contentStyle]}>
         <View style={styles.expandInner}>
@@ -113,13 +110,9 @@ export default function WhyTheseMacrosCard({
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.methodologyButton}
-            onPress={onViewMethodology}
-            activeOpacity={0.85}
-          >
+          <PhysiqPressable feedback="tap" style={styles.methodologyButton} onPress={onViewMethodology}>
             <Text style={styles.methodologyButtonText}>View Full Methodology</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
       </Animated.View>
     </View>

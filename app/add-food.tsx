@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import {
   Linking,
 } from 'react-native';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
@@ -451,9 +451,6 @@ export default function AddFoodScreen() {
   const handleScanBarcode = useCallback(() => {
     Keyboard.dismiss();
     setShowSuggestions(false);
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     if (scannerOpen) {
       animateScanner(0, () => setScannerOpen(false));
       return;
@@ -512,10 +509,6 @@ export default function AddFoodScreen() {
 
       if (scannerOpen) {
         animateScanner(0, () => setScannerOpen(false));
-      }
-
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
 
       voiceUserIntentRef.current = true;
@@ -940,9 +933,6 @@ export default function AddFoodScreen() {
         }
       }
 
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
     },
     [recentFoods]
   );
@@ -1345,9 +1335,6 @@ export default function AddFoodScreen() {
       setFat(String(macros.fat_g));
       setScalingReason(result.ok ? null : result.reason);
 
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
     },
     []
   );
@@ -1456,7 +1443,8 @@ export default function AddFoodScreen() {
         options={{
           headerLeft: () => (
             <View style={styles.headerBtnContainer}>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 onPress={() => router.back()}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 testID="close-add-food"
@@ -1465,12 +1453,13 @@ export default function AddFoodScreen() {
                 <View style={styles.headerIconWrap}>
                   <X size={22} color={Colors.textSecondary} />
                 </View>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           ),
           headerRight: () => (
             <View style={styles.headerBtnContainer}>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="confirm"
                 onPress={handleSave}
                 disabled={isSaving}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -1484,7 +1473,7 @@ export default function AddFoodScreen() {
                     <Check size={22} color={colors.primary} />
                   )}
                 </View>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           ),
         }}
@@ -1527,12 +1516,13 @@ export default function AddFoodScreen() {
                   testID="food-search-input"
                 />
                 {query.length > 0 && !scannerOpen && (
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="tap"
                     onPress={handleClearSelection}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <X size={18} color={Colors.textTertiary} />
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 )}
                 {isSearching && !scannerOpen && (
                   <ActivityIndicator
@@ -1567,19 +1557,19 @@ export default function AddFoodScreen() {
             )}
 
             <View style={styles.scanRow}>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.scanBarcodeBtn}
                 onPress={handleScanBarcode}
-                activeOpacity={0.7}
                 testID="scan-barcode-button"
               >
                 {scannerOpen ? <X size={18} color={colors.primary} /> : <Scan size={18} color={colors.primary} />}
                 <Text style={styles.scanBarcodeText}>{scannerOpen ? 'Close Scanner' : 'Scan Barcode'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </PhysiqPressable>
+              <PhysiqPressable
+                feedback="tap"
                 style={[styles.scanBarcodeBtn, !voiceMealAvailable && styles.scanBarcodeBtnDisabled]}
                 onPress={handleStartVoiceMeal}
-                activeOpacity={0.7}
                 testID="voice-meal-button"
               >
                 {isListening || isVoiceProcessing ? (
@@ -1590,7 +1580,7 @@ export default function AddFoodScreen() {
                 <Text style={styles.scanBarcodeText}>
                   {isListening ? 'Listening...' : isVoiceProcessing ? 'Building Meal...' : 'Speak Meal'}
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
 
             {!voiceMealAvailable && (
@@ -1609,14 +1599,14 @@ export default function AddFoodScreen() {
             />
 
             <View style={styles.savedFoodsRow}>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.savedFoodsLink}
                 onPress={() => router.push('/saved-foods')}
-                activeOpacity={0.7}
               >
                 <Text style={styles.savedFoodsLinkText}>Saved Foods</Text>
                 <ChevronRight size={16} color={colors.primary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           </View>
 
@@ -1647,10 +1637,10 @@ export default function AddFoodScreen() {
                       <Text style={styles.quickAddHeader}>
                         BEST MATCH
                       </Text>
-                      <TouchableOpacity
+                      <PhysiqPressable
+                        feedback="confirm"
                         style={styles.quickAddCard}
                         onPress={handleConfirmTextResolved}
-                        activeOpacity={0.7}
                         disabled={isSaving}
                         testID="quick-add-card"
                       >
@@ -1671,19 +1661,19 @@ export default function AddFoodScreen() {
                         <View style={[styles.quickAddButton, { backgroundColor: colors.primary }]}>
                           <Text style={styles.quickAddButtonText}>+ Add</Text>
                         </View>
-                      </TouchableOpacity>
+                      </PhysiqPressable>
 
                       {/* ── Other Results toggle ── */}
                       {suggestions.length > 0 && (
-                        <TouchableOpacity
+                        <PhysiqPressable
+                          feedback="tap"
                           style={styles.otherResultsToggle}
                           onPress={() => setShowOtherResults(v => !v)}
-                          activeOpacity={0.7}
                         >
                           <Text style={styles.otherResultsToggleText}>
                             {showOtherResults ? 'Hide other results ▲' : 'Other results ▼'}
                           </Text>
-                        </TouchableOpacity>
+                        </PhysiqPressable>
                       )}
                     </>
                   ) : null}
@@ -1704,11 +1694,11 @@ export default function AddFoodScreen() {
                   const showScaled = cardScaling?.ok;
 
                   return (
-                    <TouchableOpacity
+                    <PhysiqPressable
                       key={food.id}
+                      feedback="select"
                       style={styles.suggestionCard}
                       onPress={() => handleSelectSuggestion(food)}
-                      activeOpacity={0.7}
                       testID={`suggestion-${food.id}`}
                     >
                       <View style={styles.suggestionInfo}>
@@ -1739,21 +1729,21 @@ export default function AddFoodScreen() {
                         )}
                       </View>
                       <ChevronRight size={16} color={Colors.textTertiary} />
-                    </TouchableOpacity>
+                    </PhysiqPressable>
                   );
                 })
               ) : null}
 
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.manualFallback}
                 onPress={handleManualMode}
-                activeOpacity={0.7}
               >
                 <Pencil size={14} color={colors.primary} />
                 <Text style={styles.manualFallbackText}>
                   Can't find it? Enter manually
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
             );
           })()}
@@ -1766,14 +1756,14 @@ export default function AddFoodScreen() {
                 <Text style={styles.noResultsText}>
                   {getSearchErrorMessage(searchStatus, searchErrorCode, searchErrorDetail)}
                 </Text>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={styles.manualFallback}
                   onPress={handleManualMode}
-                  activeOpacity={0.7}
                 >
                   <Pencil size={14} color={colors.primary} />
                   <Text style={styles.manualFallbackText}>Enter manually</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
             )}
 
@@ -1956,10 +1946,10 @@ export default function AddFoodScreen() {
 
               {!isFromSavedFoods &&
                 (!selectedFood || selectedFood.providerId === 'manual') && (
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="select"
                     style={styles.saveToLibraryRow}
                     onPress={() => setSaveToLibrary((v) => !v)}
-                    activeOpacity={0.7}
                   >
                     <Bookmark
                       size={18}
@@ -1986,11 +1976,12 @@ export default function AddFoodScreen() {
                         ]}
                       />
                     </View>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 )}
 
               {selectedFood?.providerId === 'usda' && (
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="confirm"
                   style={styles.usdaSaveBtn}
                   onPress={async () => {
                     const fdcId = selectedFood.id.replace(/^usda:/, '');
@@ -2017,17 +2008,16 @@ export default function AddFoodScreen() {
                     const updated = await foodsRepo.getUserSavedFoods();
                     setSavedFoods(updated.map(foodsRepo.localFoodToNormalizedFood));
                   }}
-                  activeOpacity={0.7}
                 >
                   <Bookmark size={16} color={colors.primary} />
                   <Text style={styles.usdaSaveBtnText}>Save to Saved Foods</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               )}
 
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="confirm"
                 style={styles.saveButton}
                 onPress={handleSave}
-                activeOpacity={0.85}
                 disabled={isSaving}
                 testID="add-to-log-button"
               >
@@ -2036,7 +2026,7 @@ export default function AddFoodScreen() {
                 ) : (
                   <Text style={styles.saveButtonText}>Add to Today's Log</Text>
                 )}
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           )}
 
@@ -2052,13 +2042,13 @@ export default function AddFoodScreen() {
                       <Text style={styles.recentTitle}>Recent</Text>
                     </View>
                     {recentFoods.slice(0, 10).map((item) => (
-                      <TouchableOpacity
+                      <PhysiqPressable
                         key={item.food.id}
+                        feedback="select"
                         style={styles.recentCard}
                         onPress={() =>
                           handleSelectRecent(item.food, item.lastServingGrams)
                         }
-                        activeOpacity={0.7}
                       >
                         <View style={styles.recentInfo}>
                           <Text style={styles.recentName} numberOfLines={1}>
@@ -2074,7 +2064,7 @@ export default function AddFoodScreen() {
                           </Text>
                         </View>
                         <ChevronRight size={16} color={Colors.textTertiary} />
-                      </TouchableOpacity>
+                      </PhysiqPressable>
                     ))}
                   </>
                 )}
@@ -2085,11 +2075,11 @@ export default function AddFoodScreen() {
                       <Text style={styles.recentTitle}>Saved Foods</Text>
                     </View>
                     {savedFoods.slice(0, 10).map((food) => (
-                      <TouchableOpacity
+                      <PhysiqPressable
                         key={food.id}
+                        feedback="select"
                         style={styles.recentCard}
                         onPress={() => handleSelectSuggestion(food)}
-                        activeOpacity={0.7}
                       >
                         <View style={styles.recentInfo}>
                           <Text style={styles.recentName} numberOfLines={1}>
@@ -2103,7 +2093,7 @@ export default function AddFoodScreen() {
                           </Text>
                         </View>
                         <ChevronRight size={16} color={Colors.textTertiary} />
-                      </TouchableOpacity>
+                      </PhysiqPressable>
                     ))}
                   </>
                 )}
@@ -2119,7 +2109,7 @@ export default function AddFoodScreen() {
         animationType="slide"
         onRequestClose={() => setVoiceModalVisible(false)}
       >
-        <Pressable style={styles.voiceModalOverlay} onPress={() => setVoiceModalVisible(false)}>
+        <PhysiqPressable feedback="tap" style={styles.voiceModalOverlay} onPress={() => setVoiceModalVisible(false)}>
           <Pressable style={styles.voiceModalSheet} onPress={() => {}}>
             <Text style={styles.voiceModalTitle}>Review Spoken Meal</Text>
             <Text style={styles.voiceModalSubtitle}>
@@ -2193,7 +2183,8 @@ export default function AddFoodScreen() {
                               <Text style={styles.voiceUnresolvedLabel}>{item.label}</Text>
                               <Text style={styles.voiceUnresolvedReason}>{item.reason}</Text>
                             </View>
-                            <TouchableOpacity
+                            <PhysiqPressable
+                              feedback="tap"
                               onPress={() =>
                                 setDismissedUnresolvedIds((prev) => [...prev, item.id])
                               }
@@ -2201,7 +2192,7 @@ export default function AddFoodScreen() {
                               accessibilityLabel={`Dismiss ${item.label}`}
                             >
                               <X size={16} color={Colors.textTertiary} />
-                            </TouchableOpacity>
+                            </PhysiqPressable>
                           </View>
                         ))}
                         {hasResolved && (
@@ -2221,10 +2212,10 @@ export default function AddFoodScreen() {
                   </View>
 
                   {!isFromSavedFoods && (
-                    <TouchableOpacity
+                    <PhysiqPressable
+                      feedback="select"
                       style={styles.saveToLibraryRow}
                       onPress={() => setSaveToLibrary((v) => !v)}
-                      activeOpacity={0.7}
                     >
                       <Bookmark
                         size={18}
@@ -2251,24 +2242,24 @@ export default function AddFoodScreen() {
                           ]}
                         />
                       </View>
-                    </TouchableOpacity>
+                    </PhysiqPressable>
                   )}
 
                   <View style={styles.voiceModalActions}>
-                    <TouchableOpacity
+                    <PhysiqPressable
+                      feedback="tap"
                       style={styles.voiceSecondaryButton}
                       onPress={() => setVoiceModalVisible(false)}
-                      activeOpacity={0.7}
                     >
                       <Text style={styles.voiceSecondaryButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </PhysiqPressable>
+                    <PhysiqPressable
+                      feedback="confirm"
                       style={[
                         styles.voicePrimaryButton,
                         (!hasResolved || isSaving) && styles.voicePrimaryButtonDisabled,
                       ]}
                       onPress={handleConfirmVoiceMeal}
-                      activeOpacity={0.8}
                       disabled={!hasResolved || isSaving}
                     >
                       {isSaving ? (
@@ -2276,13 +2267,13 @@ export default function AddFoodScreen() {
                       ) : (
                         <Text style={styles.voicePrimaryButtonText}>{confirmLabel}</Text>
                       )}
-                    </TouchableOpacity>
+                    </PhysiqPressable>
                   </View>
                 </>
               );
             })()}
           </Pressable>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
     </View>
     </DismissKeyboard>

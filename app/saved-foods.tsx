@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TextInput,
   ScrollView,
-  TouchableOpacity,
   Alert,
   Platform,
   ActivityIndicator,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { Search, ChevronRight, Trash2, Scan, UtensilsCrossed } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '../constants/colors';
@@ -69,9 +69,6 @@ export default function SavedFoodsScreen() {
 
   const handleSelectFood = useCallback(
     (food: LocalFood) => {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       const norm = foodsRepo.localFoodToNormalizedFood(food);
       router.replace({
         pathname: '/add-food',
@@ -153,16 +150,10 @@ export default function SavedFoodsScreen() {
   );
 
   const handleScanBarcode = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     router.push('/barcode-scanner');
   }, []);
 
   const handleManualEntry = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     router.replace('/add-food');
   }, []);
 
@@ -187,22 +178,24 @@ export default function SavedFoodsScreen() {
         />
       </View>
       <View style={styles.tabRow}>
-        <TouchableOpacity
+        <PhysiqPressable
+          feedback="select"
           style={[styles.tabBtn, activeTab === 'foods' ? styles.tabBtnActive : null]}
           onPress={() => setActiveTab('foods')}
         >
           <Text style={[styles.tabText, activeTab === 'foods' ? styles.tabTextActive : null]}>
             Saved Foods
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </PhysiqPressable>
+        <PhysiqPressable
+          feedback="select"
           style={[styles.tabBtn, activeTab === 'meals' ? styles.tabBtnActive : null]}
           onPress={() => setActiveTab('meals')}
         >
           <Text style={[styles.tabText, activeTab === 'meals' ? styles.tabTextActive : null]}>
             Saved Meals
           </Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
 
       {loading ? (
@@ -222,13 +215,13 @@ export default function SavedFoodsScreen() {
           </Text>
           {!searchQuery.trim() && (
             <View style={styles.emptyActions}>
-              <TouchableOpacity style={styles.emptyBtn} onPress={handleManualEntry}>
+              <PhysiqPressable feedback="confirm" style={styles.emptyBtn} onPress={handleManualEntry}>
                 <Text style={styles.emptyBtnText}>Enter manually</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.emptyBtnSecondary} onPress={handleScanBarcode}>
+              </PhysiqPressable>
+              <PhysiqPressable feedback="tap" style={styles.emptyBtnSecondary} onPress={handleScanBarcode}>
                 <Scan size={18} color={colors.primary} />
                 <Text style={styles.emptyBtnTextSecondary}>Scan barcode</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           )}
         </View>
@@ -240,10 +233,10 @@ export default function SavedFoodsScreen() {
         >
           {filteredFoods.map((food) => (
             <View key={food.id} style={styles.card}>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.cardMain}
                 onPress={() => handleSelectFood(food)}
-                activeOpacity={0.7}
               >
                 <View style={styles.cardInfo}>
                   <Text style={styles.foodName} numberOfLines={1}>
@@ -255,14 +248,15 @@ export default function SavedFoodsScreen() {
                   </Text>
                 </View>
                 <ChevronRight size={18} color={Colors.textTertiary} />
-              </TouchableOpacity>
-              <TouchableOpacity
+              </PhysiqPressable>
+              <PhysiqPressable
+                feedback="destructive"
                 style={styles.deleteBtn}
                 onPress={() => handleDeleteFood(food)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Trash2 size={18} color={Colors.textTertiary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           ))}
         </ScrollView>
@@ -285,17 +279,18 @@ export default function SavedFoodsScreen() {
                     {formatNumber(meal.total.calories)} cal · {formatNumber(meal.total.protein_g)}p · {formatNumber(meal.total.carbs_g)}c · {formatNumber(meal.total.fat_g)}f
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.emptyBtn} onPress={() => handleAddMealToLog(meal)}>
+                <PhysiqPressable feedback="confirm" style={styles.emptyBtn} onPress={() => handleAddMealToLog(meal)}>
                   <Text style={styles.emptyBtnText}>Add Meal to Log</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="destructive"
                 style={styles.deleteBtn}
                 onPress={() => handleDeleteMeal(meal)}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Trash2 size={18} color={Colors.textTertiary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           ))}
         </ScrollView>

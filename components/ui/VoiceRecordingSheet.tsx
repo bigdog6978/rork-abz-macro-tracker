@@ -4,11 +4,11 @@ import {
   Text,
   Modal,
   Pressable,
-  TouchableOpacity,
   Animated,
   StyleSheet,
 } from 'react-native';
 import { X } from 'lucide-react-native';
+import PhysiqPressable from './PhysiqPressable';
 import Colors from '../../constants/colors';
 import type { AppColors } from '../../providers/ThemeProvider';
 
@@ -216,7 +216,9 @@ export default function VoiceRecordingSheet({
       onRequestClose={onCancel}
     >
       <View style={sheetStyles.overlay}>
-        <Pressable style={sheetStyles.backdrop} onPress={onCancel} />
+        <PhysiqPressable feedback="tap" style={sheetStyles.backdrop} onPress={onCancel}>
+          <View style={StyleSheet.absoluteFill} />
+        </PhysiqPressable>
         <View
           style={[sheetStyles.sheet, { backgroundColor: Colors.card }]}
         >
@@ -242,19 +244,19 @@ export default function VoiceRecordingSheet({
             {transcript || 'Try "2 eggs, 1 avocado, 6 oz orange juice"'}
           </Text>
 
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="tap"
             style={[
               sheetStyles.cancelBtn,
               { borderColor: colors.primary },
             ]}
             onPress={onCancel}
-            activeOpacity={0.7}
           >
             <X size={16} color={colors.primary} />
             <Text style={[sheetStyles.cancelText, { color: colors.primary }]}>
               Cancel
             </Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
       </View>
     </Modal>

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Modal,
   Animated,
   Platform,
@@ -13,6 +12,7 @@ import {
   Alert,
   useWindowDimensions,
 } from 'react-native';
+import PhysiqPressable from '../../../components/ui/PhysiqPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sunrise, Sun, Moon, Cookie, ArrowLeftRight, X, Check, Save, Bookmark, ShoppingCart, Copy, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -154,24 +154,6 @@ function FoodItemRow({
   onEditQuantityPress?: () => void;
 }) {
   const colors = useThemeColors();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = useCallback(() => {
-    playFeedback('select');
-    Animated.timing(scaleAnim, {
-      toValue: 1.05,
-      duration: 100,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
-
-  const handlePressOut = useCallback(() => {
-    Animated.timing(scaleAnim, {
-      toValue: 1,
-      duration: 100,
-      useNativeDriver: true,
-    }).start();
-  }, [scaleAnim]);
 
   return (
     <View style={styles.suggestionRow}>
@@ -194,47 +176,47 @@ function FoodItemRow({
             </View>
           )}
         </View>
-        <Pressable
+        <PhysiqPressable
+          feedback="tap"
           onPress={onEditQuantityPress}
-          style={({ pressed }) => [styles.suggestionPortionWrap, pressed && styles.suggestionPortionPressed]}
+          style={styles.suggestionPortionWrap}
           disabled={!onEditQuantityPress}
         >
           <Text style={styles.suggestionPortion}>{food.portion}</Text>
-        </Pressable>
+        </PhysiqPressable>
         <Text style={styles.suggestionMacros}>
           {formatNumber(food.calories)} cal · {formatNumber(food.protein_g)}p · {formatNumber(food.carbs_g)}c · {formatNumber(food.fat_g)}f
         </Text>
       </View>
-      <Pressable
+      <PhysiqPressable
+        feedback="select"
         style={styles.logToggleTouchTarget}
         onPress={onLogPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessibilityLabel={isLogged ? `Remove ${food.name} from today` : `Log ${food.name} to today`}
         accessibilityRole="button"
         accessibilityHint="Adds this food to your daily total"
         testID={`log-btn-${food.id}`}
       >
-        <Animated.View
+        <View
           style={[
             styles.logToggleOuter,
             isLogged && [styles.logToggleOuterActive, { borderColor: colors.primary }],
-            { transform: [{ scale: scaleAnim }] },
           ]}
         >
           <View style={[styles.logToggleInner, isLogged && [styles.logToggleInnerActive, { backgroundColor: colors.primary }]]} />
-        </Animated.View>
-      </Pressable>
+        </View>
+      </PhysiqPressable>
       {food.isSubstitutable && (
-        <TouchableOpacity
+        <PhysiqPressable
           style={styles.swapButton}
+          feedback="tap"
           onPress={onSwapPress}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           testID={`swap-btn-${food.id}`}
         >
           <ArrowLeftRight size={14} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </PhysiqPressable>
       )}
     </View>
   );
@@ -284,7 +266,8 @@ function MealCard({
           <Text style={styles.mealPercent}>{Math.round(meal.percentage * 100)}% of daily</Text>
         </View>
         <View style={styles.mealHeaderActions}>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="select"
             style={[
               styles.mealActionBtn,
               mealLogged ? [styles.mealActionBtnActive, { borderColor: colors.primary }] : null,
@@ -299,23 +282,25 @@ function MealCard({
                 mealLogged ? [styles.mealActionDotActive, { backgroundColor: colors.primary }] : null,
               ]}
             />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PhysiqPressable>
+          <PhysiqPressable
+            feedback="tap"
             style={[styles.mealActionBtn, { backgroundColor: Colors.cardElevated }]}
             onPress={() => onMealRegeneratePress(mealIndex)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             testID={`regen-meal-btn-${mealIndex}`}
           >
             <RotateCcw size={14} color={Colors.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PhysiqPressable>
+          <PhysiqPressable
+            feedback="tap"
             style={[styles.mealActionBtn, { backgroundColor: Colors.cardElevated }]}
             onPress={() => onMealSavePress(mealIndex, meal)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             testID={`save-meal-btn-${mealIndex}`}
           >
             <Save size={14} color={Colors.textSecondary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
       </View>
 
@@ -368,10 +353,10 @@ function SubstituteOption({
 }) {
   const colors = useThemeColors();
   return (
-    <TouchableOpacity
+    <PhysiqPressable
+      feedback="select"
       style={styles.substituteCard}
       onPress={onSelect}
-      activeOpacity={0.7}
       testID={`sub-option-${result.catalogItem.id}`}
     >
       <View style={styles.substituteInfo}>
@@ -396,7 +381,7 @@ function SubstituteOption({
       <View style={[styles.selectButton, { backgroundColor: colors.primaryMuted }]}>
         <Check size={16} color={colors.primary} />
       </View>
-    </TouchableOpacity>
+    </PhysiqPressable>
   );
 }
 
@@ -463,9 +448,6 @@ function GrocerySection({
   }, [slideAnim]);
 
   const toggleItem = useCallback((itemKey: string) => {
-    if (Platform.OS !== 'web') {
-      playFeedback('tap');
-    }
     setChecklist((prev) => {
       const updated = { ...prev, [itemKey]: !prev[itemKey] };
       saveChecklist(planId, updated);
@@ -502,9 +484,6 @@ function GrocerySection({
   const handleReset = useCallback(() => {
     setChecklist({});
     saveChecklist(planId, {});
-    if (Platform.OS !== 'web') {
-      playFeedback('confirm');
-    }
     showToast('Checklist reset');
   }, [planId, showToast]);
 
@@ -534,24 +513,24 @@ function GrocerySection({
         </View>
 
         <View style={groceryStyles.sectionActions}>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="confirm"
             style={[groceryStyles.viewListBtn, { backgroundColor: colors.primary }]}
             onPress={openSheet}
-            activeOpacity={0.7}
             testID="grocery-view-btn"
           >
             <ShoppingCart size={14} color={colors.onPrimary} />
             <Text style={[groceryStyles.viewListBtnText, { color: colors.onPrimary }]}>View List</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PhysiqPressable>
+          <PhysiqPressable
+            feedback="tap"
             style={[groceryStyles.copyBtn, { backgroundColor: colors.primaryMuted }]}
             onPress={handleCopy}
-            activeOpacity={0.7}
             testID="grocery-copy-btn"
           >
             <Copy size={14} color={colors.primary} />
             <Text style={[groceryStyles.copyBtnText, { color: colors.primary }]}>Copy</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
       </View>
 
@@ -562,7 +541,7 @@ function GrocerySection({
         onRequestClose={closeSheet}
         statusBarTranslucent
       >
-        <Pressable style={groceryStyles.overlay} onPress={closeSheet}>
+        <PhysiqPressable feedback="tap" style={groceryStyles.overlay} onPress={closeSheet}>
           <Pressable onPress={() => {}}>
             <Animated.View
               style={[
@@ -579,9 +558,9 @@ function GrocerySection({
                     {checkedCount} of {totalItems} items checked
                   </Text>
                 </View>
-                <TouchableOpacity onPress={closeSheet} style={groceryStyles.closeBtn}>
+                <PhysiqPressable feedback="tap" onPress={closeSheet} style={groceryStyles.closeBtn}>
                   <X size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
 
               <ScrollView
@@ -594,10 +573,10 @@ function GrocerySection({
                   const catChecked = category.items.filter((i) => checklist[i.key]).length;
                   return (
                     <View key={category.name} style={groceryStyles.categoryBlock}>
-                      <TouchableOpacity
+                      <PhysiqPressable
+                        feedback="tap"
                         style={groceryStyles.categoryHeader}
                         onPress={() => toggleCategory(category.name)}
-                        activeOpacity={0.7}
                       >
                         <Text style={groceryStyles.categoryName}>{category.name}</Text>
                         <View style={groceryStyles.categoryRight}>
@@ -610,15 +589,15 @@ function GrocerySection({
                             <ChevronUp size={16} color={Colors.textTertiary} />
                           )}
                         </View>
-                      </TouchableOpacity>
+                      </PhysiqPressable>
                       {!isCollapsed && category.items.map((item) => {
                         const isChecked = !!checklist[item.key];
                         return (
-                          <TouchableOpacity
+                          <PhysiqPressable
+                            feedback="select"
                             key={item.key}
                             style={groceryStyles.itemRow}
                             onPress={() => toggleItem(item.key)}
-                            activeOpacity={0.7}
                             testID={`grocery-item-${item.key}`}
                           >
                             <View style={[
@@ -644,7 +623,7 @@ function GrocerySection({
                             ]}>
                               {formatDisplayAmount(item.totalAmount)} {item.unit}
                             </Text>
-                          </TouchableOpacity>
+                          </PhysiqPressable>
                         );
                       })}
                     </View>
@@ -653,26 +632,26 @@ function GrocerySection({
               </ScrollView>
 
               <View style={groceryStyles.sheetFooter}>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={groceryStyles.resetBtn}
                   onPress={handleReset}
-                  activeOpacity={0.7}
                 >
                   <RotateCcw size={14} color={Colors.textSecondary} />
                   <Text style={groceryStyles.resetBtnText}>Reset</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PhysiqPressable>
+                <PhysiqPressable
+                  feedback="tap"
                   style={[groceryStyles.footerCopyBtn, { backgroundColor: colors.primaryMuted }]}
                   onPress={handleCopy}
-                  activeOpacity={0.7}
                 >
                   <Copy size={14} color={colors.primary} />
                   <Text style={[groceryStyles.footerCopyBtnText, { color: colors.primary }]}>Copy List</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
             </Animated.View>
           </Pressable>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
     </>
   );
@@ -1234,19 +1213,17 @@ export default function PlanScreen() {
 
   const isMealLogged = useCallback(
     (mealIndex: number, meal: MealSlot) =>
-      meal.suggestions.every((_, foodIndex) => isLogged(mealSlotBaseId(mealIndex, foodIndex))),
-    [isLogged]
+      meal.suggestions.every((_, foodIndex) =>
+        isLogged(mealSlotBaseId(selectedDayIndex, mealIndex, foodIndex))
+      ),
+    [isLogged, selectedDayIndex]
   );
 
   const handleLogMeal = useCallback(
     (mealIndex: number, meal: MealSlot) => {
-      if (Platform.OS !== 'web') {
-        playFeedback('tap');
-      }
-
       const missingEntries: FoodEntry[] = [];
       meal.suggestions.forEach((food, foodIndex) => {
-        const slotId = mealSlotBaseId(mealIndex, foodIndex);
+        const slotId = mealSlotBaseId(selectedDayIndex, mealIndex, foodIndex);
         const exists = todayEntries.some(
           (e) => e.source === 'mealPlan' && e.sourceRefId === slotId
         );
@@ -1267,7 +1244,7 @@ export default function PlanScreen() {
       addEntries(missingEntries);
       showToast(`Added ${missingEntries.length} item${missingEntries.length === 1 ? '' : 's'} to Today`);
     },
-    [addEntries, showToast, todayEntries]
+    [addEntries, showToast, todayEntries, selectedDayIndex]
   );
 
   const handleSaveMealTemplate = useCallback(
@@ -1531,10 +1508,6 @@ export default function PlanScreen() {
   const handleSelectSubstitute = useCallback((result: SubstituteResult) => {
     if (!selectedFood) return;
 
-    if (Platform.OS !== 'web') {
-      playFeedback('confirm');
-    }
-
     const newItem = applySubstitution(selectedFood, result, selectedMealIdx, selectedFoodIdx);
     const slotKey = mealSlotBaseId(selectedDayIndex, selectedMealIdx, selectedFoodIdx);
 
@@ -1637,10 +1610,10 @@ export default function PlanScreen() {
               )}
             </View>
             <View style={styles.headerActions}>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={[styles.headerActionBtn, { backgroundColor: colors.primaryMuted }]}
                 onPress={() => {
-                  if (Platform.OS !== 'web') playFeedback('tap');
                   const keyToClear = planKey;
                   const resetState = () => {
                     setSubstitutionMap({});
@@ -1666,25 +1639,27 @@ export default function PlanScreen() {
                 testID="regenerate-plan-btn"
               >
                 <RotateCcw size={16} color={colors.primary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
               {savedPlans.length > 0 && (
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={[styles.headerActionBtn, { backgroundColor: colors.primaryMuted }]}
                   onPress={() => router.push('/plan/saved-plans' as any)}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   testID="saved-plans-btn"
                 >
                   <Bookmark size={16} color={colors.primary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
               )}
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={[styles.saveHeaderBtn, { backgroundColor: colors.primaryMuted }]}
                 onPress={openSaveModal}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 testID="save-plan-btn"
               >
                 <Save size={16} color={colors.primary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           </View>
 
@@ -1692,12 +1667,13 @@ export default function PlanScreen() {
             <View style={styles.activePlanTag}>
               <Bookmark size={10} color={Colors.success} />
               <Text style={styles.activePlanTagText}>{activePlanName}</Text>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 onPress={() => clearActiveMutation.mutate()}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <X size={12} color={Colors.textTertiary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           )}
 
@@ -1715,7 +1691,8 @@ export default function PlanScreen() {
             <Text style={styles.planLengthLabel}>Plan length</Text>
             <View style={styles.dayChipRow}>
               {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="select"
                   key={n}
                   style={[
                     styles.dayChip,
@@ -1728,7 +1705,7 @@ export default function PlanScreen() {
                   }}
                 >
                   <Text style={[styles.dayChipText, numDays === n && { color: colors.primary }]}>{n}d</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               ))}
             </View>
           </View>
@@ -1736,7 +1713,8 @@ export default function PlanScreen() {
           {numDays > 1 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daySelectorScroll}>
               {Array.from({ length: numDays }, (_, i) => (
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="select"
                   key={i}
                   style={[
                     styles.daySelectorChip,
@@ -1755,7 +1733,7 @@ export default function PlanScreen() {
                   >
                     {getWeekDayLabel(i)}
                   </Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               ))}
             </ScrollView>
           )}
@@ -1783,12 +1761,13 @@ export default function PlanScreen() {
             <Text style={styles.planUnavailableText}>
               We couldn{"'"}t generate a plan with your current allergies and dietary setup. Try removing an allergy or adjusting your eating style or restrictions.
             </Text>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="confirm"
               style={[styles.editAllergiesBtn, { backgroundColor: colors.primary }]}
               onPress={() => router.push('/settings/allergies' as never)}
             >
               <Text style={[styles.editAllergiesBtnText, { color: colors.onPrimary }]}>Edit Allergies</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         ) : (
           <>
@@ -1859,7 +1838,7 @@ export default function PlanScreen() {
         onRequestClose={closeSheet}
         statusBarTranslucent
       >
-        <Pressable style={styles.sheetOverlay} onPress={closeSheet}>
+        <PhysiqPressable feedback="tap" style={styles.sheetOverlay} onPress={closeSheet}>
           <Pressable onPress={() => {}}>
             <Animated.View
               style={[
@@ -1876,9 +1855,9 @@ export default function PlanScreen() {
                     Alternatives similar to {selectedFood?.name ?? 'this item'}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={closeSheet} style={styles.sheetCloseBtn}>
+                <PhysiqPressable feedback="tap" onPress={closeSheet} style={styles.sheetCloseBtn}>
                   <X size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
 
               <ScrollView
@@ -1905,7 +1884,8 @@ export default function PlanScreen() {
 
               {substitutes.length > SWAP_PAGE_SIZE && (
                 <View style={styles.pagingContainer}>
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="tap"
                     style={[
                       styles.pagingButton,
                       { backgroundColor: colors.primaryMuted },
@@ -1913,7 +1893,6 @@ export default function PlanScreen() {
                     ]}
                     onPress={() => setSwapPageIndex((p) => Math.max(0, p - 1))}
                     disabled={swapPageIndex === 0}
-                    activeOpacity={0.7}
                   >
                     <Text
                       style={[
@@ -1924,13 +1903,14 @@ export default function PlanScreen() {
                     >
                       Previous
                     </Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
 
                   <Text style={styles.pagingLabel}>
                     {swapRangeStart}–{swapRangeEnd} of {substitutes.length}
                   </Text>
 
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="tap"
                     style={[
                       styles.pagingButton,
                       { backgroundColor: colors.primaryMuted },
@@ -1938,7 +1918,6 @@ export default function PlanScreen() {
                     ]}
                     onPress={() => setSwapPageIndex((p) => Math.min(totalSwapPages - 1, p + 1))}
                     disabled={swapPageIndex >= totalSwapPages - 1}
-                    activeOpacity={0.7}
                   >
                     <Text
                       style={[
@@ -1949,12 +1928,12 @@ export default function PlanScreen() {
                     >
                       Next
                     </Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </View>
               )}
             </Animated.View>
           </Pressable>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
 
       {/* Save Plan Sheet */}
@@ -1965,7 +1944,7 @@ export default function PlanScreen() {
         onRequestClose={closeSaveModal}
         statusBarTranslucent
       >
-        <Pressable style={styles.sheetOverlay} onPress={closeSaveModal}>
+        <PhysiqPressable feedback="tap" style={styles.sheetOverlay} onPress={closeSaveModal}>
           <Pressable onPress={() => {}}>
             <Animated.View
               style={[
@@ -1982,9 +1961,9 @@ export default function PlanScreen() {
                     Save your current plan with substitutions
                   </Text>
                 </View>
-                <TouchableOpacity onPress={closeSaveModal} style={styles.sheetCloseBtn}>
+                <PhysiqPressable feedback="tap" onPress={closeSaveModal} style={styles.sheetCloseBtn}>
                   <X size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
 
               <View style={styles.saveFormArea}>
@@ -2005,26 +1984,26 @@ export default function PlanScreen() {
               </View>
 
               <View style={styles.saveFooter}>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={styles.cancelButton}
                   onPress={closeSaveModal}
-                  activeOpacity={0.7}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PhysiqPressable>
+                <PhysiqPressable
+                  feedback="confirm"
                   style={[styles.savePlanButton, { backgroundColor: colors.primary }]}
                   onPress={handleSavePlan}
-                  activeOpacity={0.7}
                   testID="confirm-save-btn"
                 >
                   <Save size={16} color={colors.onPrimary} />
                   <Text style={[styles.savePlanButtonText, { color: colors.onPrimary }]}>Save</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
             </Animated.View>
           </Pressable>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
 
       {/* Toast */}

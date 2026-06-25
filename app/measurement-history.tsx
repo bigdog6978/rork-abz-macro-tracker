@@ -4,15 +4,15 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Platform,
   Alert,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { Platform } from 'react-native';
 import { ChevronRight, Trash2 } from 'lucide-react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import Colors from '../constants/colors';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { useMeasurements } from '../providers/MeasurementsProvider';
 import { MeasurementRecord } from '../features/progress/types';
 import { fromDateKey, toDateKey } from '../utils/dateKey';
@@ -44,9 +44,6 @@ export default function MeasurementHistoryScreen() {
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
 
   const handleRowPress = useCallback((dateKey: string) => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     router.push({
       pathname: '/add-measurement',
       params: { dateKey },
@@ -85,14 +82,14 @@ export default function MeasurementHistoryScreen() {
 
   const renderRightActions = useCallback(
     (r: MeasurementRecord) => (
-      <TouchableOpacity
+      <PhysiqPressable
+        feedback="destructive"
         style={styles.deleteAction}
         onPress={() => handleDelete(r)}
-        activeOpacity={0.8}
       >
         <Trash2 size={20} color={Colors.white} />
         <Text style={styles.deleteActionText}>Delete</Text>
-      </TouchableOpacity>
+      </PhysiqPressable>
     ),
     [handleDelete]
   );
@@ -128,10 +125,10 @@ export default function MeasurementHistoryScreen() {
                 friction={2}
                 rightThreshold={40}
               >
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={styles.row}
                   onPress={() => handleRowPress(dk)}
-                  activeOpacity={0.7}
                 >
                   <View style={styles.rowMain}>
                     <Text style={styles.rowDate}>{formatDateLabel(dk)}</Text>
@@ -141,7 +138,7 @@ export default function MeasurementHistoryScreen() {
                     )}
                   </View>
                   <ChevronRight size={18} color={Colors.textTertiary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
               </Swipeable>
             );
           })

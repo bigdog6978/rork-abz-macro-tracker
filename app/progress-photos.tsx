@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
   Modal,
@@ -14,6 +13,7 @@ import {
 import { Stack, router } from 'expo-router';
 import { Image } from 'expo-image';
 import { Camera, ImageIcon, Star, Trash2, X } from 'lucide-react-native';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import Colors from '../constants/colors';
 import { Radius, Spacing } from '../theme/tokens';
 import { usePhotos } from '../providers/PhotosProvider';
@@ -135,22 +135,24 @@ export default function ProgressPhotosScreen() {
         <PhotoCompareRow baseline={baseline} latest={latest} trends={trends} styles={styles} />
 
         <View style={styles.actionsRow}>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="confirm"
             style={styles.actionBtn}
             disabled={isSaving}
             onPress={() => handleAdd('camera')}
           >
             <Camera size={18} color={colors.primary} />
             <Text style={styles.actionText}>Take Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PhysiqPressable>
+          <PhysiqPressable
+            feedback="confirm"
             style={styles.actionBtn}
             disabled={isSaving}
             onPress={() => handleAdd('library')}
           >
             <ImageIcon size={18} color={colors.primary} />
             <Text style={styles.actionText}>Choose Photo</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
 
         {isSaving && <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />}
@@ -164,8 +166,9 @@ export default function ProgressPhotosScreen() {
         ) : (
           <View style={styles.grid}>
             {[...photos].reverse().map((photo) => (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={photo.id}
+                feedback="tap"
                 style={[styles.thumbWrap, { width: thumbSize, height: thumbSize * 1.33 }]}
                 onPress={() => setViewerPhoto(photo)}
                 onLongPress={() => handleDelete(photo)}
@@ -176,18 +179,18 @@ export default function ProgressPhotosScreen() {
                     <Star size={10} color={Colors.white} fill={Colors.white} />
                   </View>
                 )}
-              </TouchableOpacity>
+              </PhysiqPressable>
             ))}
           </View>
         )}
 
-        <TouchableOpacity style={styles.shareLink} onPress={() => router.push('/share-progress' as never)}>
+        <PhysiqPressable feedback="tap" style={styles.shareLink} onPress={() => router.push('/share-progress' as never)}>
           <Text style={styles.shareLinkText}>Share your progress</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </ScrollView>
 
       <Modal visible={!!viewerPhoto} transparent animationType="fade" onRequestClose={() => setViewerPhoto(null)}>
-        <Pressable style={styles.viewerBackdrop} onPress={() => setViewerPhoto(null)}>
+        <PhysiqPressable feedback="tap" style={styles.viewerBackdrop} onPress={() => setViewerPhoto(null)}>
           <View style={styles.viewerCard}>
             {viewerPhoto && (
               <>
@@ -195,26 +198,27 @@ export default function ProgressPhotosScreen() {
                 <Text style={styles.viewerDate}>{formatPhotoDate(viewerPhoto.dateKey)}</Text>
                 <View style={styles.viewerActions}>
                   {!viewerPhoto.isBaseline && (
-                    <TouchableOpacity
+                    <PhysiqPressable
+                      feedback="select"
                       style={styles.viewerBtn}
                       onPress={() => void setBaseline(viewerPhoto.id).then(() => setViewerPhoto(null))}
                     >
                       <Star size={16} color={colors.primary} />
                       <Text style={styles.viewerBtnText}>Set as baseline</Text>
-                    </TouchableOpacity>
+                    </PhysiqPressable>
                   )}
-                  <TouchableOpacity style={styles.viewerBtn} onPress={() => handleDelete(viewerPhoto)}>
+                  <PhysiqPressable feedback="destructive" style={styles.viewerBtn} onPress={() => handleDelete(viewerPhoto)}>
                     <Trash2 size={16} color={Colors.danger} />
                     <Text style={[styles.viewerBtnText, { color: Colors.danger }]}>Delete</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.viewerClose} onPress={() => setViewerPhoto(null)}>
+                  </PhysiqPressable>
+                  <PhysiqPressable feedback="tap" style={styles.viewerClose} onPress={() => setViewerPhoto(null)}>
                     <X size={20} color={Colors.textSecondary} />
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </View>
               </>
             )}
           </View>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
     </View>
   );

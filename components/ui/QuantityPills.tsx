@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Modal,
   Pressable,
@@ -172,7 +171,7 @@ export default function QuantityPills({
         animationType="slide"
         onRequestClose={() => setMoreVolumeVisible(false)}
       >
-        <Pressable style={styles.moreOverlay} onPress={() => setMoreVolumeVisible(false)}>
+        <PhysiqPressable feedback="tap" style={styles.moreOverlay} onPress={() => setMoreVolumeVisible(false)}>
           <Pressable onPress={() => {}} style={styles.moreSheet}>
             <View style={styles.moreHandle} />
             <Text style={styles.moreTitle}>Volume units</Text>
@@ -190,7 +189,7 @@ export default function QuantityPills({
               </PhysiqPressable>
             ))}
           </Pressable>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
     </View>
   );

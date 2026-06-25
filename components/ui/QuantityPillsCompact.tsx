@@ -10,7 +10,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Modal,
   Pressable,
@@ -227,7 +226,7 @@ export default function QuantityPillsCompact({
         animationType="slide"
         onRequestClose={() => setMoreVisible(false)}
       >
-        <Pressable style={styles.moreOverlay} onPress={() => setMoreVisible(false)}>
+        <PhysiqPressable feedback="tap" style={styles.moreOverlay} onPress={() => setMoreVisible(false)}>
           <Pressable onPress={() => {}} style={styles.moreSheet}>
             <View style={styles.moreHandle} />
             <Text style={styles.moreTitle}>Volume units</Text>
@@ -248,7 +247,7 @@ export default function QuantityPillsCompact({
               </PhysiqPressable>
             ))}
           </Pressable>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
     </View>
   );

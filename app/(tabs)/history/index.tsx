@@ -6,15 +6,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Animated,
   Platform,
-  Pressable,
   Modal,
 } from 'react-native';
+import PhysiqPressable from '../../../components/ui/PhysiqPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import {
   Flame, TrendingUp, TrendingDown, Calendar, ChevronDown, ChevronUp,
   Target, Plus, ArrowUpRight, ArrowDownRight, Minus, Ruler, ChevronRight,
@@ -140,9 +138,9 @@ function TrendItem({ trend, onPress }: { trend: ProgressTrend; onPress?: () => v
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <PhysiqPressable feedback="tap" onPress={onPress}>
         {content}
-      </TouchableOpacity>
+      </PhysiqPressable>
     );
   }
   return content;
@@ -298,7 +296,8 @@ function DayRow({
   const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   return (
-    <Pressable
+    <PhysiqPressable
+      feedback="tap"
       style={styles.dayRow}
       onPress={onPress}
       accessibilityLabel={`${dayName} ${dateLabel}, ${formatNumber(totals.calories)} calories`}
@@ -318,7 +317,7 @@ function DayRow({
         </View>
         <ChevronRight size={16} color={Colors.textTertiary} />
       </View>
-    </Pressable>
+    </PhysiqPressable>
   );
 }
 
@@ -372,23 +371,14 @@ export default function HistoryScreen() {
   }, [datesWithData, getTotalsForDate, macros]);
 
   const handleAddMeasurement = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
     router.push('/add-measurement' as never);
   }, []);
 
   const handleOpenMeasurementHistory = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     router.push('/measurement-history' as never);
   }, []);
 
   const handleOpenSetTarget = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     router.push('/set-target' as never);
   }, []);
 
@@ -414,18 +404,12 @@ export default function HistoryScreen() {
 
   const handleDayPress = useCallback(
     (dateKey: string) => {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       router.push({ pathname: '/day-log', params: { dateKey } } as never);
     },
     []
   );
 
   const openAddDayModal = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     setAddDayModalVisible(true);
   }, []);
 
@@ -483,18 +467,20 @@ export default function HistoryScreen() {
         <DashboardBrandHeader />
         <TabScreenTitle title="Progress" />
         <View style={styles.modeToggle}>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="select"
             style={[styles.modeTab, viewMode === 'progress' && [styles.modeTabActive, { backgroundColor: colors.primaryMuted }]]}
             onPress={() => setViewMode('progress')}
           >
             <Text style={[styles.modeTabText, viewMode === 'progress' && [styles.modeTabTextActive, { color: colors.primary }]]}>Progress</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PhysiqPressable>
+          <PhysiqPressable
+            feedback="select"
             style={[styles.modeTab, viewMode === 'history' && [styles.modeTabActive, { backgroundColor: colors.primaryMuted }]]}
             onPress={() => setViewMode('history')}
           >
             <Text style={[styles.modeTabText, viewMode === 'history' && [styles.modeTabTextActive, { color: colors.primary }]]}>Food Log</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
 
         {viewMode === 'progress' ? (
@@ -512,33 +498,33 @@ export default function HistoryScreen() {
                   </Text>
                 </View>
                 <View style={styles.addEditRow}>
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="tap"
                     style={[styles.addMeasurementBtn, { backgroundColor: colors.primaryMuted }]}
                     onPress={handleAddMeasurement}
-                    activeOpacity={0.7}
                   >
                     <Plus size={16} color={colors.primary} />
                     <Text style={[styles.addMeasurementText, { color: colors.primary }]}>Add</Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                   {(records.length > 0 || target) && (
                     <>
                       {target && (
-                        <TouchableOpacity
+                        <PhysiqPressable
+                          feedback="tap"
                           style={styles.editMeasurementBtn}
                           onPress={handleOpenSetTarget}
-                          activeOpacity={0.7}
                         >
                           <Text style={styles.editMeasurementText}>Edit Target</Text>
-                        </TouchableOpacity>
+                        </PhysiqPressable>
                       )}
                       {records.length > 0 && (
-                        <TouchableOpacity
+                        <PhysiqPressable
+                          feedback="tap"
                           style={styles.editMeasurementBtn}
                           onPress={handleOpenMeasurementHistory}
-                          activeOpacity={0.7}
                         >
                           <Text style={styles.editMeasurementText}>Edit</Text>
-                        </TouchableOpacity>
+                        </PhysiqPressable>
                       )}
                     </>
                   )}
@@ -551,9 +537,9 @@ export default function HistoryScreen() {
                   <Text style={styles.scoreEmptyText}>
                     Set a baseline measurement to start tracking progress toward your target.
                   </Text>
-                  <TouchableOpacity style={[styles.scoreEmptyCta, { backgroundColor: colors.primary }]} onPress={handleAddMeasurement}>
+                  <PhysiqPressable feedback="confirm" style={[styles.scoreEmptyCta, { backgroundColor: colors.primary }]} onPress={handleAddMeasurement}>
                     <Text style={[styles.scoreEmptyCtaText, { color: colors.onPrimary }]}>Add Measurement</Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </View>
               ) : records.length >= 2 || (target && (baseline || latest)) ? (
                 <>
@@ -572,11 +558,11 @@ export default function HistoryScreen() {
                       ? 'Add baseline measurements to start tracking progress.'
                       : 'Add a second measurement to see your score.'}
                   </Text>
-                  <TouchableOpacity style={[styles.scoreEmptyCta, { backgroundColor: colors.primary }]} onPress={handleAddMeasurement}>
+                  <PhysiqPressable feedback="confirm" style={[styles.scoreEmptyCta, { backgroundColor: colors.primary }]} onPress={handleAddMeasurement}>
                     <Text style={[styles.scoreEmptyCtaText, { color: colors.onPrimary }]}>
                       {!hasBaseline ? 'Add Baseline' : 'Add Measurement'}
                     </Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </View>
               )}
             </View>
@@ -606,18 +592,20 @@ export default function HistoryScreen() {
             <View style={styles.progressActionsCard}>
               <Text style={styles.progressActionsTitle}>Progress tools</Text>
               <View style={styles.progressActionsRow}>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={[styles.progressActionBtn, { borderColor: colors.primary }]}
                   onPress={() => router.push('/progress-photos' as never)}
                 >
                   <Text style={[styles.progressActionText, { color: colors.primary }]}>Progress Photos</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PhysiqPressable>
+                <PhysiqPressable
+                  feedback="tap"
                   style={[styles.progressActionBtn, { borderColor: colors.primary }]}
                   onPress={() => router.push('/share-progress' as never)}
                 >
                   <Text style={[styles.progressActionText, { color: colors.primary }]}>Share Progress</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
             </View>
 
@@ -643,24 +631,25 @@ export default function HistoryScreen() {
             )}
 
             {records.length > 0 && (
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.timelineCard}
                 onPress={handleOpenMeasurementHistory}
-                activeOpacity={0.9}
               >
                 <View style={styles.timelineHeader}>
                   <Text style={styles.timelineTitle}>Measurement History</Text>
                   <ChevronRight size={18} color={Colors.textTertiary} />
                 </View>
                 <MeasurementTimeline records={records} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             )}
           </>
         ) : (
           <>
             <View style={styles.rangeSelector}>
               {rangeOptions.map((opt) => (
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="select"
                   key={opt}
                   style={[styles.rangeChip, range === opt && [styles.rangeChipActive, { backgroundColor: colors.primaryMuted, borderColor: colors.primary }]]}
                   onPress={() => setRange(opt)}
@@ -668,7 +657,7 @@ export default function HistoryScreen() {
                   <Text style={[styles.rangeChipText, range === opt && [styles.rangeChipTextActive, { color: colors.primary }]]}>
                     {opt}D
                   </Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               ))}
             </View>
 
@@ -699,7 +688,8 @@ export default function HistoryScreen() {
             <View style={styles.daysList}>
               <View style={styles.daysListHeader}>
                 <Text style={styles.daysListTitle}>Daily Breakdown</Text>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={styles.addDayBtn}
                   onPress={openAddDayModal}
                   accessibilityLabel="Add day"
@@ -707,7 +697,7 @@ export default function HistoryScreen() {
                 >
                   <Plus size={16} color={colors.primary} />
                   <Text style={[styles.addDayBtnText, { color: colors.primary }]}>Add Day</Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
               {datesToShow.map((date) => {
                 const totals = getTotalsForDate(date);
@@ -740,9 +730,9 @@ export default function HistoryScreen() {
               animationType="fade"
               onRequestClose={() => setAddDayModalVisible(false)}
             >
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.addDayOverlay}
-                activeOpacity={1}
                 onPress={() => setAddDayModalVisible(false)}
               >
                 <View style={styles.addDaySheet} onStartShouldSetResponder={() => true}>
@@ -750,25 +740,26 @@ export default function HistoryScreen() {
                   <Text style={styles.addDaySubtitle}>Select a date to add to your log</Text>
                   <ScrollView style={styles.addDayList} showsVerticalScrollIndicator={false}>
                     {addDayOptions.map((opt) => (
-                      <TouchableOpacity
+                      <PhysiqPressable
+                        feedback="tap"
                         key={opt.dateKey}
                         style={styles.addDayOption}
                         onPress={() => handleAddDaySelect(opt.dateKey)}
-                        activeOpacity={0.7}
                       >
                         <Text style={styles.addDayOptionText}>{opt.label}</Text>
                         <ChevronRight size={16} color={Colors.textTertiary} />
-                      </TouchableOpacity>
+                      </PhysiqPressable>
                     ))}
                   </ScrollView>
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="tap"
                     style={styles.addDayCancel}
                     onPress={() => setAddDayModalVisible(false)}
                   >
                     <Text style={styles.addDayCancelText}>Cancel</Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </View>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </Modal>
           </>
         )}

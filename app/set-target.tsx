@@ -5,15 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
-  TouchableOpacity,
-  Platform,
   Alert,
   Modal,
   Pressable,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
-import * as Haptics from 'expo-haptics';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { ChevronDown } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { useUser } from '../providers/UserProvider';
@@ -119,7 +117,6 @@ export default function SetTargetScreen() {
         setMetric(m);
       }
       setShowMetricPicker(false);
-      if (Platform.OS !== 'web') Haptics.selectionAsync();
     },
     [target]
   );
@@ -149,9 +146,6 @@ export default function SetTargetScreen() {
     };
 
     setTarget(t);
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
     if (fromOnboarding) {
       router.back();
     } else {
@@ -201,14 +195,14 @@ export default function SetTargetScreen() {
 
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>Target Metric</Text>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="tap"
             style={styles.pickerField}
             onPress={() => setShowMetricPicker(true)}
-            activeOpacity={0.7}
           >
             <Text style={styles.pickerFieldText}>{GOAL_TARGET_METRIC_LABELS[metric]}</Text>
             <ChevronDown size={18} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
 
         {metric !== 'lean_mass_lb' && (
@@ -216,19 +210,19 @@ export default function SetTargetScreen() {
             <Text style={styles.fieldLabel}>Direction</Text>
             <View style={styles.segmentRow}>
               {DIRECTIONS.map((d) => (
-                <TouchableOpacity
+                <PhysiqPressable
                   key={d}
+                  feedback="select"
                   style={[styles.segment, direction === d && styles.segmentActive]}
                   onPress={() => {
                     setDirection(d);
                     if (d === 'maintain') setAmount('0');
-                    if (Platform.OS !== 'web') Haptics.selectionAsync();
                   }}
                 >
                   <Text style={[styles.segmentText, direction === d && styles.segmentTextActive]}>
                     {GOAL_TARGET_DIRECTION_LABELS[d]}
                   </Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               ))}
             </View>
           </View>
@@ -273,72 +267,71 @@ export default function SetTargetScreen() {
         <View style={styles.fieldGroup}>
           <View style={styles.deadlineRow}>
             <Text style={styles.fieldLabel}>Deadline</Text>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="select"
               style={styles.noDeadlineChip}
-              onPress={() => {
-                setNoDeadline(!noDeadline);
-                if (Platform.OS !== 'web') Haptics.selectionAsync();
-              }}
+              onPress={() => setNoDeadline(!noDeadline)}
             >
               <Text style={[styles.noDeadlineText, noDeadline && styles.noDeadlineTextActive]}>
                 No deadline
               </Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
           {!noDeadline && (
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="tap"
               style={styles.pickerField}
               onPress={() => setShowDeadlinePicker(true)}
-              activeOpacity={0.7}
             >
               <Text style={styles.pickerFieldText}>
                 {deadlineDateKey ? formatDateLabel(deadlineDateKey) : 'Select date'}
               </Text>
               <ChevronDown size={18} color={Colors.textTertiary} />
-            </TouchableOpacity>
+            </PhysiqPressable>
           )}
         </View>
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
+        <PhysiqPressable feedback="confirm" style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnText}>Save Target</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </ScrollView>
 
       <Modal visible={showMetricPicker} transparent animationType="slide">
-        <Pressable style={styles.modalOverlay} onPress={() => setShowMetricPicker(false)}>
+        <PhysiqPressable feedback="tap" style={styles.modalOverlay} onPress={() => setShowMetricPicker(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>Select metric</Text>
             {metricsToShow.map((m) => (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={m}
+                feedback="select"
                 style={[styles.modalOption, metric === m && styles.modalOptionActive]}
                 onPress={() => handleMetricChange(m)}
               >
                 <Text style={[styles.modalOptionText, metric === m && styles.modalOptionTextActive]}>
                   {GOAL_TARGET_METRIC_LABELS[m]}
                 </Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             ))}
-            <TouchableOpacity style={styles.modalCancel} onPress={() => setShowMetricPicker(false)}>
+            <PhysiqPressable feedback="tap" style={styles.modalCancel} onPress={() => setShowMetricPicker(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
 
       <Modal visible={showDeadlinePicker} transparent animationType="slide">
-        <Pressable style={styles.modalOverlay} onPress={() => setShowDeadlinePicker(false)}>
+        <PhysiqPressable feedback="tap" style={styles.modalOverlay} onPress={() => setShowDeadlinePicker(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>Select deadline</Text>
             <ScrollView style={styles.deadlineList} showsVerticalScrollIndicator={false}>
               {deadlineOptions.map((opt) => (
-                <TouchableOpacity
+                <PhysiqPressable
                   key={opt.dateKey}
+                  feedback="select"
                   style={[styles.modalOption, deadlineDateKey === opt.dateKey && styles.modalOptionActive]}
                   onPress={() => {
                     setDeadlineDateKey(opt.dateKey);
                     setShowDeadlinePicker(false);
-                    if (Platform.OS !== 'web') Haptics.selectionAsync();
                   }}
                 >
                   <Text
@@ -349,14 +342,14 @@ export default function SetTargetScreen() {
                   >
                     {opt.label}
                   </Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               ))}
             </ScrollView>
-            <TouchableOpacity style={styles.modalCancel} onPress={() => setShowDeadlinePicker(false)}>
+            <PhysiqPressable feedback="tap" style={styles.modalCancel} onPress={() => setShowDeadlinePicker(false)}>
               <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
     </View>
     </DismissKeyboard>

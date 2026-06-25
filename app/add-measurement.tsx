@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import * as Haptics from 'expo-haptics';
 import { Check, Info, ChevronDown } from 'lucide-react-native';
 import Colors from '../constants/colors';
@@ -90,7 +90,6 @@ export default function AddMeasurementScreen() {
   const handleDateSelect = useCallback((dk: string) => {
     setDateKey(dk);
     setShowDatePicker(false);
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -160,14 +159,14 @@ export default function AddMeasurementScreen() {
         >
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Date</Text>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="tap"
               style={styles.dateField}
               onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.7}
             >
               <Text style={styles.dateFieldText}>{formatDateLabel(dateKey)}</Text>
               <ChevronDown size={18} color={Colors.textTertiary} />
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
 
           {existingEntry ? (
@@ -358,18 +357,18 @@ export default function AddMeasurementScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="confirm"
             style={[styles.saveButton, isAdding && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={isAdding}
-            activeOpacity={0.8}
             testID="save-measurement-button"
           >
             <Check size={18} color={colors.onPrimary} />
             <Text style={styles.saveButtonText}>
               {isAdding ? 'Saving...' : isEditing ? 'Save Changes' : 'Save Measurement'}
             </Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
 
           <Text style={styles.savedToHint}>Saves to {formatDateLabel(dateKey)}</Text>
         </ScrollView>
@@ -381,28 +380,28 @@ export default function AddMeasurementScreen() {
         animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <Pressable style={styles.datePickerOverlay} onPress={() => setShowDatePicker(false)}>
+        <PhysiqPressable feedback="tap" style={styles.datePickerOverlay} onPress={() => setShowDatePicker(false)}>
           <View style={styles.datePickerSheet} onStartShouldSetResponder={() => true}>
             <Text style={styles.datePickerTitle}>Select date</Text>
             <ScrollView style={styles.datePickerList} showsVerticalScrollIndicator={false}>
               {dateOptions.map((opt) => (
-                <TouchableOpacity
+                <PhysiqPressable
                   key={opt.dateKey}
+                  feedback="select"
                   style={[styles.datePickerOption, opt.dateKey === dateKey && styles.datePickerOptionActive]}
                   onPress={() => handleDateSelect(opt.dateKey)}
-                  activeOpacity={0.7}
                 >
                   <Text style={[styles.datePickerOptionText, opt.dateKey === dateKey && styles.datePickerOptionActiveText]}>
                     {opt.label}
                   </Text>
-                </TouchableOpacity>
+                </PhysiqPressable>
               ))}
             </ScrollView>
-            <TouchableOpacity style={styles.datePickerCancel} onPress={() => setShowDatePicker(false)}>
+            <PhysiqPressable feedback="tap" style={styles.datePickerCancel} onPress={() => setShowDatePicker(false)}>
               <Text style={styles.datePickerCancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
-        </Pressable>
+        </PhysiqPressable>
       </Modal>
     </View>
     </DismissKeyboard>

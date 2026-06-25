@@ -5,11 +5,9 @@ import {
   StyleSheet,
   Modal,
   Pressable,
-  TouchableOpacity,
-  Platform,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { Minus, Plus } from 'lucide-react-native';
+import PhysiqPressable from './PhysiqPressable';
 import Colors from '../../constants/colors';
 import { formatNumber } from '../../utils/formatNumber';
 import { scaleMacros, QuantityInfo } from '../../utils/quantityUtils';
@@ -57,25 +55,15 @@ export default function EditQuantitySheet({
   const handleDecrement = useCallback(() => {
     const next = Math.max(step, qty - step);
     if (next !== qty) {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       setQty(next);
     }
   }, [qty, step]);
 
   const handleIncrement = useCallback(() => {
-    const next = qty + step;
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setQty(next);
+    setQty(qty + step);
   }, [qty, step]);
 
   const handleSave = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
     onSave(qty);
     onCancel();
   }, [qty, onSave, onCancel]);
@@ -90,31 +78,33 @@ export default function EditQuantitySheet({
       onRequestClose={onCancel}
       statusBarTranslucent
     >
-      <Pressable style={styles.overlay} onPress={onCancel}>
+      <PhysiqPressable feedback="tap" style={styles.overlay} onPress={onCancel}>
         <Pressable onPress={() => {}} style={styles.sheet}>
           <View style={styles.handle} />
           <Text style={styles.title}>Edit quantity</Text>
           <Text style={styles.subtitle}>{foodName}</Text>
 
           <View style={styles.stepperRow}>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="select"
               style={styles.stepperBtn}
               onPress={handleDecrement}
               disabled={qty <= step}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <Minus size={20} color={qty <= step ? Colors.textTertiary : Colors.text} />
-            </TouchableOpacity>
+            </PhysiqPressable>
             <Text style={styles.qtyValue}>
               {isCountBased ? Math.round(qty) : (qty % 1 === 0 ? qty : parseFloat(qty.toFixed(1)))} {unit}
             </Text>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="select"
               style={styles.stepperBtn}
               onPress={handleIncrement}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
               <Plus size={20} color={Colors.text} />
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
 
           <Text style={styles.preview}>
@@ -122,15 +112,15 @@ export default function EditQuantitySheet({
           </Text>
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.7}>
+            <PhysiqPressable feedback="tap" style={styles.cancelBtn} onPress={onCancel}>
               <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.7}>
+            </PhysiqPressable>
+            <PhysiqPressable feedback="confirm" style={styles.saveBtn} onPress={handleSave}>
               <Text style={styles.saveText}>Save</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         </Pressable>
-      </Pressable>
+      </PhysiqPressable>
     </Modal>
   );
 }

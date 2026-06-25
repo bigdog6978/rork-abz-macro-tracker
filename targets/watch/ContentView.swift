@@ -60,6 +60,7 @@ struct ContentView: View {
     iconColor: Color? = nil,
     bottomBarHeight: CGFloat,
     footerBackgroundColor: Color = .clear,
+    tileFooter: Bool = false,
     @ViewBuilder body: () -> Body,
     @ViewBuilder bottomBar: () -> Bottom
   ) -> some View {
@@ -72,6 +73,7 @@ struct ContentView: View {
           metrics: metrics,
           barHeight: bottomBarHeight,
           backgroundColor: footerBackgroundColor,
+          tileFooter: tileFooter,
           content: bottomBar
         )
       }
@@ -80,19 +82,40 @@ struct ContentView: View {
     .ignoresSafeArea(.container, edges: .bottom)
   }
 
-  /// Bottom action bar; background extends behind TabView page dots.
+  /// Bottom action bar; tile footers keep buttons inside a size-scaled safe band.
   private func footerColumn<Content: View>(
     metrics: WatchLayoutMetrics,
     barHeight: CGFloat,
     backgroundColor: Color,
+    tileFooter: Bool = false,
+    @ViewBuilder content: () -> Content
+  ) -> some View {
+    Group {
+      if tileFooter {
+        footerTileBand(metrics: metrics, content: content)
+      } else {
+        content()
+          .frame(width: metrics.faceWidth, height: barHeight)
+          .background {
+            backgroundColor
+              .ignoresSafeArea(.container, edges: .bottom)
+          }
+      }
+    }
+    .frame(width: metrics.faceWidth, height: barHeight, alignment: .top)
+  }
+
+  private func footerTileBand<Content: View>(
+    metrics: WatchLayoutMetrics,
     @ViewBuilder content: () -> Content
   ) -> some View {
     content()
-      .frame(width: metrics.faceWidth, height: barHeight)
-      .background {
-        backgroundColor
-          .ignoresSafeArea(.container, edges: .bottom)
-      }
+      .frame(height: metrics.footerButtonHeight())
+      .frame(maxWidth: .infinity)
+      .padding(.horizontal, metrics.footerHorizontalInset())
+      .padding(.top, metrics.footerTopPadding())
+      .padding(.bottom, metrics.footerBottomInset() + WatchLayoutMetrics.pageDotClearance)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
   }
 
   /// Title row on the system clock line — leading icon + title.
@@ -193,7 +216,7 @@ struct ContentView: View {
   // MARK: - Macros
 
   private func macrosPage(metrics: WatchLayoutMetrics) -> some View {
-    let bottomH = WatchLayoutMetrics.bottomBarHeight
+    let bottomH = metrics.footerBarHeight()
     let ringSize = metrics.macroDialSize(bottomBar: bottomH)
 
     return watchPageShell(
@@ -201,7 +224,8 @@ struct ContentView: View {
       icon: "chart.bar.fill",
       title: "Macros",
       bottomBarHeight: bottomH,
-      footerBackgroundColor: accent
+      footerBackgroundColor: .clear,
+      tileFooter: true
     ) {
       VStack(spacing: 4) {
         if !snapshot.voiceMealFeedback.isEmpty {
@@ -271,7 +295,9 @@ struct ContentView: View {
   }
 
   private func micBarButton(metrics: WatchLayoutMetrics, action: @escaping () -> Void) -> some View {
-    Button {
+    let buttonH = metrics.footerButtonHeight()
+    let radius = metrics.tileCornerRadius(buttonHeight: buttonH)
+    return Button {
       WatchInteractionFeedback.play(.tap)
       action()
     } label: {
@@ -281,13 +307,17 @@ struct ContentView: View {
     }
     .buttonStyle(PhysiqPressableButtonStyle())
     .foregroundStyle(PhysiqTheme.background)
-    .background(accent)
+    .background(
+      RoundedRectangle(cornerRadius: radius, style: .continuous).fill(accent)
+    )
+    .frame(height: buttonH)
+    .frame(maxWidth: .infinity)
   }
 
   // MARK: - Hydration
 
   private func hydrationPage(metrics: WatchLayoutMetrics) -> some View {
-    let bottomH = WatchLayoutMetrics.bottomBarHeight
+    let bottomH = metrics.footerBarHeight()
     let ringSize = metrics.heroDialSize(bottomBar: bottomH)
 
     return watchPageShell(
@@ -296,7 +326,8 @@ struct ContentView: View {
       title: "Hydration",
       iconColor: hydrationColor,
       bottomBarHeight: bottomH,
-      footerBackgroundColor: hydrationColor
+      footerBackgroundColor: .clear,
+      tileFooter: true
     ) {
       hydrationHeroRing(ringSize: ringSize, metrics: metrics)
     } bottomBar: {
@@ -332,11 +363,11 @@ struct ContentView: View {
 
   private func hydrationSplitBar(metrics: WatchLayoutMetrics) -> some View {
     let presets = HydrationFormat.quickAdds(snapshot.hydrationUnit)
-    return HStack(spacing: 0) {
-      ForEach(Array(presets.enumerated()), id: \.element.label) { index, preset in
-        if index > 0 {
-          Rectangle().fill(PhysiqTheme.background.opacity(0.35)).frame(width: 1)
-        }
+    let buttonH = metrics.footerButtonHeight()
+    let radius = metrics.tileCornerRadius(buttonHeight: buttonH)
+    let gap = WatchLayoutMetrics.todayTileGap
+    return HStack(spacing: gap) {
+      ForEach(Array(presets.enumerated()), id: \.element.label) { _, preset in
         Button {
           WatchInteractionFeedback.play(.tap)
           connectivity.logWater(ml: preset.ml)
@@ -349,10 +380,13 @@ struct ContentView: View {
         }
         .buttonStyle(PhysiqPressableButtonStyle())
         .foregroundStyle(PhysiqTheme.background)
+        .background(
+          RoundedRectangle(cornerRadius: radius, style: .continuous).fill(hydrationColor)
+        )
+        .frame(height: buttonH)
       }
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(hydrationColor)
+    .frame(maxWidth: .infinity)
   }
 
   // MARK: - Today

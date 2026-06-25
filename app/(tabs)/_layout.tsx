@@ -4,6 +4,13 @@ import React, { useMemo } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import Colors from "../../constants/colors";
 import { useThemeColors } from "../../providers/ThemeProvider";
+import { playFeedback } from "../../utils/interactionFeedback";
+
+const tabPressListener = {
+  tabPress: () => {
+    playFeedback('select');
+  },
+};
 
 function TabIcon({ icon: Icon, color, size, focused, activeBarColor }: {
   icon: typeof Home;
@@ -50,6 +57,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="(home)"
+        listeners={tabPressListener}
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, size, focused }) => (
@@ -59,6 +67,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="plan"
+        listeners={tabPressListener}
         options={{
           title: "Meal Plan",
           tabBarIcon: ({ color, size, focused }) => (
@@ -68,6 +77,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="history"
+        listeners={tabPressListener}
         options={{
           title: "Progress",
           tabBarIcon: ({ color, size, focused }) => (
@@ -77,6 +87,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="settings"
+        listeners={tabPressListener}
         options={{
           title: "Settings",
           tabBarIcon: ({ color, size, focused }) => (

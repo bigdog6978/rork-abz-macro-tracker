@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ActivityIndicator,
   Modal,
   TextInput,
@@ -16,6 +15,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { X, Scan, AlertCircle, Check } from 'lucide-react-native';
+import PhysiqPressable from './PhysiqPressable';
 import { fetchProductByBarcode, type ParsedProduct } from '../../src/services/openFoodFacts';
 import * as foodsRepo from '../../src/data/foodsRepo';
 import Colors from '../../constants/colors';
@@ -78,9 +78,9 @@ function ProductEditor({
     <>
       <View style={styles.modalHeader}>
         <Text style={styles.modalTitle}>Confirm Product</Text>
-        <TouchableOpacity onPress={onClose} hitSlop={12}>
+        <PhysiqPressable feedback="tap" onPress={onClose} hitSlop={12}>
           <X size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
       <ScrollView
         style={styles.modalScroll}
@@ -157,7 +157,8 @@ function ProductEditor({
         ) : null}
       </ScrollView>
       <View style={styles.modalFooter}>
-        <TouchableOpacity
+        <PhysiqPressable
+          feedback="confirm"
           style={styles.saveBtn}
           onPress={onSave}
           disabled={saving}
@@ -170,7 +171,7 @@ function ProductEditor({
               <Text style={styles.saveBtnText}>Use in Add Food</Text>
             </>
           )}
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
     </>
   );
@@ -273,9 +274,6 @@ export default function BarcodeScannerPanel({
     setShowConfirm(false);
     setLocked(false);
     lockedRef.current = false;
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
   }, []);
 
   const handleManualEntry = useCallback(() => {
@@ -374,18 +372,18 @@ export default function BarcodeScannerPanel({
             <Text style={styles.permissionSubtext}>
               To scan barcodes, turn on camera access for this app in Settings.
             </Text>
-            <TouchableOpacity style={styles.primaryBtn} onPress={openCameraSettings}>
+            <PhysiqPressable feedback="confirm" style={styles.primaryBtn} onPress={openCameraSettings}>
               <Text style={styles.primaryBtnText}>Open Settings</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </>
         ) : (
-          <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
+          <PhysiqPressable feedback="confirm" style={styles.primaryBtn} onPress={requestPermission}>
             <Text style={styles.primaryBtnText}>Continue</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         )}
-        <TouchableOpacity style={styles.secondaryBtn} onPress={handleCancel}>
+        <PhysiqPressable feedback="tap" style={styles.secondaryBtn} onPress={handleCancel}>
           <Text style={styles.secondaryBtnText}>Cancel</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
     );
   }
@@ -411,12 +409,12 @@ export default function BarcodeScannerPanel({
         </Text>
         {locked ? (
           <View style={[styles.inlineToolbar, compact && styles.inlineToolbarCompact]}>
-            <TouchableOpacity style={styles.toolbarButton} onPress={handleScanAgain}>
+            <PhysiqPressable feedback="tap" style={styles.toolbarButton} onPress={handleScanAgain}>
               <Scan size={18} color={colors.primary} />
               <Text style={[styles.toolbarButtonText, styles.toolbarButtonTextPrimary]}>
                 Scan Again
               </Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         ) : null}
       </View>
@@ -433,13 +431,13 @@ export default function BarcodeScannerPanel({
           <AlertCircle size={32} color={Colors.danger} />
           <Text style={styles.errorText}>{error}</Text>
           <View style={styles.errorActions}>
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleManualEntry}>
+            <PhysiqPressable feedback="confirm" style={styles.primaryBtn} onPress={handleManualEntry}>
               <Text style={styles.primaryBtnText}>Enter Manually</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={handleScanAgain}>
+            </PhysiqPressable>
+            <PhysiqPressable feedback="tap" style={styles.secondaryBtn} onPress={handleScanAgain}>
               <Scan size={18} color={colors.primary} />
               <Text style={styles.secondaryBtnText}>Scan Again</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         </View>
       ) : null}

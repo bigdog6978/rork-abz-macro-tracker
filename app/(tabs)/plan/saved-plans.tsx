@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Alert,
   Animated,
   Platform,
@@ -43,6 +42,7 @@ import {
 } from '../../../storage/mealPlanRepo';
 import { getMealsForDay, getPlanDayCount } from '../../../utils/weekPlanHelpers';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
+import PhysiqPressable from '../../../components/ui/PhysiqPressable';
 
 function getMealIcon(name: string, colors: AppColors): React.ReactNode {
   if (name === 'sunrise') return <Sunrise size={14} color={colors.primary} />;
@@ -105,9 +105,6 @@ function SavedPlanCard({
       tension: 80,
       friction: 12,
     }).start();
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
   }, [expanded, expandAnim]);
 
   const totalCalories = plan.macroTargets.calories;
@@ -123,10 +120,10 @@ function SavedPlanCard({
 
   return (
     <View style={[styles.planCard, isActive && styles.planCardActive]}>
-      <TouchableOpacity
+      <PhysiqPressable
+        feedback="tap"
         style={styles.planCardHeader}
         onPress={toggleExpand}
-        activeOpacity={0.7}
         testID={`plan-card-${plan.id}`}
       >
         <View style={styles.planCardLeft}>
@@ -175,7 +172,7 @@ function SavedPlanCard({
             <ChevronDown size={18} color={Colors.textSecondary} />
           )}
         </View>
-      </TouchableOpacity>
+      </PhysiqPressable>
 
       {expanded && (
         <View style={styles.planExpandedContent}>
@@ -225,25 +222,25 @@ function SavedPlanCard({
 
           <View style={styles.planActions}>
             {!isActive && (
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="confirm"
                 style={styles.loadButton}
                 onPress={onLoad}
-                activeOpacity={0.7}
                 testID={`load-plan-${plan.id}`}
               >
                 <Play size={14} color={colors.onPrimary} />
                 <Text style={styles.loadButtonText}>Load Plan</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             )}
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="destructive"
               style={styles.deleteButton}
               onPress={onDelete}
-              activeOpacity={0.7}
               testID={`delete-plan-${plan.id}`}
             >
               <Trash2 size={14} color={Colors.danger} />
               <Text style={styles.deleteButtonText}>Delete</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         </View>
       )}
@@ -343,13 +340,13 @@ export default function SavedPlansScreen() {
             <Text style={styles.emptySubtitle}>
               Save a meal plan from the Meal Plan screen to access it here anytime.
             </Text>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="tap"
               style={styles.emptyButton}
               onPress={() => router.back()}
-              activeOpacity={0.7}
             >
               <Text style={styles.emptyButtonText}>Go to Meal Plan</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         ) : (
           <>

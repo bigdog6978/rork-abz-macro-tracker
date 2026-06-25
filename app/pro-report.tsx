@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import Colors from '../constants/colors';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { useMeasurements } from '../providers/MeasurementsProvider';
 import { usePro } from '../providers/ProProvider';
@@ -83,9 +84,9 @@ export default function ProReportScreen() {
         {dynamicExplainability?.map((item: string) => (
           <Card key={item} label="Why targets changed" value={item} styles={styles} />
         ))}
-        <TouchableOpacity style={styles.shareBtn} onPress={() => router.push('/share-progress' as never)}>
+        <PhysiqPressable feedback="tap" style={styles.shareBtn} onPress={() => router.push('/share-progress' as never)}>
           <Text style={styles.shareBtnText}>Share your progress</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </ScrollView>
     </View>
   );

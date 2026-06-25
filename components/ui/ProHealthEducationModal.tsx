@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Colors from '../../constants/colors';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 import { PRO_COPY } from '../../src/content/proMicrocopy';
+import PhysiqPressable from './PhysiqPressable';
 
 type Props = {
   visible: boolean;
@@ -16,21 +17,21 @@ export default function ProHealthEducationModal({ visible, onContinue, onNotNow 
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onNotNow}>
-      <Pressable style={styles.overlay} onPress={onNotNow}>
+      <PhysiqPressable feedback="tap" style={styles.overlay} onPress={onNotNow}>
         <Pressable style={styles.card} onPress={() => {}}>
           <Text style={styles.title}>{PRO_COPY.postProHealthTitle}</Text>
           <Text style={styles.body}>{PRO_COPY.postProHealthBody}</Text>
           <View style={styles.hintBox}>
             <Text style={styles.hint}>{PRO_COPY.athleteLabel}</Text>
           </View>
-          <TouchableOpacity style={styles.primaryBtn} onPress={onContinue}>
+          <PhysiqPressable feedback="confirm" style={styles.primaryBtn} onPress={onContinue}>
             <Text style={styles.primaryBtnText}>{PRO_COPY.postProHealthContinue}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={onNotNow}>
+          </PhysiqPressable>
+          <PhysiqPressable feedback="tap" style={styles.secondaryBtn} onPress={onNotNow}>
             <Text style={styles.secondaryBtnText}>{PRO_COPY.postProHealthNotNow}</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </Pressable>
-      </Pressable>
+      </PhysiqPressable>
     </Modal>
   );
 }

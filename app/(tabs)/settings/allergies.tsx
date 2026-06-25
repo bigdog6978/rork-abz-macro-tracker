@@ -4,12 +4,10 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   TextInput,
-  Platform,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import DismissKeyboard from '../../../components/ui/DismissKeyboard';
+import PhysiqPressable from '../../../components/ui/PhysiqPressable';
 import { X } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Colors from '../../../constants/colors';
@@ -48,13 +46,11 @@ export default function AllergiesScreen() {
     await addAllergy(trimmed);
     setInput('');
     queryClient.invalidateQueries({ queryKey: ['user_allergies'] });
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
   }, [input, allergies, queryClient]);
 
   const handleRemove = useCallback(async (id: string) => {
     await removeAllergy(id);
     queryClient.invalidateQueries({ queryKey: ['user_allergies'] });
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
   }, [queryClient]);
 
   return (
@@ -76,32 +72,33 @@ export default function AllergiesScreen() {
             onSubmitEditing={handleAdd}
             returnKeyType="done"
           />
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="confirm"
             style={[styles.addBtn, !input.trim() && styles.addBtnDisabled]}
             onPress={handleAdd}
             disabled={!input.trim()}
           >
             <Text style={styles.addBtnText}>Add</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
         <View style={styles.quickPicks}>
           {QUICK_PICKS.map((label) => {
             const norm = label.toLowerCase().replace(/\s+/g, ' ');
             const added = allergies.some((a) => a.normalized === norm);
             return (
-              <TouchableOpacity
+              <PhysiqPressable
                 key={label}
+                feedback="select"
                 style={[styles.quickChip, added && styles.quickChipAdded]}
                 onPress={async () => {
                   if (added) return;
                   await addAllergy(label);
                   queryClient.invalidateQueries({ queryKey: ['user_allergies'] });
-                  if (Platform.OS !== 'web') Haptics.selectionAsync();
                 }}
                 disabled={added}
               >
                 <Text style={[styles.quickChipText, added && styles.quickChipTextAdded]}>{label}</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             );
           })}
         </View>
@@ -114,12 +111,13 @@ export default function AllergiesScreen() {
             {allergies.map((a) => (
               <View key={a.id} style={styles.pill}>
                 <Text style={styles.pillText}>{a.name}</Text>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="destructive"
                   onPress={() => handleRemove(a.id)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <X size={14} color={Colors.textSecondary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
             ))}
           </View>

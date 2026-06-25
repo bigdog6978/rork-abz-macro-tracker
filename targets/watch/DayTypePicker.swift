@@ -58,11 +58,11 @@ struct DayTypePicker: View {
     .buttonStyle(PhysiqSelectButtonStyle())
     .foregroundStyle(isSelected ? PhysiqTheme.background : accent)
     .background(
-      RoundedRectangle(cornerRadius: 12, style: .continuous)
+      RoundedRectangle(cornerRadius: WatchLayoutMetrics.tileCornerRadius, style: .continuous)
         .fill(isSelected ? accent : PhysiqTheme.card.opacity(0.35))
     )
     .overlay(
-      RoundedRectangle(cornerRadius: 12, style: .continuous)
+      RoundedRectangle(cornerRadius: WatchLayoutMetrics.tileCornerRadius, style: .continuous)
         .stroke(isSelected ? accent : accent.opacity(0.5), lineWidth: isSelected ? 0 : 1)
     )
   }

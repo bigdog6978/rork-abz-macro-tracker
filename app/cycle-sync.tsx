@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import Colors from '../constants/colors';
 import { Radius, Spacing } from '../theme/tokens';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { usePro } from '../providers/ProProvider';
 import { useUser } from '../providers/UserProvider';
 import {
@@ -51,10 +51,6 @@ const PHASE_GUIDANCE: Record<MenstrualPhaseTag, string> = {
   unknown: 'Log your period start and a few days to unlock phase-aware guidance.',
 };
 
-function haptic() {
-  if (Platform.OS !== 'web') Haptics.selectionAsync();
-}
-
 function addDaysIso(iso: string, days: number): string {
   const d = new Date(iso);
   d.setDate(d.getDate() + days);
@@ -84,7 +80,6 @@ export default function CycleSyncScreen() {
   const periodLength = cycleProfile.periodLengthDays ?? 5;
 
   const enable = () => {
-    haptic();
     void updateCycleProfile({
       enabled: true,
       cycleDataConsentGivenAt: new Date().toISOString(),
@@ -93,17 +88,14 @@ export default function CycleSyncScreen() {
   };
 
   const disable = () => {
-    haptic();
     void updateCycleProfile({ enabled: false });
   };
 
   const toggleSymptom = (s: MenstrualSymptom) => {
-    haptic();
     setSymptoms((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   };
 
   const saveLog = () => {
-    haptic();
     void addCycleLog({
       date: getTodayDateKey(),
       bleedingLevel: bleeding,
@@ -128,9 +120,9 @@ export default function CycleSyncScreen() {
               stored only on this device, is never uploaded, and is never used for ads. You can turn it
               off and delete all data anytime.
             </Text>
-            <TouchableOpacity style={styles.primaryBtn} onPress={enable} activeOpacity={0.85}>
+            <PhysiqPressable feedback="confirm" style={styles.primaryBtn} onPress={enable}>
               <Text style={styles.primaryBtnText}>Enable Cycle Sync</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         ) : (
           <>
@@ -163,12 +155,13 @@ export default function CycleSyncScreen() {
                 }
                 styles={styles}
               />
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 style={styles.linkBtn}
                 onPress={() => updateCycleProfile({ lastPeriodStartDate: getTodayDateKey() })}
               >
                 <Text style={styles.linkBtnText}>Set to today</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
               <Stepper
                 label="Average cycle length"
                 value={`${cycleLength} days`}
@@ -194,10 +187,7 @@ export default function CycleSyncScreen() {
                     key={b.id}
                     label={b.label}
                     active={bleeding === b.id}
-                    onPress={() => {
-                      haptic();
-                      setBleeding(b.id);
-                    }}
+                    onPress={() => setBleeding(b.id)}
                     styles={styles}
                   />
                 ))}
@@ -214,9 +204,9 @@ export default function CycleSyncScreen() {
                   />
                 ))}
               </View>
-              <TouchableOpacity style={styles.primaryBtn} onPress={saveLog} activeOpacity={0.85}>
+              <PhysiqPressable feedback="confirm" style={styles.primaryBtn} onPress={saveLog}>
                 <Text style={styles.primaryBtnText}>Save today's log</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
 
             {cycleLogs.length > 0 ? (
@@ -236,19 +226,16 @@ export default function CycleSyncScreen() {
             ) : null}
 
             <View style={styles.section}>
-              <TouchableOpacity style={styles.dangerBtn} onPress={disable} activeOpacity={0.85}>
+              <PhysiqPressable feedback="destructive" style={styles.dangerBtn} onPress={disable}>
                 <Text style={styles.dangerBtnText}>Disable Cycle Sync</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </PhysiqPressable>
+              <PhysiqPressable
+                feedback="destructive"
                 style={styles.dangerBtn}
-                onPress={() => {
-                  haptic();
-                  void clearCycleData();
-                }}
-                activeOpacity={0.85}
+                onPress={() => void clearCycleData()}
               >
                 <Text style={styles.dangerBtnText}>Delete all cycle data</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           </>
         )}
@@ -269,9 +256,9 @@ function Chip({
   styles: ReturnType<typeof createStyles>;
 }) {
   return (
-    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress} activeOpacity={0.85}>
+    <PhysiqPressable feedback="select" style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </TouchableOpacity>
+    </PhysiqPressable>
   );
 }
 
@@ -295,12 +282,12 @@ function Stepper({
         <Text style={styles.stepperValue}>{value}</Text>
       </View>
       <View style={styles.stepper}>
-        <TouchableOpacity style={styles.stepBtn} onPress={onDecrement}>
+        <PhysiqPressable feedback="select" style={styles.stepBtn} onPress={onDecrement}>
           <Text style={styles.stepBtnText}>−</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.stepBtn} onPress={onIncrement}>
+        </PhysiqPressable>
+        <PhysiqPressable feedback="select" style={styles.stepBtn} onPress={onIncrement}>
           <Text style={styles.stepBtnText}>+</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
     </View>
   );

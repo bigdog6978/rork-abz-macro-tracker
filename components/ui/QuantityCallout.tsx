@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import PhysiqPressable from './PhysiqPressable';
 import Colors from '../../constants/colors';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
@@ -45,13 +46,13 @@ export default function QuantityCallout({ reason, onPrimary, onSecondary }: Quan
         <Text style={styles.title}>{c.title}</Text>
         <Text style={styles.body}>{c.body}</Text>
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={onPrimary} activeOpacity={0.7}>
+          <PhysiqPressable feedback="confirm" style={styles.primaryBtn} onPress={onPrimary}>
             <Text style={styles.primaryText}>{c.primary}</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
           {c.secondary && onSecondary && (
-            <TouchableOpacity style={styles.secondaryBtn} onPress={onSecondary} activeOpacity={0.7}>
+            <PhysiqPressable feedback="tap" style={styles.secondaryBtn} onPress={onSecondary}>
               <Text style={styles.secondaryText}>{c.secondary}</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           )}
         </View>
       </View>

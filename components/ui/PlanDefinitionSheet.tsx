@@ -6,11 +6,9 @@ import {
   Modal,
   TouchableWithoutFeedback,
   ScrollView,
-  TouchableOpacity,
-  Platform,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { X } from 'lucide-react-native';
+import PhysiqPressable from './PhysiqPressable';
 import Colors from '../../constants/colors';
 import type { LearnMoreSection } from '../../src/content/planDefinitions';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
@@ -36,9 +34,6 @@ export default function PlanDefinitionSheet({
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleClose = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     onClose();
   };
 
@@ -65,15 +60,15 @@ export default function PlanDefinitionSheet({
               <Text style={styles.title} accessibilityRole="header">
                 {title}
               </Text>
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="tap"
                 onPress={handleClose}
                 style={styles.closeBtn}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 accessibilityLabel="Close"
-                accessibilityRole="button"
               >
                 <X size={22} color={Colors.textSecondary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
           </View>
 

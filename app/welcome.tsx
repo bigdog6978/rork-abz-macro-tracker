@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Animated,
   Keyboard,
@@ -17,6 +16,7 @@ import { ChevronRight } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { useUser } from '../providers/UserProvider';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 
 export default function WelcomeScreen() {
   const colors = useThemeColors();
@@ -94,15 +94,15 @@ export default function WelcomeScreen() {
         </Animated.View>
 
         <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="confirm"
             style={styles.continueButton}
             onPress={handleContinue}
-            activeOpacity={0.8}
             testID="welcome-continue-btn"
           >
             <Text style={styles.continueText}>Continue</Text>
             <ChevronRight size={18} color={colors.onPrimary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
         </Animated.View>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>

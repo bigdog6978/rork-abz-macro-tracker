@@ -30,6 +30,20 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/** Opaque blend of foreground over background (matches Swift .opacity compositing on solid base). */
+export function blendHex(foregroundHex: string, backgroundHex: string, foregroundAlpha: number): string {
+  const fg = hexToRgb(foregroundHex);
+  const bg = hexToRgb(backgroundHex);
+  if (!fg || !bg) return backgroundHex;
+
+  const r = Math.round(fg.r * foregroundAlpha + bg.r * (1 - foregroundAlpha));
+  const g = Math.round(fg.g * foregroundAlpha + bg.g * (1 - foregroundAlpha));
+  const b = Math.round(fg.b * foregroundAlpha + bg.b * (1 - foregroundAlpha));
+
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const normalized = hex.replace('#', '');
   if (normalized.length !== 6) return null;

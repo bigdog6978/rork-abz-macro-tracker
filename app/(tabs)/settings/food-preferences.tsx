@@ -4,11 +4,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Platform,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import PhysiqPressable from '../../../components/ui/PhysiqPressable';
 import Colors from '../../../constants/colors';
 import { FOODS } from '../../../constants/foodDatabase';
 import { Radius, Spacing } from '../../../theme/tokens';
@@ -63,7 +61,6 @@ export default function FoodPreferencesScreen() {
   );
 
   const handleToggle = async (foodId: string) => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
     if (dislikedIds.has(foodId)) {
       await removeDislikedFood(foodId);
     } else {
@@ -80,16 +77,16 @@ export default function FoodPreferencesScreen() {
           const food = FOODS[foodId];
           const active = dislikedIds.has(foodId);
           return (
-            <TouchableOpacity
+            <PhysiqPressable
               key={foodId}
+              feedback="select"
               style={[styles.chip, active && styles.chipActive]}
               onPress={() => handleToggle(foodId)}
-              activeOpacity={0.8}
             >
               <Text style={[styles.chipText, active && styles.chipTextActive]}>
                 {food.name}
               </Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           );
         })}
       </View>

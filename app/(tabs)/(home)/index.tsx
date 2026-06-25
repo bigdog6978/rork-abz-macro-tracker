@@ -4,11 +4,9 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Animated,
   Platform,
   Modal,
-  Pressable,
   TextInput,
   KeyboardAvoidingView,
   Keyboard,
@@ -16,8 +14,8 @@ import {
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
-import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon, Share2 } from 'lucide-react-native';
+import { playFeedback } from '../../../utils/interactionFeedback';
+import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
@@ -29,6 +27,7 @@ import { useMeasurements } from '../../../providers/MeasurementsProvider';
 import { usePro } from '../../../providers/ProProvider';
 import { formatHydrationProgress, hydrationQuickAdds } from '../../../utils/hydration';
 import type { ProDayType } from '../../../features/pro/types';
+import { DAY_TYPE_PICKER_SHORT_LABELS } from '../../../features/pro/constants';
 import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier, MacroTargets } from '../../../types';
 import PremiumCard from '../../../components/ui/PremiumCard';
 import GreetingHeader from '../../../components/ui/GreetingHeader';
@@ -39,6 +38,7 @@ import { MacroDial } from '../../../components/ui/MacroRing';
 import Fab from '../../../components/ui/Fab';
 import PhysiqPressable from '../../../components/ui/PhysiqPressable';
 import WhyTheseMacrosCard from '../../../components/ui/WhyTheseMacrosCard';
+import DayTypePickerModal from '../../../components/ui/DayTypePickerModal';
 import { useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
 import ResponsiveContainer, { useIsTablet } from '../../../components/ui/ResponsiveContainer';
 
@@ -145,7 +145,8 @@ function CustomMacrosModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable
+      <PhysiqPressable
+        feedback="tap"
         style={styles.backdrop}
         onPress={() => {
           if (Keyboard.isVisible()) {
@@ -154,19 +155,22 @@ function CustomMacrosModal({
             onClose();
           }
         }}
-      />
+      >
+        <View style={StyleSheet.absoluteFill} />
+      </PhysiqPressable>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.sheet}
       >
         <View style={styles.sheetHeader}>
           <View style={{ flex: 1 }} />
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="tap"
             onPress={Keyboard.dismiss}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <ChevronDown size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
         <Text style={styles.title}>Set Custom Targets</Text>
         <Text style={styles.subtitle}>Override your calculated daily targets.</Text>
@@ -200,7 +204,8 @@ function CustomMacrosModal({
             </View>
           );
         })}
-        <TouchableOpacity
+        <PhysiqPressable
+          feedback="confirm"
           style={[styles.btn, { backgroundColor: colors.primary }]}
           onPress={handleSave}
           accessibilityRole="button"
@@ -209,16 +214,17 @@ function CustomMacrosModal({
           <Text style={[styles.btnText, { color: colors.onPrimary ?? colors.white }]}>
             Save Targets
           </Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
         {isCustom && (
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="tap"
             style={styles.resetBtn}
             onPress={onReset}
             accessibilityRole="button"
             accessibilityLabel="Reset to calculated targets"
           >
             <Text style={styles.resetBtnText}>Reset to Calculated</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         )}
       </KeyboardAvoidingView>
     </Modal>
@@ -233,6 +239,7 @@ export default function DashboardScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [cardWidth, setCardWidth] = useState(0);
   const [editMacrosVisible, setEditMacrosVisible] = useState(false);
+  const [dayTypeModalVisible, setDayTypeModalVisible] = useState(false);
   const { width: screenWidth } = useWindowDimensions();
   const isTablet = useIsTablet();
   const IS_NARROW = screenWidth < 380;
@@ -243,24 +250,37 @@ export default function DashboardScreen() {
   const dialNumberSize = useMemo(() => Math.round(dialSize * 0.255), [dialSize]);
   const dialNumberLine = useMemo(() => Math.round(dialNumberSize * 1.02), [dialNumberSize]);
   const dialSubSize = useMemo(() => Math.max(13, Math.round(dialSize * 0.065)), [dialSize]);
-  const dialSubGap = useMemo(() => Math.round(dialSize * 0.035), [dialSize]);
-  const dialCenterOffsetY = useMemo(
-    () => Math.round((dialSubGap + dialSubSize) / 2),
-    [dialSubGap, dialSubSize]
-  );
+  const calorieIconSize = useMemo(() => Math.max(14, Math.round(dialSize * 0.12)), [dialSize]);
+  const calorieDialIconGap = useMemo(() => Math.max(2, Math.round(dialSize * 0.015)), [dialSize]);
+  const calorieTextGap = useMemo(() => Math.max(4, Math.round(dialSize * 0.018)), [dialSize]);
   const { todayEntries, todayTotals, removeEntry, getStreak } = useDailyLog();
   const { showPrompt, hasBaseline, dismissPrompt } = useMeasurements();
   const {
     settings: proSettings,
-    dynamicTargets,
     inferredDayType,
     hydration,
     hydrationUnit,
     addHydration,
     athleteProfile,
+    updateSettings,
   } = usePro();
   const streak = getStreak();
   const stagger = useStaggerFadeIn(5);
+
+  const dayTypeOverride = proSettings.dayTypeOverride ?? 'auto';
+  const showDayTypeTag =
+    proSettings.dynamicMacrosEnabled || athleteProfile.persona !== 'general';
+  const dayTypeTagLabel =
+    dayTypeOverride === 'auto'
+      ? `Auto · ${dayTypeMeta(inferredDayType).label}`
+      : DAY_TYPE_PICKER_SHORT_LABELS[dayTypeOverride];
+  const hydrationDialFontSize = useMemo(
+    () => Math.max(11, Math.round(dialNumberSize * 0.38)),
+    [dialNumberSize]
+  );
+  const hydrationIconSize = useMemo(() => Math.max(14, Math.round(dialSize * 0.11)), [dialSize]);
+  const hydrationDialGap = useMemo(() => Math.max(2, Math.round(dialSize * 0.02)), [dialSize]);
+  const hydrationTextGap = useMemo(() => Math.max(4, Math.round(dialSize * 0.018)), [dialSize]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -276,17 +296,11 @@ export default function DashboardScreen() {
   }, []);
 
   const handleEditEntry = useCallback((id: string) => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     router.push({ pathname: '/edit-log-entry', params: { entryId: id } } as never);
   }, []);
 
   const handleRemoveEntry = useCallback(
     (id: string) => {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       removeEntry(id);
     },
     [removeEntry]
@@ -305,11 +319,6 @@ export default function DashboardScreen() {
     if (todayEntries.length > 0) return 'On track today';
     return undefined;
   })();
-
-  const showShareNudge =
-    todayEntries.length > 0 &&
-    macros.calories > 0 &&
-    todayTotals.calories / macros.calories >= 0.9;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -339,33 +348,37 @@ export default function DashboardScreen() {
           ]}
         >
           <GreetingHeader firstName={profile.firstName} progress={progress} statusText={statusText} />
-          {showShareNudge ? (
-            <PhysiqPressable
-              feedback="tap"
-              style={styles.shareNudge}
-              onPress={() => router.push('/share-progress?template=daily_macros' as never)}
-            >
-              <Share2 size={16} color={colors.primary} />
-              <Text style={styles.shareNudgeText}>Share today&apos;s win</Text>
-              <ChevronRight size={16} color={colors.textTertiary} />
-            </PhysiqPressable>
-          ) : null}
-          <View style={styles.strategyRow}>
-            <View style={styles.strategyTag}>
-              <Text style={styles.strategyTagText}>
-                {EATING_STYLE_LABELS[profile.eatingStyle]}
-              </Text>
+          <View style={styles.chipBar}>
+            <View style={styles.chipBarPreferences}>
+              <View style={styles.strategyTag}>
+                <Text style={styles.strategyTagText}>
+                  {EATING_STYLE_LABELS[profile.eatingStyle]}
+                </Text>
+              </View>
+              {(profile.dietModifiers ?? []).map((mod: DietaryModifier) => (
+                <View key={mod} style={styles.modifierTag}>
+                  <Text style={styles.modifierTagText}>{DIETARY_MODIFIER_LABELS[mod]}</Text>
+                </View>
+              ))}
+              {customMacros && (
+                <View style={styles.customBadge}>
+                  <Text style={styles.customBadgeText}>Custom</Text>
+                </View>
+              )}
             </View>
-            {(profile.dietModifiers ?? []).map((mod: DietaryModifier) => (
-              <View key={mod} style={styles.modifierTag}>
-                <Text style={styles.modifierTagText}>{DIETARY_MODIFIER_LABELS[mod]}</Text>
-              </View>
-            ))}
-            {customMacros && (
-              <View style={styles.customBadge}>
-                <Text style={styles.customBadgeText}>Custom</Text>
-              </View>
-            )}
+            {showDayTypeTag ? (
+              <PhysiqPressable
+                feedback="select"
+                style={styles.dayTypeChip}
+                onPress={() => setDayTypeModalVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Day type: ${dayTypeTagLabel}. Tap to change.`}
+              >
+                <Text style={styles.dayTypeChipText} numberOfLines={1} ellipsizeMode="tail">
+                  {dayTypeTagLabel}
+                </Text>
+              </PhysiqPressable>
+            ) : null}
           </View>
         </Animated.View>
 
@@ -400,33 +413,42 @@ export default function DashboardScreen() {
                       size={dialSize}
                       strokeWidth={dialStrokeWidth}
                     />
-                    <View
-                      style={[
-                        styles.dialCenterOverlay,
-                        { transform: [{ translateY: dialCenterOffsetY }] },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dialNumber,
-                          {
-                            fontSize: dialNumberSize,
-                            lineHeight: dialNumberLine,
-                            fontVariant: ['tabular-nums'],
-                          },
-                        ]}
-                        numberOfLines={1}
-                        maxFontSizeMultiplier={1}
-                      >
-                        {formatNumber(caloriesRemaining)}
-                      </Text>
-                      <Text
-                        style={[styles.dialSub, { fontSize: dialSubSize, marginTop: dialSubGap }]}
-                        numberOfLines={1}
-                        maxFontSizeMultiplier={1}
-                      >
-                        cal left
-                      </Text>
+                    <View style={styles.dialCenterOverlay}>
+                      <View style={styles.calorieDialOverlay}>
+                        <View
+                          style={[
+                            styles.calorieDialAbove,
+                            { gap: calorieDialIconGap, marginBottom: calorieTextGap },
+                          ]}
+                        >
+                          <Flame size={calorieIconSize} color={colors.primary} />
+                          <Text
+                            style={[
+                              styles.dialNumber,
+                              {
+                                fontSize: dialNumberSize,
+                                lineHeight: dialNumberLine,
+                                fontVariant: ['tabular-nums'],
+                              },
+                            ]}
+                            numberOfLines={1}
+                            maxFontSizeMultiplier={1}
+                            accessibilityLabel={`${formatNumber(caloriesRemaining)} calories remaining`}
+                          >
+                            {formatNumber(caloriesRemaining)}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.dialSub,
+                            { fontSize: dialSubSize, marginTop: calorieTextGap },
+                          ]}
+                          numberOfLines={1}
+                          maxFontSizeMultiplier={1}
+                        >
+                          cal left
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -472,13 +494,14 @@ export default function DashboardScreen() {
             </PremiumCard>
 
             {/* Edit icon */}
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="tap"
               style={styles.editMacrosBtn}
               onPress={() => setEditMacrosVisible(true)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Pencil size={14} color={customMacros ? colors.primary : colors.textTertiary} />
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         </Animated.View>
 
@@ -524,85 +547,103 @@ export default function DashboardScreen() {
           </PremiumCard>
         </Animated.View>
 
-        {/* Adaptive Today */}
-        {(proSettings.dynamicMacrosEnabled || proSettings.hydrationEnabled) && (
-          <Animated.View style={{ opacity: stagger[3] }}>
-            <PremiumCard style={styles.adaptiveCard}>
-              {proSettings.dynamicMacrosEnabled ? (
-                <View style={styles.adaptiveHeaderRow}>
-                  <View style={styles.dayTypePill}>
-                    {(() => {
-                      const meta = dayTypeMeta(inferredDayType);
-                      const Icon = meta.icon;
-                      return (
-                        <>
-                          <Icon size={14} color={colors.primary} />
-                          <Text style={styles.dayTypePillText}>{meta.label}</Text>
-                        </>
-                      );
-                    })()}
-                  </View>
-                  <View style={styles.adaptiveCalCol}>
-                    <Text style={styles.adaptiveCalValue}>{formatNumber(dynamicTargets.calories)}</Text>
-                    <Text style={styles.adaptiveCalLabel}>adaptive cal</Text>
-                  </View>
-                </View>
-              ) : null}
-
-              {proSettings.hydrationEnabled ? (
-                <View style={styles.hydrationBlock}>
-                  <View style={styles.hydrationTop}>
-                    <View style={styles.hydrationLabelRow}>
-                      <Droplet size={16} color={Colors.hydration} />
-                      <Text style={styles.hydrationTitle}>Hydration</Text>
-                    </View>
-                    <Text style={styles.hydrationValue}>
-                      {formatHydrationProgress(hydration.consumedMl, hydration.targetMl, hydrationUnit)}
-                    </Text>
-                  </View>
-                  <View style={styles.hydrationBarTrack}>
-                    <View
-                      style={[
-                        styles.hydrationBarFill,
-                        {
-                          width: `${Math.min(
-                            100,
-                            hydration.targetMl > 0 ? (hydration.consumedMl / hydration.targetMl) * 100 : 0
-                          )}%`,
-                        },
-                      ]}
+        {/* Hydration */}
+        {proSettings.hydrationEnabled ? (
+          <Animated.View style={{ opacity: stagger[3], marginTop: Spacing.lg }}>
+            <PremiumCard style={styles.hydrationCard}>
+              <View style={[styles.calorieCardInner, IS_NARROW && styles.calorieCardInnerNarrow]}>
+                <View style={[styles.dialCol, { width: dialSize, height: dialSize, marginRight: GAP }]}>
+                  <View style={{ width: dialSize, height: dialSize }}>
+                    <CalorieGauge
+                      consumed={hydration.consumedMl}
+                      target={hydration.targetMl}
+                      color={Colors.hydration}
+                      size={dialSize}
+                      strokeWidth={dialStrokeWidth}
                     />
-                  </View>
-                  <View style={styles.hydrationChipsRow}>
-                    {hydrationQuickAdds(hydrationUnit).map((preset) => (
-                      <PhysiqPressable
-                        key={preset.label}
-                        feedback="select"
-                        style={styles.hydrationChip}
-                        onPress={() => addHydration(preset.ml)}
-                      >
-                        <Text style={styles.hydrationChipText}>{preset.label}</Text>
-                      </PhysiqPressable>
-                    ))}
+                    <View style={styles.dialCenterOverlay}>
+                      <View style={styles.hydrationDialOverlay}>
+                        <View
+                          style={[
+                            styles.hydrationDialAbove,
+                            { gap: hydrationDialGap, marginBottom: hydrationTextGap },
+                          ]}
+                        >
+                          <Droplet size={hydrationIconSize} color={Colors.hydration} />
+                          <Text style={styles.hydrationDialLabel}>Hydration</Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.hydrationDialProgress,
+                            {
+                              fontSize: hydrationDialFontSize,
+                              lineHeight: Math.round(hydrationDialFontSize * 1.15),
+                              marginTop: hydrationTextGap,
+                            },
+                          ]}
+                          numberOfLines={2}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.65}
+                          maxFontSizeMultiplier={1}
+                          accessibilityLabel={formatHydrationProgress(
+                            hydration.consumedMl,
+                            hydration.targetMl,
+                            hydrationUnit
+                          )}
+                        >
+                          {formatHydrationProgress(
+                            hydration.consumedMl,
+                            hydration.targetMl,
+                            hydrationUnit
+                          )}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
-              ) : null}
-              {!athleteProfile.enabled ? (
-                <TouchableOpacity
-                  style={styles.trainingNudge}
-                  onPress={() => router.push('/training-mode' as never)}
-                  activeOpacity={0.85}
-                >
-                  <Dumbbell size={16} color={colors.primary} />
-                  <Text style={styles.trainingNudgeText}>
-                    Set up Training Mode for sport & schedule-aware fueling
-                  </Text>
-                  <ChevronRight size={16} color={colors.textTertiary} />
-                </TouchableOpacity>
-              ) : null}
+                <View style={[styles.statsCol, styles.hydrationActionsCol, IS_NARROW && styles.statsColNarrow]}>
+                  {hydrationQuickAdds(hydrationUnit).map((preset) => (
+                    <PhysiqPressable
+                      key={preset.label}
+                      feedback="select"
+                      style={styles.hydrationActionBtn}
+                      onPress={() => addHydration(preset.ml)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add ${preset.label}`}
+                    >
+                      <Text style={styles.hydrationActionBtnText}>{preset.label}</Text>
+                    </PhysiqPressable>
+                  ))}
+                </View>
+              </View>
             </PremiumCard>
           </Animated.View>
-        )}
+        ) : null}
+
+        {/* Training Mode nudge */}
+        {!athleteProfile.enabled &&
+        (proSettings.dynamicMacrosEnabled || proSettings.hydrationEnabled) ? (
+          <Animated.View style={{ opacity: stagger[3] }}>
+            <PhysiqPressable
+              feedback="tap"
+              style={styles.trainingNudgeCard}
+              onPress={() => router.push('/training-mode' as never)}
+            >
+              <Dumbbell size={16} color={colors.primary} />
+              <Text style={styles.trainingNudgeText}>
+                Set up Training Mode for sport & schedule-aware fueling
+              </Text>
+              <ChevronRight size={16} color={colors.textTertiary} />
+            </PhysiqPressable>
+          </Animated.View>
+        ) : null}
+
+        <DayTypePickerModal
+          visible={dayTypeModalVisible}
+          selectedId={dayTypeOverride}
+          onSelect={(id) => updateSettings({ dayTypeOverride: id })}
+          onClose={() => setDayTypeModalVisible(false)}
+        />
 
         {/* Measurement Prompt */}
         {showPrompt && (
@@ -624,20 +665,21 @@ export default function DashboardScreen() {
                 </View>
               </View>
               <View style={styles.promptActions}>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="confirm"
                   style={styles.promptCta}
                   onPress={() => router.push('/add-measurement' as never)}
-                  activeOpacity={0.7}
                 >
                   <Text style={styles.promptCtaText}>Go</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PhysiqPressable>
+                <PhysiqPressable
+                  feedback="tap"
                   style={styles.promptDismiss}
                   onPress={() => dismissPrompt()}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <X size={14} color={colors.textTertiary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
               </View>
             </View>
           </Animated.View>
@@ -650,10 +692,10 @@ export default function DashboardScreen() {
               <Text style={styles.sectionTitle}>Today's Log</Text>
               {todayEntries.map((entry) => (
                 <PremiumCard key={entry.id} style={styles.entryCard}>
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="tap"
                     style={styles.entryTapArea}
                     onPress={() => handleEditEntry(entry.id)}
-                    activeOpacity={0.7}
                     accessibilityRole="button"
                     accessibilityLabel={`Edit ${entry.name}, ${formatNumber(entry.calories)} calories`}
                     accessibilityHint="Opens this log entry for editing"
@@ -666,8 +708,9 @@ export default function DashboardScreen() {
                       </Text>
                     </View>
                     <ChevronRight size={18} color={colors.textTertiary} style={styles.entryChevron} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                  </PhysiqPressable>
+                  <PhysiqPressable
+                    feedback="destructive"
                     style={styles.entryDelete}
                     onPress={() => handleRemoveEntry(entry.id)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -675,7 +718,7 @@ export default function DashboardScreen() {
                     accessibilityLabel={`Delete ${entry.name}`}
                   >
                     <Trash2 size={16} color={colors.textTertiary} />
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 </PremiumCard>
               ))}
             </View>
@@ -695,16 +738,12 @@ export default function DashboardScreen() {
         onSave={async (m) => {
           await setCustomMacros(m);
           setEditMacrosVisible(false);
-          if (Platform.OS !== 'web') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
+          playFeedback('success');
         }}
         onReset={async () => {
           await setCustomMacros(null);
           setEditMacrosVisible(false);
-          if (Platform.OS !== 'web') {
-            Haptics.selectionAsync();
-          }
+          playFeedback('select');
         }}
         onClose={() => setEditMacrosVisible(false)}
       />
@@ -810,30 +849,20 @@ const createStyles = (colors: AppColors) =>
     greetingBlock: {
       marginTop: 10,
     },
-    shareNudge: {
+    chipBar: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
       gap: 8,
       marginTop: Spacing.sm,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: Radius.md,
-      backgroundColor: colors.primaryMuted,
-      borderWidth: 1,
-      borderColor: colors.primary,
+      marginBottom: Spacing.lg,
     },
-    shareNudgeText: {
+    chipBarPreferences: {
       flex: 1,
-      color: colors.primary,
-      fontSize: 14,
-      fontWeight: '700',
-    },
-    strategyRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 6,
-      marginTop: Spacing.sm,
-      marginBottom: Spacing.lg,
+      alignItems: 'center',
     },
     strategyTag: {
       paddingHorizontal: 16,
@@ -920,6 +949,16 @@ const createStyles = (colors: AppColors) =>
       color: colors.textSecondary,
       textAlign: 'center' as const,
     },
+    calorieDialOverlay: {
+      flex: 1,
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    calorieDialAbove: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     statsCol: {
       flex: 1,
       minWidth: STATS_MIN_WIDTH,
@@ -984,102 +1023,77 @@ const createStyles = (colors: AppColors) =>
       marginTop: Spacing.lg,
       gap: Spacing.md,
     },
-    adaptiveCard: {
-      padding: Spacing.lg,
-      marginTop: Spacing.lg,
-      gap: Spacing.md,
-    },
-    adaptiveHeaderRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    dayTypePill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 12,
+    dayTypeChip: {
+      flexShrink: 0,
+      paddingHorizontal: 16,
       paddingVertical: 7,
-      borderRadius: 999,
-      backgroundColor: colors.primaryMuted,
+      borderRadius: Radius.md,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      backgroundColor: colors.primary,
     },
-    dayTypePillText: {
-      color: colors.primary,
+    dayTypeChipText: {
+      color: colors.onPrimary ?? '#000000',
       fontSize: 13,
-      fontWeight: '700' as const,
-    },
-    adaptiveCalCol: {
-      alignItems: 'flex-end',
-    },
-    adaptiveCalValue: {
-      color: colors.text,
-      fontSize: 22,
-      fontWeight: '800' as const,
-    },
-    adaptiveCalLabel: {
-      color: colors.textSecondary,
-      fontSize: 11,
       fontWeight: '600' as const,
     },
-    hydrationBlock: {
-      gap: Spacing.sm,
-    },
-    hydrationTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    hydrationLabelRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    hydrationTitle: {
-      color: colors.text,
-      fontSize: 15,
-      fontWeight: '700' as const,
-    },
-    hydrationValue: {
-      color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '700' as const,
-    },
-    hydrationBarTrack: {
-      height: 8,
-      borderRadius: 999,
-      backgroundColor: colors.cardBorder,
+    hydrationCard: {
+      width: '100%',
       overflow: 'hidden',
     },
-    hydrationBarFill: {
-      height: '100%',
-      borderRadius: 999,
-      backgroundColor: Colors.hydration,
-    },
-    hydrationChipsRow: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    hydrationChip: {
+    hydrationDialOverlay: {
       flex: 1,
+      width: '100%',
       alignItems: 'center',
-      paddingVertical: 9,
+      justifyContent: 'center',
+    },
+    hydrationDialAbove: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    hydrationDialLabel: {
+      fontSize: 13,
+      lineHeight: 16,
+      fontWeight: '600' as const,
+      color: Colors.text,
+      textAlign: 'center' as const,
+    },
+    hydrationDialProgress: {
+      fontWeight: '800' as const,
+      color: colors.text,
+      textAlign: 'center' as const,
+      paddingHorizontal: 4,
+    },
+    hydrationActionsCol: {
+      gap: 8,
+      justifyContent: 'center',
+    },
+    hydrationActionBtn: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
       borderRadius: Radius.sm,
       borderWidth: 1,
       borderColor: Colors.hydration,
       backgroundColor: Colors.hydrationMuted,
+      minHeight: 44,
     },
-    hydrationChipText: {
+    hydrationActionBtnText: {
       color: Colors.hydration,
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: '700' as const,
     },
-    trainingNudge: {
+    trainingNudgeCard: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      paddingTop: Spacing.sm,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.cardBorder,
+      marginTop: Spacing.lg,
+      padding: Spacing.md,
+      borderRadius: Radius.md,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
     },
     trainingNudgeText: {
       flex: 1,

@@ -16,6 +16,11 @@ struct WatchLayoutMetrics: Equatable {
   static let macroIconHeight: CGFloat = 10
   static let macroRowGap: CGFloat = 2
   static let todayTileGap: CGFloat = 4
+  /// Max corner radius for Today tiles and footer action buttons (Screens 2–4).
+  static let tileCornerRadiusCap: CGFloat = 12
+  /// Legacy alias — Today tiles use the cap directly.
+  static let tileCornerRadius: CGFloat = tileCornerRadiusCap
+  static let pageDotClearance: CGFloat = 8
   /// Shrink the 2×2 grid uniformly so tiles have even margin inside the body.
   static let todayGridFill: CGFloat = 0.86
 
@@ -34,7 +39,11 @@ struct WatchLayoutMetrics: Equatable {
         + "faceH=\(Int(metrics.faceHeight)) "
         + "bodyH=\(Int(metrics.bodyHeight(bottomBar: Self.bottomBarHeight))) "
         + "todayBodyH=\(Int(metrics.todayBodyHeight())) "
-        + "todayTile=\(Int(metrics.todayTileSide()))"
+        + "todayTile=\(Int(metrics.todayTileSide())) "
+        + "footerH=\(Int(metrics.footerBarHeight())) "
+        + "footerBtnH=\(Int(metrics.footerButtonHeight())) "
+        + "footerHInset=\(Int(metrics.footerHorizontalInset())) "
+        + "footerBInset=\(Int(metrics.footerBottomInset()))"
     )
     #endif
     return metrics
@@ -88,5 +97,35 @@ struct WatchLayoutMetrics: Equatable {
     let byHeight = (body - gap) / 2 * fill
     let byWidth = (faceWidth - gap) / 2 * fill
     return max(40, min(byHeight, byWidth))
+  }
+
+  private func todayGridHorizontalInset() -> CGFloat {
+    let gridWidth = todayTileSide() * 2 + Self.todayTileGap
+    return max(4, (faceWidth - gridWidth) / 2)
+  }
+
+  func tileCornerRadius(buttonHeight: CGFloat) -> CGFloat {
+    min(Self.tileCornerRadiusCap, buttonHeight * 0.27)
+  }
+
+  func footerButtonHeight() -> CGFloat {
+    min(max(faceHeight * 0.14, 34), 40)
+  }
+
+  func footerBottomInset() -> CGFloat {
+    max(safeAreaInsets.bottom, faceWidth * 0.05, 6)
+  }
+
+  /// Horizontal inset for footer tiles — wider than center-grid inset to clear bottom arc.
+  func footerHorizontalInset() -> CGFloat {
+    max(todayGridHorizontalInset(), faceWidth * 0.09, 8)
+  }
+
+  func footerTopPadding() -> CGFloat {
+    max(4, faceHeight * 0.012)
+  }
+
+  func footerBarHeight() -> CGFloat {
+    footerButtonHeight() + footerTopPadding() + footerBottomInset() + Self.pageDotClearance
   }
 }

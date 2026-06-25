@@ -4,18 +4,15 @@ import {
   Text,
   StyleSheet,
   Modal,
-  TouchableOpacity,
   ScrollView,
-  TouchableWithoutFeedback,
-  Platform,
 } from 'react-native';
 import { AlertTriangle, X } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
 import Colors from '../../constants/colors';
 import { Radius, Spacing } from '../../theme/tokens';
 import { UserProfile } from '../../types';
 import { isLeanForPsmf } from '../../utils/psmfHelpers';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import PhysiqPressable from './PhysiqPressable';
 
 export interface PsmfAcknowledgmentModalProps {
   visible: boolean;
@@ -54,9 +51,6 @@ export default function PsmfAcknowledgmentModal({
 
   const handleConfirm = () => {
     if (!canConfirm) return;
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
     setAcknowledged(false);
     setLeanAcknowledged(false);
     onAcknowledge();
@@ -67,17 +61,17 @@ export default function PsmfAcknowledgmentModal({
   return (
     <Modal visible transparent animationType="slide" onRequestClose={handleClose} statusBarTranslucent>
       <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
+        <PhysiqPressable feedback="tap" style={styles.backdrop} onPress={handleClose}>
+          <View />
+        </PhysiqPressable>
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <AlertTriangle size={22} color={Colors.warning} />
               <Text style={styles.title}>PSMF Safety Notice</Text>
-              <TouchableOpacity onPress={handleClose} hitSlop={12} accessibilityLabel="Close">
+              <PhysiqPressable feedback="tap" onPress={handleClose} hitSlop={12} accessibilityLabel="Close">
                 <X size={22} color={Colors.textSecondary} />
-              </TouchableOpacity>
+              </PhysiqPressable>
             </View>
             <Text style={styles.subtitle}>Advanced / Short-term protocol</Text>
           </View>
@@ -99,39 +93,39 @@ export default function PsmfAcknowledgmentModal({
               </View>
             )}
 
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="select"
               style={styles.checkRow}
               onPress={() => setAcknowledged((v) => !v)}
-              activeOpacity={0.8}
             >
               <View style={[styles.checkbox, acknowledged && styles.checkboxActive]}>
                 {acknowledged ? <Text style={styles.checkmark}>✓</Text> : null}
               </View>
               <Text style={styles.checkLabel}>I understand these risks and wish to proceed with PSMF</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
 
             {leanWarning && (
-              <TouchableOpacity
+              <PhysiqPressable
+                feedback="select"
                 style={styles.checkRow}
                 onPress={() => setLeanAcknowledged((v) => !v)}
-                activeOpacity={0.8}
               >
                 <View style={[styles.checkbox, leanAcknowledged && styles.checkboxActive]}>
                   {leanAcknowledged ? <Text style={styles.checkmark}>✓</Text> : null}
                 </View>
                 <Text style={styles.checkLabel}>I understand the added risk for lean individuals</Text>
-              </TouchableOpacity>
+              </PhysiqPressable>
             )}
           </ScrollView>
 
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="confirm"
             style={[styles.confirmBtn, { backgroundColor: canConfirm ? colors.primary : Colors.textTertiary }]}
             onPress={handleConfirm}
             disabled={!canConfirm}
-            activeOpacity={0.85}
           >
             <Text style={[styles.confirmText, { color: colors.onPrimary }]}>I Understand — Select PSMF</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
       </View>
     </Modal>
@@ -151,7 +145,7 @@ function createStyles(colors: AppColors) {
     },
     header: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.sm },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-    title: { flex: 1, fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
+    title: { flex: 1, fontSize: 18, fontWeight: '700', color: Colors.text },
     subtitle: { marginTop: 4, fontSize: 13, color: Colors.warning },
     scroll: { maxHeight: 420 },
     scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md, gap: Spacing.sm },
@@ -179,7 +173,7 @@ function createStyles(colors: AppColors) {
     },
     checkboxActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
     checkmark: { fontSize: 14, fontWeight: '700', color: colors.primary },
-    checkLabel: { flex: 1, fontSize: 14, lineHeight: 20, color: Colors.textPrimary },
+    checkLabel: { flex: 1, fontSize: 14, lineHeight: 20, color: Colors.text },
     confirmBtn: {
       marginHorizontal: Spacing.lg,
       marginTop: Spacing.sm,

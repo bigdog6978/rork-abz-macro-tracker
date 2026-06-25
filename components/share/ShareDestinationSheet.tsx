@@ -48,7 +48,7 @@ export default function ShareDestinationSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <PhysiqPressable feedback="tap" style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
           <View style={styles.header}>
@@ -78,7 +78,7 @@ export default function ShareDestinationSheet({
             ))}
           </ScrollView>
         </Pressable>
-      </Pressable>
+      </PhysiqPressable>
     </Modal>
   );
 }

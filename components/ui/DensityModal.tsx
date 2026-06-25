@@ -3,15 +3,13 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   Modal,
   Pressable,
   StyleSheet,
-  Platform,
   Keyboard,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { X } from 'lucide-react-native';
+import PhysiqPressable from './PhysiqPressable';
 import Colors from '../../constants/colors';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 
@@ -44,17 +42,11 @@ export default function DensityModal({
       setError('Enter a valid density (0.01–3.00).');
       return;
     }
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
     setError(null);
     onSave(val);
   };
 
   const handleCancel = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
     setError(null);
     onCancel();
   };
@@ -68,21 +60,21 @@ export default function DensityModal({
       animationType="fade"
       onRequestClose={handleCancel}
     >
-      <Pressable style={styles.overlay} onPress={handleCancel}>
+      <PhysiqPressable feedback="tap" style={styles.overlay} onPress={handleCancel}>
         <Pressable onPress={() => {}} style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.titleRow}>
             <Text style={styles.title}>Add density</Text>
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="tap"
               onPress={() => Keyboard.dismiss()}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityLabel="Dismiss keyboard"
-              accessibilityRole="button"
             >
               <View style={styles.closeBtn}>
                 <X size={16} color={Colors.textSecondary} />
               </View>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
           <Text style={styles.subheader}>
             Needed to convert volume → grams for accurate macros.
@@ -108,15 +100,15 @@ export default function DensityModal({
             </Text>
           )}
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleSave} activeOpacity={0.7}>
+            <PhysiqPressable feedback="confirm" style={styles.primaryBtn} onPress={handleSave}>
               <Text style={styles.primaryText}>Save density</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryBtn} onPress={handleCancel} activeOpacity={0.7}>
+            </PhysiqPressable>
+            <PhysiqPressable feedback="tap" style={styles.secondaryBtn} onPress={handleCancel}>
               <Text style={styles.secondaryText}>Not now</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         </Pressable>
-      </Pressable>
+      </PhysiqPressable>
     </Modal>
   );
 }

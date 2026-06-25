@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Colors from '../../constants/colors';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import PhysiqPressable from './PhysiqPressable';
 
 type Props = {
   visible: boolean;
@@ -16,25 +17,26 @@ export default function HealthPermissionModal({ visible, connecting = false, onC
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onNotNow}>
-      <Pressable style={styles.overlay} onPress={onNotNow}>
+      <PhysiqPressable feedback="tap" style={styles.overlay} onPress={onNotNow}>
         <Pressable style={styles.card} onPress={() => {}}>
           <Text style={styles.title}>Apple Health access</Text>
           <Text style={styles.body}>
             Physiq uses activity, workout, heart rate, heart rate variability, and sleep data
             from Apple Health to adapt macro and hydration targets.
           </Text>
-          <TouchableOpacity
+          <PhysiqPressable
+            feedback="confirm"
             style={[styles.primaryBtn, connecting && styles.primaryBtnDisabled]}
             onPress={onContinue}
             disabled={connecting}
           >
             <Text style={styles.primaryBtnText}>{connecting ? 'Connecting…' : 'Continue'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={onNotNow} disabled={connecting}>
+          </PhysiqPressable>
+          <PhysiqPressable feedback="tap" style={styles.secondaryBtn} onPress={onNotNow} disabled={connecting}>
             <Text style={styles.secondaryBtnText}>Not now</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </Pressable>
-      </Pressable>
+      </PhysiqPressable>
     </Modal>
   );
 }

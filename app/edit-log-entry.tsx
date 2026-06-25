@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import * as Haptics from 'expo-haptics';
 import { Check, X, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react-native';
 import Colors from '../constants/colors';
@@ -381,9 +381,9 @@ export default function EditLogEntryScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>Entry not found</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <PhysiqPressable feedback="tap" onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backBtnText}>Go Back</Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </View>
     );
   }
@@ -395,7 +395,8 @@ export default function EditLogEntryScreen() {
         options={{
           title: 'Edit Entry',
           headerLeft: () => (
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="tap"
               onPress={() => router.back()}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.headerIconBtn}
@@ -403,10 +404,11 @@ export default function EditLogEntryScreen() {
               <View style={styles.headerIconWrap}>
                 <X size={22} color={Colors.textSecondary} />
               </View>
-            </TouchableOpacity>
+            </PhysiqPressable>
           ),
           headerRight: () => (
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="confirm"
               onPress={handleSave}
               disabled={isSaving}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -419,7 +421,7 @@ export default function EditLogEntryScreen() {
                   <Check size={22} color={colors.primary} />
                 )}
               </View>
-            </TouchableOpacity>
+            </PhysiqPressable>
           ),
         }}
       />
@@ -469,10 +471,10 @@ export default function EditLogEntryScreen() {
               </Text>
             </View>
 
-            <TouchableOpacity
+            <PhysiqPressable
+              feedback="select"
               style={styles.editMacrosToggle}
               onPress={() => setShowMacroOverride((v) => !v)}
-              activeOpacity={0.7}
             >
               <Text style={styles.editMacrosToggleText}>
                 {showMacroOverride ? 'Hide macro override' : 'Edit macros'}
@@ -482,7 +484,7 @@ export default function EditLogEntryScreen() {
               ) : (
                 <ChevronDown size={18} color={colors.primary} />
               )}
-            </TouchableOpacity>
+            </PhysiqPressable>
 
             {showMacroOverride && (
               <View style={styles.macroOverrideSection}>
@@ -533,14 +535,14 @@ export default function EditLogEntryScreen() {
                   />
                 </View>
                 {canRecalc && (
-                  <TouchableOpacity
+                  <PhysiqPressable
+                    feedback="tap"
                     style={styles.resetBtn}
                     onPress={handleResetToCalculated}
-                    activeOpacity={0.7}
                   >
                     <RotateCcw size={14} color={colors.primary} />
                     <Text style={styles.resetBtnText}>Reset to calculated macros</Text>
-                  </TouchableOpacity>
+                  </PhysiqPressable>
                 )}
               </View>
             )}

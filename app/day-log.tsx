@@ -8,13 +8,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { ChevronRight, Trash2, Plus } from 'lucide-react-native';
 import Colors from '../constants/colors';
+import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { useUser } from '../providers/UserProvider';
@@ -38,17 +36,11 @@ export default function DayLogScreen() {
   const adherence = getAdherencePercent(totals, macros);
 
   const handleAddFood = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
     router.push({ pathname: '/add-food', params: { dateKey: dateKey ?? '' } } as never);
   }, [dateKey]);
 
   const handleEditEntry = useCallback(
     (entryId: string) => {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       router.push({
         pathname: '/edit-log-entry',
         params: { entryId, dateKey: dateKey ?? '' },
@@ -59,9 +51,6 @@ export default function DayLogScreen() {
 
   const handleRemoveEntry = useCallback(
     (id: string) => {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
       removeEntry(id, dateKey ?? undefined);
     },
     [dateKey, removeEntry]
@@ -73,9 +62,9 @@ export default function DayLogScreen() {
         <Stack.Screen options={{ title: 'Day', headerShown: true }} />
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>Invalid date</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <PhysiqPressable feedback="tap" style={styles.backBtn} onPress={() => router.back()}>
             <Text style={styles.backBtnText}>Go Back</Text>
-          </TouchableOpacity>
+          </PhysiqPressable>
         </View>
       </View>
     );
@@ -127,10 +116,10 @@ export default function DayLogScreen() {
             <Text style={styles.sectionTitle}>Foods</Text>
             {entries.map((entry) => (
               <PremiumCard key={entry.id} style={styles.entryCard}>
-                <TouchableOpacity
+                <PhysiqPressable
+                  feedback="tap"
                   style={styles.entryTapArea}
                   onPress={() => handleEditEntry(entry.id)}
-                  activeOpacity={0.7}
                 >
                   <View style={styles.entryInfo}>
                     <Text style={styles.entryName}>{entry.name}</Text>
@@ -140,14 +129,15 @@ export default function DayLogScreen() {
                     </Text>
                   </View>
                   <ChevronRight size={18} color={Colors.textTertiary} style={styles.entryChevron} />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PhysiqPressable>
+                <PhysiqPressable
+                  feedback="destructive"
                   style={styles.entryDelete}
                   onPress={() => handleRemoveEntry(entry.id)}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Trash2 size={16} color={Colors.textTertiary} />
-                </TouchableOpacity>
+                </PhysiqPressable>
               </PremiumCard>
             ))}
           </View>
@@ -160,16 +150,16 @@ export default function DayLogScreen() {
           </View>
         )}
 
-        <TouchableOpacity
+        <PhysiqPressable
+          feedback="confirm"
           style={styles.addFoodCta}
           onPress={handleAddFood}
-          activeOpacity={0.85}
         >
           <Plus size={20} color={colors.onPrimary} />
           <Text style={styles.addFoodCtaText}>
             {entries.length > 0 ? 'Add Food' : 'Add Food to this Day'}
           </Text>
-        </TouchableOpacity>
+        </PhysiqPressable>
       </ScrollView>
     </View>
   );

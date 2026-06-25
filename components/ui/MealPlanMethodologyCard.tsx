@@ -4,7 +4,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -22,6 +21,7 @@ import {
   MEAL_PLAN_METHODOLOGY_SECTIONS,
 } from '../../src/content/nutritionScience';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import PhysiqPressable from './PhysiqPressable';
 
 interface MealPlanMethodologyCardProps {
   eatingStyle: EatingStyle;
@@ -88,16 +88,12 @@ export default function MealPlanMethodologyCard({
     <View style={styles.container}>
       <Text style={styles.sourceText}>{MEAL_PLAN_SOURCE_BLURB}</Text>
 
-      <TouchableOpacity
-        style={styles.toggle}
-        onPress={toggleExpanded}
-        activeOpacity={0.85}
-      >
+      <PhysiqPressable feedback="select" style={styles.toggle} onPress={toggleExpanded}>
         <Text style={styles.toggleTitle}>Nutrition Methodology</Text>
         <Animated.View style={iconStyle}>
           <ChevronDown size={18} color={Colors.textSecondary} />
         </Animated.View>
-      </TouchableOpacity>
+      </PhysiqPressable>
 
       <Animated.View style={[styles.expandWrap, contentStyle]}>
         <ScrollView
@@ -156,13 +152,9 @@ export default function MealPlanMethodologyCard({
               </View>
             ))}
 
-            <TouchableOpacity
-              style={styles.methodologyButton}
-              onPress={onViewMethodology}
-              activeOpacity={0.85}
-            >
+            <PhysiqPressable feedback="tap" style={styles.methodologyButton} onPress={onViewMethodology}>
               <Text style={styles.methodologyButtonText}>View Full Methodology</Text>
-            </TouchableOpacity>
+            </PhysiqPressable>
           </View>
         </ScrollView>
       </Animated.View>

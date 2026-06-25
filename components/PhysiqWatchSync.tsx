@@ -9,19 +9,13 @@ import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS } from '../types';
 import Colors from '../constants/colors';
 import { processVoiceMealTranscript } from '../features/food/processVoiceMealTranscript';
 import * as foodService from '../features/food/foodService';
-import type { ProDayTypeOverride } from '../features/pro/types';
+import type { ProDayType, ProDayTypeOverride } from '../features/pro/types';
+import { DAY_TYPE_OVERRIDE_LABELS } from '../features/pro/constants';
 
-const DAY_TYPE_LABELS: Record<string, string> = {
+const DAY_TYPE_LABELS: Record<ProDayType, string> = {
   workout_day: 'Workout day',
   high_activity_day: 'High activity',
   rest_day: 'Rest day',
-};
-
-const DAY_TYPE_OVERRIDE_LABELS: Record<ProDayTypeOverride, string> = {
-  auto: 'Auto',
-  training: 'Training',
-  competition: 'Competition',
-  rest: 'Rest',
 };
 
 const VOICE_FEEDBACK_TTL_MS = 45_000;
