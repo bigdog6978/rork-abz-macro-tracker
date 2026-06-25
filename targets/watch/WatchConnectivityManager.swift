@@ -169,7 +169,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         self.dayTypeFeedback = nil
       }
       #if DEBUG
-      print("[PhysiqWatch] context merged keys: \(strings.keys.sorted().joined(separator: ", "))")
+      print("[PhysiqWatch] mergeSnapshot dayType pending=\(self.pendingDayTypeOverride ?? "nil") incoming=\(strings["dayTypeOverride"] ?? "nil")")
       #endif
     }
   }

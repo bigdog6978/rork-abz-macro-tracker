@@ -5,11 +5,12 @@ import { useUser } from '../providers/UserProvider';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { useThemeColors } from '../providers/ThemeProvider';
 import { usePro } from '../providers/ProProvider';
+import { useDashboardTargets } from '../hooks/useDashboardTargets';
 import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS } from '../types';
 import Colors from '../constants/colors';
 import { processVoiceMealTranscript } from '../features/food/processVoiceMealTranscript';
 import * as foodService from '../features/food/foodService';
-import type { ProDayType, ProDayTypeOverride } from '../features/pro/types';
+import type { ProDayType } from '../features/pro/types';
 import { DAY_TYPE_OVERRIDE_LABELS } from '../features/pro/constants';
 
 const DAY_TYPE_LABELS: Record<ProDayType, string> = {
@@ -25,14 +26,14 @@ const VOICE_FEEDBACK_TTL_MS = 45_000;
  * Runs for all signed-in iOS users (not Pro-gated) so the Watch mirrors the phone dashboard.
  */
 export default function PhysiqWatchSync() {
-  const { profile, macros } = useUser();
+  const { profile } = useUser();
+  const { targets, source: targetSource } = useDashboardTargets();
   const { todayTotals, getStreak, addEntries } = useDailyLog();
   const colors = useThemeColors();
   const {
     hydration,
     hydrationUnit,
     athleteProfile,
-    dynamicTargets,
     settings,
     inferredDayType,
     healthSignals,
@@ -42,8 +43,6 @@ export default function PhysiqWatchSync() {
   const voiceProcessingRef = useRef(false);
   const [voiceMealFeedback, setVoiceMealFeedback] = useState('');
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const targets = settings.dynamicMacrosEnabled ? dynamicTargets : macros;
 
   const showVoiceFeedback = useCallback((message: string) => {
     setVoiceMealFeedback(message);
@@ -135,6 +134,8 @@ export default function PhysiqWatchSync() {
     athleteProfile.sport,
     inferredDayType,
     settings.dayTypeOverride,
+    settings.dynamicMacrosEnabled,
+    targetSource,
     healthSignals,
     healthConnectionStatus,
     getStreak,
@@ -152,7 +153,12 @@ export default function PhysiqWatchSync() {
       }
     });
     if (__DEV__) {
-      console.log('[PhysiqWatchSync] snapshot keys', Object.keys(withTime).sort().join(', '));
+      console.log('[PhysiqWatchSync] send', {
+        dayTypeOverride: data.dayTypeOverride,
+        caloriesTarget: data.caloriesTarget,
+        proteinTarget: data.proteinTarget,
+        updatedAt: withTime.updatedAt,
+      });
     }
   }, []);
 

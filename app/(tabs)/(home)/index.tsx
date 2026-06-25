@@ -25,6 +25,7 @@ import { useUser } from '../../../providers/UserProvider';
 import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
 import { usePro } from '../../../providers/ProProvider';
+import { useDashboardTargets } from '../../../hooks/useDashboardTargets';
 import { formatHydrationProgress, hydrationQuickAdds } from '../../../utils/hydration';
 import type { ProDayType } from '../../../features/pro/types';
 import { DAY_TYPE_PICKER_SHORT_LABELS } from '../../../features/pro/constants';
@@ -235,6 +236,7 @@ function CustomMacrosModal({
 
 export default function DashboardScreen() {
   const { profile, macros, customMacros, setCustomMacros, isLoading: userLoading } = useUser();
+  const { targets: dashboardTargets } = useDashboardTargets();
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [cardWidth, setCardWidth] = useState(0);
@@ -310,9 +312,9 @@ export default function DashboardScreen() {
     return <View style={styles.container} />;
   }
 
-  const caloriesRemaining = Math.max(macros.calories - todayTotals.calories, 0);
+  const caloriesRemaining = Math.max(dashboardTargets.calories - todayTotals.calories, 0);
   const greeting = getGreeting(profile.firstName);
-  const progress = getProgressLevel(todayTotals.calories, macros.calories);
+  const progress = getProgressLevel(todayTotals.calories, dashboardTargets.calories);
 
   const statusText = (() => {
     if (streak > 1) return `Day ${streak} streak`;
@@ -408,7 +410,7 @@ export default function DashboardScreen() {
                   <View style={{ width: dialSize, height: dialSize }}>
                     <CalorieGauge
                       consumed={todayTotals.calories}
-                      target={macros.calories}
+                      target={dashboardTargets.calories}
                       color={colors.primary}
                       size={dialSize}
                       strokeWidth={dialStrokeWidth}
@@ -464,7 +466,7 @@ export default function DashboardScreen() {
                       minimumFontScale={0.7}
                       maxFontSizeMultiplier={1}
                     >
-                      {formatNumber(macros.calories)}
+                      {formatNumber(dashboardTargets.calories)}
                     </Text>
                   </View>
                   <View style={styles.statRow}>
@@ -524,19 +526,19 @@ export default function DashboardScreen() {
               <MacroDial
                 label="Protein"
                 consumed={todayTotals.protein_g}
-                target={macros.protein_g}
+                target={dashboardTargets.protein_g}
                 color={Colors.protein}
               />
               <MacroDial
                 label="Carbs"
                 consumed={todayTotals.carbs_g}
-                target={macros.carbs_g}
+                target={dashboardTargets.carbs_g}
                 color={Colors.carbs}
               />
               <MacroDial
                 label="Fat"
                 consumed={todayTotals.fat_g}
-                target={macros.fat_g}
+                target={dashboardTargets.fat_g}
                 color={Colors.fat}
               />
             </View>

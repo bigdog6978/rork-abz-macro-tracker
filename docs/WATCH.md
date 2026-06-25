@@ -25,7 +25,7 @@
 | `@bacons/apple-targets` | Generates the watchOS app target and embeds it in the iOS app (Continuous Native Generation). |
 | `targets/watch/` | SwiftUI app: `PhysiqWatchApp`, `ContentView`, `DayTypePicker`, `WatchPageContainer`, `WatchLayoutMetrics`, `WatchConnectivityManager`, `WatchInteractionFeedback`, `PhysiqPressableButtonStyle`, `PhysiqTheme`, `WatchSnapshot`, `RingGaugeView`. |
 | `physiq-watch-connectivity` | Expo module (`PhysiqWatch`) on **iPhone**: `sendProSnapshot`, events `onWatchPayload` / `onActivationChange`. |
-| `components/PhysiqWatchSync.tsx` | React: builds **dashboard-aligned** payload (same sources as the home screen) for **all** signed-in users on iOS—not Pro-gated. |
+| `components/PhysiqWatchSync.tsx` | React: builds **dashboard-aligned** payload via `useDashboardTargets()` (same sources as the home screen) for **all** signed-in users on iOS—not Pro-gated. |
 | App Group | `group.app.rork.abz-macro-tracker` (entitlements on main app + synced to watch via apple-targets). Optional for future `ExtensionStorage` / shared files. |
 
 ## Snapshot payload (phone → watch)
@@ -67,6 +67,7 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 
 - **Sync is not subscription-gated.** Any user who has finished onboarding gets a full dashboard snapshot so the Watch matches the phone.
 - Pro/Athlete-only **behavior** (dynamic targets, etc.) still lives on the phone; the Watch only displays the latest numbers pushed from the app.
+- **Day type is bidirectional:** changing Auto / Train / Comp / Rest on either device updates `ProSettings.dayTypeOverride` on iPhone and the next snapshot updates the other device. Home dashboard and `PhysiqWatchSync` share `useDashboardTargets()` so calorie/macro targets stay aligned when day type changes.
 
 ### Watch → phone
 

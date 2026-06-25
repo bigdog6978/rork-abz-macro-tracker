@@ -175,6 +175,17 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     mutationFn: async (next: ProSettings) => {
       await saveProSettings(next);
     },
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({ queryKey: ['pro_settings'] });
+      const previous = queryClient.getQueryData<ProSettings>(['pro_settings']);
+      queryClient.setQueryData(['pro_settings'], next);
+      return { previous };
+    },
+    onError: (_err, _next, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['pro_settings'], context.previous);
+      }
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pro_settings'] }),
   });
   const healthMutation = useMutation({
@@ -251,6 +262,12 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
         case 'set_day_type': {
           const next = payload.dayType;
           if (next === 'auto' || next === 'training' || next === 'competition' || next === 'rest') {
+            if (__DEV__) {
+              console.log('[ProProvider] watch set_day_type', {
+                incoming: next,
+                previous: settings.dayTypeOverride ?? 'auto',
+              });
+            }
             updateSettings({ dayTypeOverride: next });
           }
           break;
@@ -260,7 +277,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
       }
     });
     return () => sub?.remove();
-  }, [addHydration, updateSettings]);
+  }, [addHydration, updateSettings, settings.dayTypeOverride]);
 
   const enableHealthIntegration = useCallback(async (): Promise<boolean> => {
     try {
