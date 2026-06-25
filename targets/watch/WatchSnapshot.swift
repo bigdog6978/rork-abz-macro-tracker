@@ -202,6 +202,32 @@ enum HydrationFormat {
     return "\(num) \(unitLabel(unit))"
   }
 
+  static func remainingMl(consumedMl: Double, targetMl: Double) -> Double {
+    max(targetMl - consumedMl, 0)
+  }
+
+  /// Number only (no unit suffix) for hero dial center — matches Calories `formatInt` style.
+  static func formatNumber(_ ml: Double, unit: String) -> String {
+    let v = toUnit(ml, unit: unit)
+    if unit == "ml" {
+      return String(Int(round(v)))
+    }
+    let rounded = (v * 10).rounded() / 10
+    return rounded.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(rounded)) : String(format: "%.1f", rounded)
+  }
+
+  static func formatRemaining(consumedMl: Double, targetMl: Double, unit: String) -> String {
+    formatNumber(remainingMl(consumedMl: consumedMl, targetMl: targetMl), unit: unit)
+  }
+
+  static func leftLabel(unit: String) -> String {
+    switch unit {
+    case "oz": return "oz left"
+    case "cup": return "cups left"
+    default: return "mL left"
+    }
+  }
+
   static func progress(consumedMl: Double, targetMl: Double, unit: String) -> String {
     let c = format(consumedMl, unit: unit)
     let t = format(targetMl, unit: unit)

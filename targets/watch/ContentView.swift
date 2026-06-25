@@ -352,14 +352,20 @@ struct ContentView: View {
         Image(systemName: "drop.fill")
           .font(.system(size: max(12, ringSize * 0.12)))
           .foregroundStyle(hydrationColor)
-        Text(snapshot.hydrationDisplay)
-          .font(.system(size: min(18, ringSize * 0.14), weight: .bold))
+        Text(
+          HydrationFormat.formatRemaining(
+            consumedMl: snapshot.hydrationConsumed,
+            targetMl: snapshot.hydrationTarget,
+            unit: snapshot.hydrationUnit
+          )
+        )
+          .font(.system(size: metrics.heroCalorieFontSize(for: ringSize), weight: .bold))
           .monospacedDigit()
           .foregroundStyle(PhysiqTheme.textPrimary)
           .minimumScaleFactor(0.6)
           .lineLimit(1)
-        Text(HydrationFormat.unitLabel(snapshot.hydrationUnit))
-          .font(.system(size: 9, weight: .semibold))
+        Text(HydrationFormat.leftLabel(unit: snapshot.hydrationUnit))
+          .font(.system(size: 10, weight: .semibold))
           .foregroundStyle(PhysiqTheme.textSecondary)
       }
     }
