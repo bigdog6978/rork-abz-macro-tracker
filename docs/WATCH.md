@@ -73,6 +73,7 @@ All values are **strings** (WatchConnectivity / `updateApplicationContext`). The
 
 - `sendMessage` / `updateApplicationContext` with `action: hydration_ack`; iPhone adds **250 ml** via `addHydration(250)` in `ProProvider` (listener is iOS-wide, not Pro-gated).
 - `action: voice_meal` with `transcript` — iPhone runs the same voice meal parser/resolver as Add Food, auto-adds high/medium-confidence matches, and pushes `voiceMealFeedback` back in the next snapshot.
+- **Voice meal (Macros mic):** On watchOS 9+, the footer mic bar is a `TextFieldLink` — one tap opens system dictation (no intermediate “Start speaking” sheet). After submit, status shows inline on the Macros page (`Sending…` → `Processing on iPhone…` → `voiceMealFeedback`). watchOS 8 uses a compact legacy sheet with TextField + Send.
 - `action: set_day_type` with `dayType` (`auto` \| `training` \| `competition` \| `rest`) — iPhone updates `ProSettings.dayTypeOverride`; next snapshot includes `dayTypeOverride` + labels for Watch selected state.
 
 ## Full-screen layout (watch UI) — v6.5
@@ -105,7 +106,7 @@ Clock box measured via the DEBUG probe: header band ≈ **22pt** tall, time occu
 | Page | Bottom bar |
 |------|------------|
 | **Calories** | 50/50 Target \| Eaten (36pt) + card background; dots overlay |
-| **Macros** | Full-width mic icon (44pt) + accent background; dots overlay |
+| **Macros** | Full-width mic `TextFieldLink` (watchOS 9+) — one tap to dictation; inline send status above rings |
 | **Hydration** | 50/50 quick-add buttons (44pt) + hydration background; dots overlay |
 | **Today** | No bar — 2×2 tiles fill body; `todayTileGap` 4pt equal H+V |
 

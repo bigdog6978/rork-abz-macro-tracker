@@ -45,7 +45,7 @@ For programmatic outcomes (toast after save), call `playFeedback('success')` onc
 - **`PhysiqPressableButtonStyle.swift`** — scale to 0.96 on press; `PhysiqSelectButtonStyle` for grids (0.97).
 - System `.click` provides haptic + watch click sound — no bundled audio on Watch.
 
-Applied to: `ContentView` quick-actions, `DayTypePicker`, `VoiceMealSheet`.
+Applied to: `ContentView` quick-actions, `DayTypePicker`, `VoiceMealMicBar` / `VoiceMealLegacySheet`.
 
 ## Accessibility
 

@@ -3,7 +3,9 @@ import SwiftUI
 /// Paged Physiq watch UI — true edge-to-edge v6.5 layout (all safe areas ignored). Phone-driven via WatchConnectivity.
 struct ContentView: View {
   @EnvironmentObject private var connectivity: WatchConnectivityManager
-  @State private var voiceMealSheetVisible = false
+  @State private var voiceMealStatus = ""
+  @State private var voiceMealSending = false
+  @State private var voiceMealLegacySheetVisible = false
   @State private var selectedPage: Int
 
   init() {
@@ -228,13 +230,20 @@ struct ContentView: View {
       tileFooter: true
     ) {
       VStack(spacing: 4) {
-        if !snapshot.voiceMealFeedback.isEmpty {
-          Text(snapshot.voiceMealFeedback)
-            .font(.system(size: 9, weight: .medium))
-            .foregroundStyle(PhysiqTheme.textSecondary)
-            .multilineTextAlignment(.center)
-            .lineLimit(2)
-            .frame(maxWidth: .infinity)
+        if let line = voiceMealStatusLine {
+          HStack(spacing: 4) {
+            if voiceMealSending {
+              ProgressView()
+                .scaleEffect(0.7)
+                .tint(accent)
+            }
+            Text(line)
+              .font(.system(size: 9, weight: .medium))
+              .foregroundStyle(PhysiqTheme.textSecondary)
+              .multilineTextAlignment(.center)
+              .lineLimit(2)
+          }
+          .frame(maxWidth: .infinity)
         }
         HStack(spacing: WatchLayoutMetrics.macroRowGap) {
           macroCell(title: "Protein", consumed: snapshot.proteinConsumed, target: snapshot.proteinTarget,
@@ -250,15 +259,31 @@ struct ContentView: View {
         .padding(.horizontal, 6)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-    } bottomBar: {
-      micBarButton(metrics: metrics) {
-        voiceMealSheetVisible = true
+      .onChange(of: snapshot.voiceMealFeedback) { newValue in
+        guard !newValue.isEmpty else { return }
+        voiceMealStatus = ""
+        voiceMealSending = false
       }
+    } bottomBar: {
+      VoiceMealMicBar(
+        metrics: metrics,
+        accent: accent,
+        statusMessage: $voiceMealStatus,
+        isSending: $voiceMealSending,
+        onLegacyTap: { voiceMealLegacySheetVisible = true }
+      )
     }
-    .sheet(isPresented: $voiceMealSheetVisible) {
-      VoiceMealSheet()
+    .sheet(isPresented: $voiceMealLegacySheetVisible) {
+      VoiceMealLegacySheet(statusMessage: $voiceMealStatus, isSending: $voiceMealSending)
         .environmentObject(connectivity)
     }
+  }
+
+  private var voiceMealStatusLine: String? {
+    if !snapshot.voiceMealFeedback.isEmpty { return snapshot.voiceMealFeedback }
+    if voiceMealSending { return voiceMealStatus.isEmpty ? "Sending…" : voiceMealStatus }
+    if !voiceMealStatus.isEmpty { return voiceMealStatus }
+    return nil
   }
 
   private func macroCell(
@@ -291,26 +316,6 @@ struct ContentView: View {
         .minimumScaleFactor(0.7)
         .lineLimit(1)
     }
-    .frame(maxWidth: .infinity)
-  }
-
-  private func micBarButton(metrics: WatchLayoutMetrics, action: @escaping () -> Void) -> some View {
-    let buttonH = metrics.footerButtonHeight()
-    let radius = metrics.tileCornerRadius(buttonHeight: buttonH)
-    return Button {
-      WatchInteractionFeedback.play(.tap)
-      action()
-    } label: {
-      Image(systemName: "mic.fill")
-        .font(.system(size: 18, weight: .bold))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    .buttonStyle(PhysiqPressableButtonStyle())
-    .foregroundStyle(PhysiqTheme.background)
-    .background(
-      RoundedRectangle(cornerRadius: radius, style: .continuous).fill(accent)
-    )
-    .frame(height: buttonH)
     .frame(maxWidth: .infinity)
   }
 
