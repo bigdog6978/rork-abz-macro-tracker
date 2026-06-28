@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Animated,
   Pressable,
+  StyleSheet,
   type PressableProps,
   type StyleProp,
   type ViewStyle,
@@ -74,6 +75,9 @@ export default function PhysiqPressable({
     [animateTo, onPressOut]
   );
 
+  const layoutStyle = StyleSheet.flatten(style);
+  const pressableStyle = StyleSheet.flatten([style, disabled ? { opacity: 0.5 } : null]);
+
   return (
     <Pressable
       {...rest}
@@ -82,9 +86,10 @@ export default function PhysiqPressable({
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={[style, disabled ? { opacity: 0.5 } : null]}
+      style={pressableStyle}
     >
-      <Animated.View style={{ transform: [{ scale }] }}>{children}</Animated.View>
+      {/* Mirror layout on the animated wrapper — Pressable flex styles don't reach grandchildren. */}
+      <Animated.View style={[layoutStyle, { transform: [{ scale }] }]}>{children}</Animated.View>
     </Pressable>
   );
 }

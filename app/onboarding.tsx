@@ -1016,17 +1016,13 @@ export default function OnboardingScreen() {
 
           {!isLastStep ? (
             <PhysiqPressable feedback="confirm" style={styles.footerContinueButton} onPress={goNext}>
-              <View style={styles.footerContinueInner}>
-                <Text style={styles.footerContinueText}>Continue</Text>
-                <ChevronRight size={16} color={colors.onPrimary} />
-              </View>
+              <Text style={styles.footerContinueText}>Continue</Text>
+              <ChevronRight size={16} color={colors.onPrimary} />
             </PhysiqPressable>
           ) : (
             <PhysiqPressable feedback="confirm" style={styles.footerContinueButton} onPress={finishOnboarding}>
-              <View style={styles.footerContinueInner}>
-                <Text style={styles.footerContinueText}>Continue</Text>
-                <ChevronRight size={16} color={colors.onPrimary} />
-              </View>
+              <Text style={styles.footerContinueText}>Continue</Text>
+              <ChevronRight size={16} color={colors.onPrimary} />
             </PhysiqPressable>
           )}
         </View>
@@ -1465,15 +1461,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   footerContinueButton: {
     flex: 1,
     height: FOOTER_BUTTON_HEIGHT,
-    borderRadius: Radius.md,
-    backgroundColor: colors.primary,
-  },
-  footerContinueInner: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+    borderRadius: Radius.md,
+    backgroundColor: colors.primary,
   },
   footerContinueText: {
     color: colors.onPrimary,
