@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Pressable,
@@ -24,6 +24,52 @@ export interface PhysiqPressableProps extends Omit<PressableProps, 'style'> {
   children: React.ReactNode;
 }
 
+/** Applied to the inner animated wrapper so children receive flex layout. */
+const INNER_LAYOUT_KEYS = new Set<keyof ViewStyle>([
+  'flexDirection',
+  'flexWrap',
+  'alignItems',
+  'alignContent',
+  'justifyContent',
+  'gap',
+  'rowGap',
+  'columnGap',
+]);
+
+function splitPressableStyles(style: StyleProp<ViewStyle>): {
+  pressableStyle: ViewStyle;
+  innerLayoutStyle: ViewStyle;
+} {
+  const flat = StyleSheet.flatten(style) ?? {};
+  const pressableStyle: ViewStyle = {};
+  const innerLayoutStyle: ViewStyle = {};
+
+  for (const key of Object.keys(flat) as (keyof ViewStyle)[]) {
+    const value = flat[key];
+    if (value === undefined) continue;
+
+    if (INNER_LAYOUT_KEYS.has(key)) {
+      (innerLayoutStyle as Record<string, unknown>)[key] = value;
+    } else {
+      (pressableStyle as Record<string, unknown>)[key] = value;
+    }
+  }
+
+  const hasInnerLayout = Object.keys(innerLayoutStyle).length > 0;
+  if (hasInnerLayout) {
+    innerLayoutStyle.alignSelf = innerLayoutStyle.alignSelf ?? 'stretch';
+    if (
+      flat.height != null ||
+      flat.flex === 1 ||
+      (typeof flat.flexGrow === 'number' && flat.flexGrow > 0)
+    ) {
+      innerLayoutStyle.flexGrow = innerLayoutStyle.flexGrow ?? 1;
+    }
+  }
+
+  return { pressableStyle, innerLayoutStyle };
+}
+
 export default function PhysiqPressable({
   feedback = 'tap',
   disableScale = false,
@@ -44,6 +90,8 @@ export default function PhysiqPressable({
       reduceMotionRef.current = enabled;
     });
   }, []);
+
+  const { pressableStyle, innerLayoutStyle } = useMemo(() => splitPressableStyles(style), [style]);
 
   const animateTo = useCallback(
     (toValue: number) => {
@@ -75,9 +123,6 @@ export default function PhysiqPressable({
     [animateTo, onPressOut]
   );
 
-  const layoutStyle = StyleSheet.flatten(style);
-  const pressableStyle = StyleSheet.flatten([style, disabled ? { opacity: 0.5 } : null]);
-
   return (
     <Pressable
       {...rest}
@@ -86,10 +131,9 @@ export default function PhysiqPressable({
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={pressableStyle}
+      style={[pressableStyle, disabled ? { opacity: 0.5 } : null]}
     >
-      {/* Mirror layout on the animated wrapper — Pressable flex styles don't reach grandchildren. */}
-      <Animated.View style={[layoutStyle, { transform: [{ scale }] }]}>{children}</Animated.View>
+      <Animated.View style={[innerLayoutStyle, { transform: [{ scale }] }]}>{children}</Animated.View>
     </Pressable>
   );
 }

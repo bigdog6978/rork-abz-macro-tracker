@@ -79,12 +79,31 @@ export type HydrationQuickAdd = {
   ml: number;
 };
 
+/** 8 fl oz in mL — shared with watchOS ±8 oz quick actions. */
+export const EIGHT_OZ_ML = Math.round(unitToMl(8, 'oz'));
+
+export type HydrationGridAction = HydrationQuickAdd & {
+  direction: 'add' | 'remove';
+};
+
+function hydrationRemovePreset(unit: HydrationUnit): HydrationQuickAdd {
+  switch (unit) {
+    case 'oz':
+      return { label: '−8 oz', ml: EIGHT_OZ_ML };
+    case 'cup':
+      return { label: '−1 cup', ml: Math.round(unitToMl(1, 'cup')) };
+    case 'ml':
+    default:
+      return { label: '−250 mL', ml: 250 };
+  }
+}
+
 /** Quick-add presets per unit. Values stored as mL. */
 export function hydrationQuickAdds(unit: HydrationUnit): HydrationQuickAdd[] {
   switch (unit) {
     case 'oz':
       return [
-        { label: '+8 oz', ml: Math.round(unitToMl(8, 'oz')) },
+        { label: '+8 oz', ml: EIGHT_OZ_ML },
         { label: '+16 oz', ml: Math.round(unitToMl(16, 'oz')) },
         { label: '+24 oz', ml: Math.round(unitToMl(24, 'oz')) },
       ];
@@ -102,4 +121,36 @@ export function hydrationQuickAdds(unit: HydrationUnit): HydrationQuickAdd[] {
         { label: '+750 mL', ml: 750 },
       ];
   }
+}
+
+export function hydrationQuickActions(unit: HydrationUnit): {
+  remove: HydrationQuickAdd;
+  adds: [HydrationQuickAdd, HydrationQuickAdd, HydrationQuickAdd];
+} {
+  const adds = hydrationQuickAdds(unit);
+  return {
+    remove: hydrationRemovePreset(unit),
+    adds: [adds[0], adds[1], adds[2]],
+  };
+}
+
+/** TL → BR order for the 2×2 hydration action grid. */
+export function hydrationActionGrid(unit: HydrationUnit): [
+  HydrationGridAction,
+  HydrationGridAction,
+  HydrationGridAction,
+  HydrationGridAction,
+] {
+  const { remove, adds } = hydrationQuickActions(unit);
+  return [
+    { ...remove, direction: 'remove' },
+    { ...adds[0], direction: 'add' },
+    { ...adds[1], direction: 'add' },
+    { ...adds[2], direction: 'add' },
+  ];
+}
+
+export function hydrationActionAccessibilityLabel(action: HydrationGridAction): string {
+  const amount = action.label.replace(/^[−+]\s*/, '');
+  return action.direction === 'remove' ? `Remove ${amount}` : `Add ${amount}`;
 }

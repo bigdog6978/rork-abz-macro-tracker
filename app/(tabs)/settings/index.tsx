@@ -6,7 +6,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,View,
+  TextInput,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -48,15 +50,17 @@ import {
 import { buildPsmfProfileUpdates, hasValidPsmfAcknowledgment } from '../../../utils/psmfHelpers';
 import {
   formatHydrationProgress,
-  hydrationQuickAdds,
   hydrationUnitLabel,
   type HydrationUnit,
 } from '../../../utils/hydration';
+import { DAY_TYPE_TILE_GAP } from '../../../components/ui/DayTypeTileGrid';
+import HydrationActionTileGrid from '../../../components/ui/HydrationActionTileGrid';
 
 type EditMode = 'none' | 'profile' | 'nutrition';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const router = useRouter();
   const { profile, macros, updateProfile, resetProfile } = useUser();
   const {
@@ -81,6 +85,10 @@ export default function SettingsScreen() {
   const colors = useThemeColors();
   const { accentTheme, setAccentTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const hydrationTileSide = useMemo(() => {
+    const maxGrid = screenWidth - Spacing.lg * 2 - Spacing.md * 2;
+    return Math.max(44, Math.min(80, Math.floor((maxGrid - DAY_TYPE_TILE_GAP) / 2)));
+  }, [screenWidth]);
 
   const [editMode, setEditMode] = useState<EditMode>('none');
   const [measurementSystem, setMeasurementSystem] = useState<MeasurementSystem>(profile.measurementSystem);
@@ -595,17 +603,13 @@ export default function SettingsScreen() {
                     />
                   ))}
                 </View>
-                <View style={styles.proActionRow}>
-                  {hydrationQuickAdds(hydrationUnit).map((preset) => (
-                    <PhysiqPressable
-                      feedback="tap"
-                      key={preset.label}
-                      style={styles.proOutlineBtn}
-                      onPress={() => addHydration(preset.ml)}
-                    >
-                      <Text style={styles.proOutlineBtnText}>{preset.label}</Text>
-                    </PhysiqPressable>
-                  ))}
+                <View style={styles.hydrationActionGridWrap}>
+                  <HydrationActionTileGrid
+                    unit={hydrationUnit}
+                    consumedMl={hydration.consumedMl}
+                    tileSide={hydrationTileSide}
+                    onAction={addHydration}
+                  />
                 </View>
                 <View style={styles.proLegalLinks}>
                   <PhysiqPressable feedback="tap" onPress={() => router.push({ pathname: '/legal-document' as any, params: { type: 'terms' } })}>
@@ -1182,6 +1186,10 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   proActionRow: {
     flexDirection: 'row',
     gap: 10,
+  },
+  hydrationActionGridWrap: {
+    alignItems: 'center',
+    marginTop: 4,
   },
   healthStatusRow: {
     flexDirection: 'row',

@@ -356,7 +356,6 @@ export default function OnboardingScreen() {
             </Text>
           ) : null}
         </View>
-        {selected ? <View style={styles.choiceDot} /> : null}
       </PhysiqPressable>
     );
   };
@@ -730,7 +729,6 @@ export default function OnboardingScreen() {
                   {EATING_STYLE_DESCRIPTIONS[value]}
                 </Text>
               </View>
-              {selected ? <View style={styles.choiceDot} /> : null}
             </PhysiqPressable>
           );
         })}
@@ -875,7 +873,7 @@ export default function OnboardingScreen() {
       <View style={[styles.choiceList, paywallCompact && styles.choiceListCompact]}>
         {PRO_COPY.featureBullets.map((line) => (
           <View key={line} style={styles.proFeatureRow}>
-            <View style={styles.choiceDot} />
+            <View style={styles.featureBullet} />
             <Text
               style={[
                 styles.proFeatureText,
@@ -1353,7 +1351,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   choiceDescriptionSelected: {
     color: colors.primary,
   },
-  choiceDot: {
+  featureBullet: {
     width: 12,
     height: 12,
     borderRadius: 999,

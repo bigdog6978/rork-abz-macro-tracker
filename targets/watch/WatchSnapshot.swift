@@ -236,15 +236,11 @@ enum HydrationFormat {
     return "\(cNum) / \(t)"
   }
 
-  /// Quick-add presets (label, milliliters) per unit.
-  static func quickAdds(_ unit: String) -> [(label: String, ml: Int)] {
-    switch unit {
-    case "oz":
-      return [("+8 oz", Int((8 * mlPerOz).rounded())), ("+16 oz", Int((16 * mlPerOz).rounded()))]
-    case "cup":
-      return [("+1 cup", Int(mlPerCup.rounded())), ("+2 cups", Int((2 * mlPerCup).rounded()))]
-    default:
-      return [("+250 mL", 250), ("+500 mL", 500)]
-    }
+  /// 8 fl oz in milliliters — watch hydration footer always logs ± this amount.
+  static let eightOzMl: Int = Int((8 * mlPerOz).rounded())
+
+  /// Watch hydration footer: subtract / add 8 oz only.
+  static func watchQuickActions() -> [(label: String, ml: Int)] {
+    [("−8 oz", -eightOzMl), ("+8 oz", eightOzMl)]
   }
 }

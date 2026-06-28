@@ -256,7 +256,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
           break;
         case 'log_water': {
           const ml = Number.parseInt(payload.ml ?? '', 10);
-          if (Number.isFinite(ml) && ml > 0) addHydration(ml);
+          if (Number.isFinite(ml) && ml !== 0) addHydration(ml);
           break;
         }
         case 'set_day_type': {

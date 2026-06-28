@@ -339,7 +339,6 @@ function Row({
   return (
     <PhysiqPressable feedback="select" style={[styles.row, active && styles.rowActive]} onPress={onPress}>
       <Text style={[styles.rowText, active && styles.rowTextActive]}>{label}</Text>
-      {active ? <View style={styles.dot} /> : null}
     </PhysiqPressable>
   );
 }
@@ -397,7 +396,6 @@ const createStyles = (colors: AppColors) =>
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       padding: Spacing.md,
       borderRadius: Radius.md,
       borderWidth: 1,
@@ -407,7 +405,6 @@ const createStyles = (colors: AppColors) =>
     rowActive: { borderColor: colors.primary, backgroundColor: colors.primaryMuted },
     rowText: { color: Colors.text, fontSize: 15, fontWeight: '600' },
     rowTextActive: { color: colors.primary, fontWeight: '700' },
-    dot: { width: 10, height: 10, borderRadius: 999, backgroundColor: colors.primary },
     chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: {
       paddingHorizontal: 14,

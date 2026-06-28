@@ -107,7 +107,7 @@ Clock box measured via the DEBUG probe: header band ≈ **22pt** tall, time occu
 |------|------------|
 | **Calories** | 50/50 Target \| Eaten (36pt) + card background; dots overlay |
 | **Macros** | Full-width mic `TextFieldLink` (watchOS 9+) — one tap to dictation; inline send status above rings |
-| **Hydration** | Ring center: remaining + "oz left" (Calories hero parity); 50/50 quick-add buttons below |
+| **Hydration** | Ring center: remaining + "oz left" (Calories hero parity); 50/50 **−8 oz / +8 oz** — subtract rest = card outline; add rest = pre-composited `hydrationMutedFill` (#16363C on card, not transparent cyan on black); press = solid `#00D4FF` + `#0D0D0D` text (phone parity) |
 | **Today** | No bar — 2×2 tiles fill body; `todayTileGap` 4pt equal H+V |
 
 Macro rings are **vertically centered** below the clock and use the full width (they no longer reserve the top-right clock column, which previously shrank them and left an empty middle).

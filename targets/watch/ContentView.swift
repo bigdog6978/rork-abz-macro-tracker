@@ -373,27 +373,31 @@ struct ContentView: View {
   }
 
   private func hydrationSplitBar(metrics: WatchLayoutMetrics) -> some View {
-    let presets = HydrationFormat.quickAdds(snapshot.hydrationUnit)
+    let actions = HydrationFormat.watchQuickActions()
     let buttonH = metrics.footerButtonHeight()
     let radius = metrics.tileCornerRadius(buttonHeight: buttonH)
     let gap = WatchLayoutMetrics.todayTileGap
     return HStack(spacing: gap) {
-      ForEach(Array(presets.enumerated()), id: \.element.label) { _, preset in
+      ForEach(Array(actions.enumerated()), id: \.element.label) { index, action in
+        let isSubtract = index == 0
+        let disabled = isSubtract && snapshot.hydrationConsumed <= 0
         Button {
-          WatchInteractionFeedback.play(.tap)
-          connectivity.logWater(ml: preset.ml)
+          guard !disabled else { return }
+          WatchInteractionFeedback.play(isSubtract ? .tap : .select)
+          connectivity.logWater(ml: action.ml)
         } label: {
-          Text(preset.label)
-            .font(.system(size: 12, weight: .bold))
-            .minimumScaleFactor(0.7)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+          Text(action.label)
         }
-        .buttonStyle(PhysiqPressableButtonStyle())
-        .foregroundStyle(PhysiqTheme.background)
-        .background(
-          RoundedRectangle(cornerRadius: radius, style: .continuous).fill(hydrationColor)
+        .disabled(disabled)
+        .buttonStyle(
+          HydrationActionButtonStyle(
+            hydrationColor: hydrationColor,
+            isSubtract: isSubtract,
+            isDisabled: disabled,
+            cornerRadius: radius
+          )
         )
+        .frame(maxWidth: .infinity)
         .frame(height: buttonH)
       }
     }

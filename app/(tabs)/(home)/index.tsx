@@ -26,7 +26,9 @@ import { useDailyLog } from '../../../providers/DailyLogProvider';
 import { useMeasurements } from '../../../providers/MeasurementsProvider';
 import { usePro } from '../../../providers/ProProvider';
 import { useDashboardTargets } from '../../../hooks/useDashboardTargets';
-import { formatHydrationProgress, hydrationQuickAdds } from '../../../utils/hydration';
+import { formatHydrationProgress } from '../../../utils/hydration';
+import { DAY_TYPE_TILE_GAP } from '../../../components/ui/DayTypeTileGrid';
+import HydrationActionTileGrid from '../../../components/ui/HydrationActionTileGrid';
 import type { ProDayType } from '../../../features/pro/types';
 import { DAY_TYPE_PICKER_SHORT_LABELS } from '../../../features/pro/constants';
 import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier, MacroTargets } from '../../../types';
@@ -52,6 +54,13 @@ function getDialSize(cardWidth: number, screenWidth: number, isTablet: boolean):
   const dialMax = effectiveWidth - STATS_MIN_WIDTH - GAP;
   const maxCap = isTablet ? 320 : 230;
   return Math.min(maxCap, Math.max(120, Math.floor(dialMax)));
+}
+
+function getHydrationTileSide(cardWidth: number, screenWidth: number, dialSize: number): number {
+  const effectiveWidth = cardWidth > 0 ? cardWidth : Math.floor(screenWidth * 0.85);
+  const innerWidth = effectiveWidth - CARD_HORIZONTAL_PADDING * 2;
+  const colWidth = Math.max(STATS_MIN_WIDTH, innerWidth - dialSize - GAP);
+  return Math.max(44, Math.min(80, Math.floor((colWidth - DAY_TYPE_TILE_GAP) / 2)));
 }
 
 function dayTypeMeta(dayType: ProDayType): { label: string; icon: typeof Activity } {
@@ -283,6 +292,10 @@ export default function DashboardScreen() {
   const hydrationIconSize = useMemo(() => Math.max(14, Math.round(dialSize * 0.11)), [dialSize]);
   const hydrationDialGap = useMemo(() => Math.max(2, Math.round(dialSize * 0.02)), [dialSize]);
   const hydrationTextGap = useMemo(() => Math.max(4, Math.round(dialSize * 0.018)), [dialSize]);
+  const hydrationTileSide = useMemo(
+    () => getHydrationTileSide(cardWidth, screenWidth, dialSize),
+    [cardWidth, screenWidth, dialSize]
+  );
 
   useEffect(() => {
     if (userLoading) return;
@@ -604,18 +617,12 @@ export default function DashboardScreen() {
                   </View>
                 </View>
                 <View style={[styles.statsCol, styles.hydrationActionsCol, IS_NARROW && styles.statsColNarrow]}>
-                  {hydrationQuickAdds(hydrationUnit).map((preset) => (
-                    <PhysiqPressable
-                      key={preset.label}
-                      feedback="select"
-                      style={styles.hydrationActionBtn}
-                      onPress={() => addHydration(preset.ml)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Add ${preset.label}`}
-                    >
-                      <Text style={styles.hydrationActionBtnText}>{preset.label}</Text>
-                    </PhysiqPressable>
-                  ))}
+                  <HydrationActionTileGrid
+                    unit={hydrationUnit}
+                    consumedMl={hydration.consumedMl}
+                    tileSide={hydrationTileSide}
+                    onAction={addHydration}
+                  />
                 </View>
               </View>
             </PremiumCard>
@@ -1067,24 +1074,8 @@ const createStyles = (colors: AppColors) =>
       paddingHorizontal: 4,
     },
     hydrationActionsCol: {
-      gap: 8,
-      justifyContent: 'center',
-    },
-    hydrationActionBtn: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: Radius.sm,
-      borderWidth: 1,
-      borderColor: Colors.hydration,
-      backgroundColor: Colors.hydrationMuted,
-      minHeight: 44,
-    },
-    hydrationActionBtnText: {
-      color: Colors.hydration,
-      fontSize: 14,
-      fontWeight: '700' as const,
     },
     trainingNudgeCard: {
       flexDirection: 'row',
