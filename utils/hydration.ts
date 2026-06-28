@@ -123,6 +123,7 @@ export function hydrationQuickAdds(unit: HydrationUnit): HydrationQuickAdd[] {
   }
 }
 
+/** Phone grid + watch footer (− | +) share remove and smallest add — keep in sync with `HydrationFormat.watchQuickActions` (Swift). */
 export function hydrationQuickActions(unit: HydrationUnit): {
   remove: HydrationQuickAdd;
   adds: [HydrationQuickAdd, HydrationQuickAdd, HydrationQuickAdd];

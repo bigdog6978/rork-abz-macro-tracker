@@ -373,7 +373,7 @@ struct ContentView: View {
   }
 
   private func hydrationSplitBar(metrics: WatchLayoutMetrics) -> some View {
-    let actions = HydrationFormat.watchQuickActions()
+    let actions = HydrationFormat.watchQuickActions(unit: snapshot.hydrationUnit)
     let buttonH = metrics.footerButtonHeight()
     let radius = metrics.tileCornerRadius(buttonHeight: buttonH)
     let gap = WatchLayoutMetrics.todayTileGap

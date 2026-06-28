@@ -39,6 +39,29 @@ describe('hydration units', () => {
     expect(hydrationQuickActions('ml').remove).toEqual({ label: '−250 mL', ml: 250 });
   });
 
+  it('watch footer matches smallest remove + add preset per unit', () => {
+    const watchFooter = (unit: 'oz' | 'cup' | 'ml') => {
+      const { remove, adds } = hydrationQuickActions(unit);
+      return [
+        { label: remove.label, ml: -remove.ml },
+        { label: adds[0].label, ml: adds[0].ml },
+      ];
+    };
+
+    expect(watchFooter('oz')).toEqual([
+      { label: '−8 oz', ml: -237 },
+      { label: '+8 oz', ml: 237 },
+    ]);
+    expect(watchFooter('cup')).toEqual([
+      { label: '−1 cup', ml: -237 },
+      { label: '+1 cup', ml: 237 },
+    ]);
+    expect(watchFooter('ml')).toEqual([
+      { label: '−250 mL', ml: -250 },
+      { label: '+250 mL', ml: 250 },
+    ]);
+  });
+
   it('orders 2x2 grid TL remove, TR small add, BL medium, BR large', () => {
     const grid = hydrationActionGrid('oz');
     expect(grid.map((a) => a.label)).toEqual(['−8 oz', '+8 oz', '+16 oz', '+24 oz']);

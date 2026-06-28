@@ -236,11 +236,43 @@ enum HydrationFormat {
     return "\(cNum) / \(t)"
   }
 
-  /// 8 fl oz in milliliters — watch hydration footer always logs ± this amount.
+  /// 8 fl oz in milliliters — oz preset amount (also ≈ 1 cup).
   static let eightOzMl: Int = Int((8 * mlPerOz).rounded())
 
-  /// Watch hydration footer: subtract / add 8 oz only.
-  static func watchQuickActions() -> [(label: String, ml: Int)] {
-    [("−8 oz", -eightOzMl), ("+8 oz", eightOzMl)]
+  private struct HydrationPreset {
+    let label: String
+    let ml: Int
+  }
+
+  private static func removePreset(unit: String) -> HydrationPreset {
+    switch unit {
+    case "oz":
+      return HydrationPreset(label: "−8 oz", ml: eightOzMl)
+    case "cup":
+      let ml = Int(mlPerCup.rounded())
+      return HydrationPreset(label: "−1 cup", ml: ml)
+    default:
+      return HydrationPreset(label: "−250 mL", ml: 250)
+    }
+  }
+
+  private static func addPreset(unit: String) -> HydrationPreset {
+    switch unit {
+    case "oz":
+      return HydrationPreset(label: "+8 oz", ml: eightOzMl)
+    case "cup":
+      let ml = Int(mlPerCup.rounded())
+      return HydrationPreset(label: "+1 cup", ml: ml)
+    default:
+      return HydrationPreset(label: "+250 mL", ml: 250)
+    }
+  }
+
+  /// Watch footer: subtract + add using smallest preset for the active unit.
+  /// Must stay in sync with `utils/hydration.ts` `hydrationQuickActions`.
+  static func watchQuickActions(unit: String) -> [(label: String, ml: Int)] {
+    let remove = removePreset(unit: unit)
+    let add = addPreset(unit: unit)
+    return [(remove.label, -remove.ml), (add.label, add.ml)]
   }
 }
