@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import Purchases, { CustomerInfo, PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 import { IapCustomerState, IAP_MONETIZATION_ENABLED, LIFETIME_PRODUCT_ID, mapOwnedProductsToEntitlement } from './iapMapping';
+import { track } from './analytics';
 
 export { IAP_MONETIZATION_ENABLED } from './iapMapping';
 
@@ -85,7 +86,11 @@ export async function purchaseLifetime(): Promise<IapCustomerState> {
   const pkg = await getLifetimePackage();
   if (!pkg) throw new Error('Product not available: lifetime');
   const { customerInfo } = await Purchases.purchasePackage(pkg);
-  return mapCustomerInfoToState(customerInfo);
+  const state = mapCustomerInfoToState(customerInfo);
+  if (state.entitlement === 'unlocked') {
+    track('purchase_completed', { productId: LIFETIME_PRODUCT_ID });
+  }
+  return state;
 }
 
 export async function restorePurchases(): Promise<IapCustomerState> {
@@ -94,7 +99,11 @@ export async function restorePurchases(): Promise<IapCustomerState> {
   }
   await initIAP();
   const info = await Purchases.restorePurchases();
-  return mapCustomerInfoToState(info);
+  const state = mapCustomerInfoToState(info);
+  if (state.entitlement === 'unlocked') {
+    track('purchase_restored', { productId: LIFETIME_PRODUCT_ID });
+  }
+  return state;
 }
 
 export async function getCustomerState(): Promise<IapCustomerState> {

@@ -132,3 +132,34 @@ In App Store Connect:
 - **“No valid code signing”** — Run `bunx eas credentials` and follow prompts to set up Apple Developer credentials
 - **Bundle ID mismatch** — Ensure `app.json` → `expo.ios.bundleIdentifier` matches the app in App Store Connect
 - **Build fails** — Check the build logs on [expo.dev](https://expo.dev) for the specific error
+
+---
+
+## Monetization launch checklist (paywall is wired, currently OFF)
+
+The app ships with everything unlocked. Entitlement resolution is fully
+wired (`features/pro/resolveEntitlement.ts` → `ProProvider`); turning
+monetization on is these steps — do them together, not piecemeal:
+
+1. **Flip the flag:** `IAP_MONETIZATION_ENABLED = true` in
+   `services/iapMapping.ts`. (An existing test asserts it is `false`;
+   update `__tests__/iapService.test.ts` in the same commit.)
+2. **RevenueCat:** create/verify products (`physiq.pro.monthly`
+   $4.99/mo, `physiq.athlete.monthly` $6.99/mo — see PRD §9; the legacy
+   `physiq.lifetime.unlock` mapping still resolves for early buyers) and
+   set `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` as an EAS secret.
+3. **Env hygiene:** confirm `EXPO_PUBLIC_DEV_UNLOCK_PREMIUM` is NOT set
+   in the production EAS environment (it force-unlocks everything).
+4. **Paywall UI:** re-add purchase/restore/trial screens (removed in
+   1.3.2). `purchaseLifetime` / `restorePurchases` / `startTrial` are
+   ready; purchase analytics events already fire on success.
+5. **Sandbox test on device:** purchase, restore-purchases, trial start
+   → expiry (5 days; use a short-trial build), offline launch (stored
+   entitlement keeps premium), Apple-required restore button.
+6. **Observability:** set `EXPO_PUBLIC_SENTRY_DSN` and
+   `EXPO_PUBLIC_POSTHOG_API_KEY` EAS secrets so trial/purchase funnels
+   are measured from day one; run `npx @sentry/wizard -i reactNative`
+   once for source-map upload.
+7. **App Review:** subscription disclosures (price, duration,
+   auto-renew), Terms/Privacy links near the paywall (already in
+   Settings), and screenshot of the paywall for the review notes.

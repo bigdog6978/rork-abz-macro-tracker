@@ -44,6 +44,8 @@ import { getTodayDateKey } from '../utils/dateKey';
 import { isHealthKitAvailable, readTodayHealthSignals, requestHealthKitPermissions } from '../services/healthkit';
 import { setSoundEffectsEnabled } from '../utils/interactionFeedback';
 import { track } from '../services/analytics';
+import { loadEntitlementState } from '../services/entitlement';
+import { IAP_MONETIZATION_ENABLED } from '../services/iapMapping';
 
 const defaultHydration: ProHydrationLog = {
   dateKey: '',
@@ -95,8 +97,17 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
   const athleteCycleProfileQuery = useQuery({ queryKey: ['athlete_cycle_profile'], queryFn: getAthleteCycleProfile });
   const athleteCycleLogsQuery = useQuery({ queryKey: ['athlete_cycle_logs'], queryFn: getAthleteCycleLogs });
 
-  const entitlement: ProEntitlementState = 'unlocked';
-  const hasPremium = true;
+  // Resolves 'unlocked' while IAP_MONETIZATION_ENABLED is false (current
+  // state); once flipped, RevenueCat ownership + trial drive this. The
+  // loading fallback mirrors the resolved value for the disabled flag so
+  // there is no premium flicker today.
+  const entitlementQuery = useQuery({
+    queryKey: ['pro_entitlement_state'],
+    queryFn: loadEntitlementState,
+  });
+  const entitlement: ProEntitlementState =
+    entitlementQuery.data?.entitlement ?? (IAP_MONETIZATION_ENABLED ? 'core' : 'unlocked');
+  const hasPremium = entitlementQuery.data?.hasPremium ?? !IAP_MONETIZATION_ENABLED;
   const settings = settingsQuery.data ?? defaultProSettings;
   const athleteProfile = athleteProfileQuery.data ?? defaultAthleteProfile;
   const cycleProfile = athleteCycleProfileQuery.data ?? defaultCycleProfile;
