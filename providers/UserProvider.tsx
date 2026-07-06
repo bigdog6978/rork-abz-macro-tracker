@@ -118,15 +118,29 @@ export const [UserProvider, useUser] = createSafeContextHook(() => {
 
   const isLoading = profileQuery.isLoading;
 
-  return {
-    profile,
-    macros,
-    calculatedMacros,
-    customMacros,
-    setCustomMacros,
-    isLoading,
-    updateProfile,
-    completeOnboarding,
-    resetProfile,
-  };
+  // Stable context value so consumers only re-render on actual data changes.
+  return useMemo(
+    () => ({
+      profile,
+      macros,
+      calculatedMacros,
+      customMacros,
+      setCustomMacros,
+      isLoading,
+      updateProfile,
+      completeOnboarding,
+      resetProfile,
+    }),
+    [
+      profile,
+      macros,
+      calculatedMacros,
+      customMacros,
+      setCustomMacros,
+      isLoading,
+      updateProfile,
+      completeOnboarding,
+      resetProfile,
+    ]
+  );
 }, 'useUser', 'UserProvider');

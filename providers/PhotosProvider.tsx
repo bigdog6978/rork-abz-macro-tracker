@@ -13,6 +13,7 @@ import {
 import { captureProgressPhoto, PhotoCaptureSource } from '../utils/photos/captureProgressPhoto';
 
 const USER_ID = 'local_user';
+const EMPTY_PHOTOS: ProgressPhoto[] = [];
 
 export const [PhotosProvider, usePhotos] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
@@ -22,7 +23,7 @@ export const [PhotosProvider, usePhotos] = createSafeContextHook(() => {
     queryFn: () => repoGetPhotos(USER_ID),
   });
 
-  const photos = photosQuery.data ?? [];
+  const photos = photosQuery.data ?? EMPTY_PHOTOS;
 
   const baseline = useMemo(() => {
     const b = photos.find((p) => p.isBaseline);
@@ -91,18 +92,44 @@ export const [PhotosProvider, usePhotos] = createSafeContextHook(() => {
     [addFromUriMutation]
   );
 
-  return {
-    photos,
-    baseline,
-    latest,
-    isLoading: photosQuery.isLoading,
-    isSaving: addFromSourceMutation.isPending || addFromUriMutation.isPending,
-    captureAndAdd,
-    saveFromUri,
-    setBaseline: (photoId: string) => setBaselineMutation.mutateAsync(photoId),
-    deletePhoto: (photoId: string) => deleteMutation.mutateAsync(photoId),
-    userId: USER_ID,
-  };
+  const setBaseline = useCallback(
+    (photoId: string) => setBaselineMutation.mutateAsync(photoId),
+    [setBaselineMutation.mutateAsync] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const deletePhoto = useCallback(
+    (photoId: string) => deleteMutation.mutateAsync(photoId),
+    [deleteMutation.mutateAsync] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const isSaving = addFromSourceMutation.isPending || addFromUriMutation.isPending;
+
+  // Stable context value so consumers only re-render on actual data changes.
+  return useMemo(
+    () => ({
+      photos,
+      baseline,
+      latest,
+      isLoading: photosQuery.isLoading,
+      isSaving,
+      captureAndAdd,
+      saveFromUri,
+      setBaseline,
+      deletePhoto,
+      userId: USER_ID,
+    }),
+    [
+      photos,
+      baseline,
+      latest,
+      photosQuery.isLoading,
+      isSaving,
+      captureAndAdd,
+      saveFromUri,
+      setBaseline,
+      deletePhoto,
+    ]
+  );
 }, 'usePhotos', 'PhotosProvider');
 
 export type { ProgressPhoto };

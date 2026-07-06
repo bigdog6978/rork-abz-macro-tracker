@@ -1,6 +1,6 @@
 import { createSafeContextHook } from '../utils/createSafeContextHook';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useUser } from './UserProvider';
 import { useMeasurements } from './MeasurementsProvider';
 import {
@@ -70,15 +70,28 @@ export const [GoalSettingsProvider, useGoalSettings] = createSafeContextHook(() 
     }
   }, [settings?.goalType, profile.goal, saveGoalSettings]);
 
-  return {
-    settings,
-    goalType,
-    target: settings?.target,
-    latestMeasurement: latest,
-    saveGoalSettings,
-    setTarget,
-    clearTarget,
-    syncGoalFromProfile,
-    isLoading: query.isLoading,
-  };
+  // Stable context value so consumers only re-render on actual data changes.
+  return useMemo(
+    () => ({
+      settings,
+      goalType,
+      target: settings?.target,
+      latestMeasurement: latest,
+      saveGoalSettings,
+      setTarget,
+      clearTarget,
+      syncGoalFromProfile,
+      isLoading: query.isLoading,
+    }),
+    [
+      settings,
+      goalType,
+      latest,
+      saveGoalSettings,
+      setTarget,
+      clearTarget,
+      syncGoalFromProfile,
+      query.isLoading,
+    ]
+  );
 }, 'useGoalSettings', 'GoalSettingsProvider');
