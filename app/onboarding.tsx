@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ChevronRight, Info, Zap } from 'lucide-react-native';
-import Colors from '../constants/colors';
 import PlanDefinitionSheet from '../components/ui/PlanDefinitionSheet';
 import PsmfAcknowledgmentModal from '../components/ui/PsmfAcknowledgmentModal';
 import { useUser } from '../providers/UserProvider';
@@ -59,7 +58,7 @@ import ResponsiveContainer from '../components/ui/ResponsiveContainer';
 import { upsertMeasurement } from '../storage/measurementsRepo';
 import { getTodayDateKey } from '../utils/dateKey';
 import { buildPsmfProfileUpdates } from '../utils/psmfHelpers';
-import { Radius, Spacing } from '../theme/tokens';
+import { Radius, Spacing, Type } from '../theme/tokens';
 import { track } from '../services/analytics';
 
 const TOTAL_STEPS = 6;
@@ -341,7 +340,7 @@ export default function OnboardingScreen() {
             onChangeText={setAge}
             keyboardType="number-pad"
             placeholder="28"
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
           />
         </View>
         <View style={styles.field}>
@@ -394,7 +393,7 @@ export default function OnboardingScreen() {
                 onChangeText={setHeightFt}
                 keyboardType="number-pad"
                 placeholder="5"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
               />
               <TextInput
                 style={[styles.input, styles.dualInput]}
@@ -402,7 +401,7 @@ export default function OnboardingScreen() {
                 onChangeText={setHeightIn}
                 keyboardType="number-pad"
                 placeholder="9"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
           </View>
@@ -414,7 +413,7 @@ export default function OnboardingScreen() {
               onChangeText={setWeightLb}
               keyboardType="decimal-pad"
               placeholder="180"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
         </View>
@@ -428,7 +427,7 @@ export default function OnboardingScreen() {
               onChangeText={setHeightCm}
               keyboardType="decimal-pad"
               placeholder="175"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
           <View style={styles.field}>
@@ -439,7 +438,7 @@ export default function OnboardingScreen() {
               onChangeText={setWeightKg}
               keyboardType="decimal-pad"
               placeholder="82"
-              placeholderTextColor={Colors.textTertiary}
+              placeholderTextColor={colors.textTertiary}
             />
           </View>
         </View>
@@ -453,7 +452,7 @@ export default function OnboardingScreen() {
           onChangeText={setBodyFatPercent}
           keyboardType="decimal-pad"
           placeholder="If you know it, we can calculate more accurate macros."
-          placeholderTextColor={Colors.textTertiary}
+          placeholderTextColor={colors.textTertiary}
         />
       </View>
     </View>
@@ -622,7 +621,7 @@ export default function OnboardingScreen() {
             onChangeText={setSessionsPerWeek}
             keyboardType="number-pad"
             placeholder="e.g. 4"
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={colors.textTertiary}
           />
         </View>
       ) : null}
@@ -710,10 +709,10 @@ export default function OnboardingScreen() {
           <Text style={styles.previewTitle}>Daily Targets</Text>
         </View>
         <View style={styles.previewRow}>
-          <PreviewMetric label="Calories" value={String(previewMacros.calories)} color={Colors.calories} styles={styles} />
-          <PreviewMetric label="Protein" value={`${previewMacros.protein_g}g`} color={Colors.protein} styles={styles} />
-          <PreviewMetric label="Carbs" value={`${previewMacros.carbs_g}g`} color={Colors.carbs} styles={styles} />
-          <PreviewMetric label="Fat" value={`${previewMacros.fat_g}g`} color={Colors.fat} styles={styles} />
+          <PreviewMetric label="Calories" value={String(previewMacros.calories)} color={colors.calories} styles={styles} />
+          <PreviewMetric label="Protein" value={`${previewMacros.protein_g}g`} color={colors.protein} styles={styles} />
+          <PreviewMetric label="Carbs" value={`${previewMacros.carbs_g}g`} color={colors.carbs} styles={styles} />
+          <PreviewMetric label="Fat" value={`${previewMacros.fat_g}g`} color={colors.fat} styles={styles} />
         </View>
       </View>
       <Text style={styles.planRevealNote}>
@@ -773,7 +772,7 @@ export default function OnboardingScreen() {
             onPress={goBack}
             disabled={step === 0}
           >
-            {step > 0 ? <ChevronLeft size={16} color={Colors.textSecondary} /> : null}
+            {step > 0 ? <ChevronLeft size={16} color={colors.textSecondary} /> : null}
             <Text style={[styles.footerBackText, step === 0 && styles.footerBackTextDisabled]}>Back</Text>
           </PhysiqPressable>
 
@@ -843,7 +842,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   progressTrack: {
     height: 8,
     borderRadius: 999,
-    backgroundColor: Colors.cardBorder,
+    backgroundColor: colors.cardBorder,
     overflow: 'hidden',
   },
   progressFill: {
@@ -852,7 +851,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     borderRadius: 999,
   },
   stepIndicator: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 8,
@@ -912,7 +911,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     textAlign: 'center',
   },
   paywallLegalText: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 17,
   },
@@ -925,7 +924,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingBottom: 24,
   },
   paywallTrustLineInCard: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '700',
     marginTop: 4,
@@ -937,14 +936,15 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 12,
   },
   stepTitle: {
-    color: Colors.text,
-    fontSize: 30,
+    color: colors.text,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '800',
     letterSpacing: -0.5,
     flex: 1,
   },
   stepSubtitle: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -1000,7 +1000,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flex: 1,
   },
   label: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1008,13 +1008,13 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: Colors.text,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1035,9 +1035,9 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   segment: {
     flex: 1,
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
@@ -1047,7 +1047,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.primaryMuted,
   },
   segmentText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -1065,9 +1065,9 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 16,
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     borderRadius: 18,
   },
   choiceCardSelected: {
@@ -1084,7 +1084,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 8,
   },
   psmfBadge: {
-    backgroundColor: Colors.warningMuted,
+    backgroundColor: colors.warningMuted,
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -1092,11 +1092,11 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   psmfBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: Colors.warning,
+    color: colors.warning,
     textTransform: 'uppercase',
   },
   choiceTitle: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -1104,7 +1104,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.primary,
   },
   choiceDescription: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 4,
@@ -1128,15 +1128,15 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
   },
   chipActive: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryMuted,
   },
   chipText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1145,10 +1145,10 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   previewCard: {
     marginTop: 8,
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     padding: 16,
     gap: 14,
   },
@@ -1158,7 +1158,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 8,
   },
   previewTitle: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -1172,19 +1172,20 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
   },
   previewValue: {
-    fontSize: 18,
-    fontWeight: '800',
+    ...Type.statSm,
+    fontSize: 20,
+    lineHeight: 24,
   },
   previewLabel: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,
   },
   footerBar: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.cardBorder,
-    backgroundColor: Colors.background,
+    borderTopColor: colors.cardBorder,
+    backgroundColor: colors.background,
     paddingTop: Spacing.md,
     paddingHorizontal: Spacing.lg,
   },
@@ -1199,8 +1200,8 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1210,12 +1211,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     opacity: 0.4,
   },
   footerBackText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 16,
     fontWeight: '700',
   },
   footerBackTextDisabled: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
   },
   footerContinueButton: {
     flex: 1,
@@ -1237,13 +1238,13 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     height: FOOTER_BUTTON_HEIGHT,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   footerSkipText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -1269,8 +1270,8 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     minHeight: 48,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1279,7 +1280,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   baselineSecondaryBtnText: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1294,7 +1295,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     aspectRatio: 3 / 4,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1302,7 +1303,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginBottom: 12,
   },
   baselinePlaceholderText: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 14,
   },
   baselineActions: {
@@ -1314,13 +1315,13 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 12,
   },
   planRevealNote: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 21,
     marginTop: Spacing.lg,
   },
   skipLinkText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -1335,8 +1336,8 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
     alignItems: 'center',
   },
   foodChipActive: {
@@ -1344,7 +1345,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.primaryMuted,
   },
   foodChipText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '700' as const,
     textAlign: 'center',
@@ -1353,7 +1354,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.primary,
   },
   foodDislikeNote: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 12,
     marginTop: 4,
   },
@@ -1363,7 +1364,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 8,
   },
   proFeatureText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1376,9 +1377,9 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     lineHeight: 16,
   },
   proTrialCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     borderRadius: 16,
     padding: 14,
     gap: 6,
@@ -1388,12 +1389,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 4,
   },
   proTrialTitle: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '800',
   },
   proTrialLine: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
@@ -1423,8 +1424,8 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     borderWidth: 2,
   },
   tierSegmentPaywallIdle: {
-    borderColor: Colors.cardBorder,
-    backgroundColor: Colors.card,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
   },
   tierSegmentPaywallActive: {
     borderColor: colors.primary,
@@ -1440,12 +1441,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     minHeight: 14,
   },
   proTrialSubtitle: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '600',
   },
   proDisclosure: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 12,
     lineHeight: 17,
   },
@@ -1472,7 +1473,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     minHeight: 58,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1483,7 +1484,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flex: 1,
   },
   proOutlinedCtaSecondary: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
   },
   proOutlinedCtaPrimary: {
     shadowColor: colors.primary,
@@ -1498,21 +1499,21 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 2,
   },
   ctaTitlePrimary: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '800',
     textAlign: 'center',
   },
   ctaTitleSecondary: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
   ctaSubtleText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '600',
@@ -1523,7 +1524,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.primaryMuted,
   },
   proOutlinedCtaText: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -1531,7 +1532,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.primary,
   },
   proSkipText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '700',
     textAlign: 'center',
@@ -1540,7 +1541,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: 6,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: Colors.cardBorder,
+    borderTopColor: colors.cardBorder,
   },
   proSkipButton: {
     width: '100%',
@@ -1557,7 +1558,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 24,
   },
   legalSheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderWidth: 1.5,
     borderColor: colors.primary,
     borderRadius: 16,
@@ -1573,12 +1574,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 12,
   },
   legalTitle: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 18,
     fontWeight: '800',
   },
   legalBody: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -1589,7 +1590,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   legalSecondaryCta: {
     width: '100%',
-    backgroundColor: Colors.cardElevated,
+    backgroundColor: colors.cardElevated,
   },
   legalPrimaryCta: {
     width: '100%',
