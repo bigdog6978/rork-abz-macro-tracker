@@ -25,6 +25,15 @@ Timelines also self-refresh every ~15 min from the stored snapshot.
 to ≥30 min between pushes (system budget ≈50/day); the watch merges it in
 `didReceiveUserInfo` and rewrites the store.
 
+## Color source of truth
+
+JS owns colors: `constants/colors.ts` + `theme/accentThemes.ts` → snapshot
+payload (`primaryHex`, `proteinHex`, `carbsHex`, `fatHex`, `hydrationHex`,
+built in `features/pro/buildWatchSnapshot.ts`) → watch views via
+`PhysiqTheme.color(hex:fallback:)`. The hardcoded values in
+`PhysiqTheme.swift` are **offline fallbacks only** — never change palette in
+Swift first. See docs/DESIGN-SYSTEM.md.
+
 ## Queued actions & staleness
 
 - Watch → phone actions fall back to **`transferUserInfo`** when the phone is
