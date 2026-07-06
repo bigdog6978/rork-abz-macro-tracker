@@ -8,9 +8,9 @@
 import React, { memo, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, Pencil } from 'lucide-react-native';
-import Colors from '../../constants/colors';
 import { formatNumber } from '../../utils/formatNumber';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import { Type } from '../../theme/tokens';
 import PhysiqPressable from '../ui/PhysiqPressable';
 import type { NormalizedFood } from '../../features/food/types';
 import * as foodService from '../../features/food/foodService';
@@ -163,7 +163,7 @@ function SuggestionsSection({
                   </Text>
                 )}
               </View>
-              <ChevronRight size={16} color={Colors.textTertiary} />
+              <ChevronRight size={16} color={colors.textTertiary} />
             </PhysiqPressable>
           );
         })
@@ -190,35 +190,36 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   suggestionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 14,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
   },
   suggestionInfo: {
     flex: 1,
   },
   suggestionName: {
-    color: Colors.text,
+    ...Type.bodySm,
     fontSize: 14,
     fontWeight: '600' as const,
+    color: colors.text,
   },
   suggestionBrand: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '500' as const,
     marginTop: 1,
   },
   suggestionMacros: {
-    color: Colors.textTertiary,
-    fontSize: 11,
+    ...Type.caption,
     fontWeight: '500' as const,
+    color: colors.textTertiary,
     marginTop: 3,
   },
   suggestionMacrosFor: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 11,
     fontWeight: '500' as const,
   },
@@ -226,7 +227,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginBottom: 12,
   },
   quickAddHeader: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '600' as const,
     textTransform: 'uppercase' as const,
@@ -247,14 +248,15 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flex: 1,
   },
   quickAddTitle: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '700' as const,
   },
   quickAddMacros: {
-    color: colors.primary,
+    ...Type.numeric,
     fontSize: 14,
-    fontWeight: '600' as const,
+    lineHeight: 18,
+    color: colors.primary,
     marginTop: 4,
   },
   quickAddButton: {
@@ -281,7 +283,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 12,
   },
   resolvingText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
   },
   otherResultsToggle: {

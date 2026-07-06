@@ -15,9 +15,9 @@ import {
   View,
 } from 'react-native';
 import { Bookmark, X } from 'lucide-react-native';
-import Colors from '../../constants/colors';
 import { formatNumber } from '../../utils/formatNumber';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import { Type } from '../../theme/tokens';
 import PhysiqPressable from '../ui/PhysiqPressable';
 import type { VoiceMealDraft } from '../../features/food/hooks/useVoiceMeal';
 
@@ -136,7 +136,7 @@ function VoiceMealReviewModal({
                             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             accessibilityLabel={`Dismiss ${item.label}`}
                           >
-                            <X size={16} color={Colors.textTertiary} />
+                            <X size={16} color={colors.textTertiary} />
                           </PhysiqPressable>
                         </View>
                       ))}
@@ -164,7 +164,7 @@ function VoiceMealReviewModal({
                   >
                     <Bookmark
                       size={18}
-                      color={saveToLibrary ? colors.primary : Colors.textTertiary}
+                      color={saveToLibrary ? colors.primary : colors.textTertiary}
                     />
                     <Text
                       style={[
@@ -226,11 +226,11 @@ function VoiceMealReviewModal({
 const createStyles = (colors: AppColors) => StyleSheet.create({
   voiceModalOverlay: {
     flex: 1,
-    backgroundColor: Colors.overlay,
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   voiceModalSheet: {
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
@@ -239,26 +239,25 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     maxHeight: '82%',
   },
   voiceModalTitle: {
-    color: Colors.text,
-    fontSize: 20,
-    fontWeight: '800' as const,
+    ...Type.title,
+    color: colors.text,
   },
   voiceModalSubtitle: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 6,
   },
   voiceTranscriptCard: {
-    backgroundColor: Colors.cardElevated,
+    backgroundColor: colors.cardElevated,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     padding: 14,
     marginTop: 16,
   },
   voiceTranscriptLabel: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '700' as const,
     textTransform: 'uppercase' as const,
@@ -266,7 +265,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginBottom: 6,
   },
   voiceTranscriptModalText: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -278,10 +277,10 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 10,
   },
   voiceItemCard: {
-    backgroundColor: Colors.cardElevated,
+    backgroundColor: colors.cardElevated,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     padding: 14,
   },
   voiceItemHeader: {
@@ -297,7 +296,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 6,
   },
   voiceItemName: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '700' as const,
     flexShrink: 1,
@@ -308,40 +307,41 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     borderRadius: 4,
   },
   voiceConfidenceMedium: {
-    backgroundColor: Colors.warningMuted,
+    backgroundColor: colors.warningMuted,
   },
   voiceConfidenceLow: {
-    backgroundColor: Colors.dangerMuted,
+    backgroundColor: colors.dangerMuted,
   },
   voiceConfidenceText: {
     fontSize: 10,
     fontWeight: '700' as const,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
   },
   voiceAlternativesHint: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 11,
     fontWeight: '500' as const,
     marginTop: 6,
   },
   voiceItemCalories: {
-    color: Colors.calories,
+    ...Type.numeric,
     fontSize: 14,
-    fontWeight: '700' as const,
+    lineHeight: 18,
+    color: colors.calories,
   },
   voiceItemMacros: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '500' as const,
     marginTop: 6,
   },
   voiceUnresolvedCard: {
-    backgroundColor: Colors.dangerMuted,
+    backgroundColor: colors.dangerMuted,
     borderRadius: 12,
     padding: 14,
   },
   voiceUnresolvedTitle: {
-    color: Colors.danger,
+    color: colors.danger,
     fontSize: 13,
     fontWeight: '700' as const,
     marginBottom: 8,
@@ -356,17 +356,17 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flex: 1,
   },
   voiceUnresolvedLabel: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 13,
     fontWeight: '600' as const,
   },
   voiceUnresolvedReason: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 2,
   },
   voiceUnresolvedDismissHint: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 11,
     fontWeight: '500' as const,
     marginTop: 10,
@@ -378,16 +378,17 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: 16,
   },
   voiceTotalsTitle: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '700' as const,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
   },
   voiceTotalsValue: {
-    color: Colors.text,
+    ...Type.numeric,
     fontSize: 16,
-    fontWeight: '700' as const,
+    lineHeight: 21,
+    color: colors.text,
     marginTop: 6,
   },
   voiceModalActions: {
@@ -401,12 +402,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     paddingVertical: 15,
-    backgroundColor: Colors.cardElevated,
+    backgroundColor: colors.cardElevated,
   },
   voiceSecondaryButtonText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 15,
     fontWeight: '700' as const,
   },
@@ -435,17 +436,17 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   saveToLibraryText: {
     flex: 1,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
   },
   saveToLibraryTextActive: {
-    color: Colors.text,
+    color: colors.text,
   },
   toggleTrack: {
     width: 44,
     height: 26,
     borderRadius: 13,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
@@ -456,11 +457,11 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: Colors.textTertiary,
+    backgroundColor: colors.textTertiary,
     alignSelf: 'flex-start',
   },
   toggleThumbActive: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     alignSelf: 'flex-end',
   },
 });
