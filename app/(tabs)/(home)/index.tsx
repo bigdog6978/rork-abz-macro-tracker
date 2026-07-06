@@ -36,6 +36,7 @@ import PremiumCard from '../../../components/ui/PremiumCard';
 import TodayLogSection from '../../../components/home/TodayLogSection';
 import EmptyLogActions from '../../../components/home/EmptyLogActions';
 import DashboardBanner from '../../../components/home/DashboardBanner';
+import LogCoachMark from '../../../components/home/LogCoachMark';
 import GreetingHeader from '../../../components/ui/GreetingHeader';
 import * as foodService from '../../../features/food/foodService';
 import { entryMealType } from '../../../features/food/mealType';
@@ -758,6 +759,7 @@ export default function DashboardScreen() {
         </ResponsiveContainer>
       </ScrollView>
 
+      <LogCoachMark entryCount={todayEntries.length} />
       <Fab onPress={handleAddFood} actions={fabActions} testID="add-food-button" />
 
       {/* Why these macros — explainability lives in a sheet, not the daily glance */}
