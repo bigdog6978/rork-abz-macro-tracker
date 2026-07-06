@@ -16,6 +16,7 @@ import AppBackground from "../components/ui/AppBackground";
 import ErrorBoundary from "../components/ui/ErrorBoundary";
 import PostProHealthFlow from "../components/ui/PostProHealthFlow";
 import PhysiqWatchSync from "../components/PhysiqWatchSync";
+import RemindersSync from "../components/RemindersSync";
 import InteractionFeedbackInit from "../components/InteractionFeedbackInit";
 // Side-effect import: defines the background refresh task at module scope so
 // iOS can wake it headlessly.
@@ -240,6 +241,7 @@ export default function RootLayout() {
                           <PostProHealthFlow />
                           <InteractionFeedbackInit />
                           <PhysiqWatchSync />
+                          <RemindersSync />
                           <AppContent />
                         </AppBackground>
                       </PhotosProvider>
