@@ -9,6 +9,7 @@ import { useDashboardTargets } from '../hooks/useDashboardTargets';
 import { processVoiceMealTranscript } from '../features/food/processVoiceMealTranscript';
 import * as foodService from '../features/food/foodService';
 import { buildWatchSnapshotPayload } from '../features/pro/buildWatchSnapshot';
+import { track } from '../services/analytics';
 
 const VOICE_FEEDBACK_TTL_MS = 45_000;
 
@@ -112,6 +113,7 @@ export default function PhysiqWatchSync() {
         const { result, entries, resolvedItems } = await processVoiceMealTranscript(transcript);
         if (entries.length > 0) {
           addEntries(entries);
+          track('food_logged', { method: 'watch_voice', items: entries.length });
           await Promise.all(
             resolvedItems.map((item) => foodService.addToRecent(item.food, item.grams))
           );

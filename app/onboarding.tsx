@@ -68,6 +68,7 @@ import { upsertMeasurement } from '../storage/measurementsRepo';
 import { getTodayDateKey } from '../utils/dateKey';
 import { buildPsmfProfileUpdates } from '../utils/psmfHelpers';
 import { Radius, Spacing } from '../theme/tokens';
+import { track } from '../services/analytics';
 
 const TOTAL_STEPS = 11;
 const FOOTER_BUTTON_HEIGHT = 52;
@@ -156,6 +157,7 @@ export default function OnboardingScreen() {
       const nextStep = step + 1;
       setStep(nextStep);
       animateProgress(nextStep);
+      track('onboarding_step_viewed', { step: nextStep + 1, totalSteps: TOTAL_STEPS });
     }
   }, [animateProgress, step]);
 
@@ -293,6 +295,7 @@ export default function OnboardingScreen() {
         draftProfile.eatingStyle === 'psmf' ? psmfAcknowledgedAt ?? new Date().toISOString() : undefined
       ),
     });
+    track('onboarding_completed', { totalSteps: TOTAL_STEPS });
     router.replace('/(tabs)' as never);
   }, [
     completeOnboarding,

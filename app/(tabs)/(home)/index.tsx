@@ -15,6 +15,7 @@ import {
 import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playFeedback } from '../../../utils/interactionFeedback';
+import { track } from '../../../services/analytics';
 import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
@@ -650,7 +651,10 @@ export default function DashboardScreen() {
         <DayTypePickerModal
           visible={dayTypeModalVisible}
           selectedId={dayTypeOverride}
-          onSelect={(id) => updateSettings({ dayTypeOverride: id })}
+          onSelect={(id) => {
+            updateSettings({ dayTypeOverride: id });
+            track('day_type_changed', { dayType: id });
+          }}
           onClose={() => setDayTypeModalVisible(false)}
         />
 

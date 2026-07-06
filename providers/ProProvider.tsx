@@ -43,6 +43,7 @@ import {
 import { getTodayDateKey } from '../utils/dateKey';
 import { isHealthKitAvailable, readTodayHealthSignals, requestHealthKitPermissions } from '../services/healthkit';
 import { setSoundEffectsEnabled } from '../utils/interactionFeedback';
+import { track } from '../services/analytics';
 
 const defaultHydration: ProHydrationLog = {
   dateKey: '',
@@ -236,10 +237,14 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
         // amount. Keep until those builds age out.
         case 'hydration_ack':
           addHydration(250);
+          track('watch_hydration_logged', { ml: 250, legacy: true });
           break;
         case 'log_water': {
           const ml = Number.parseInt(payload.ml ?? '', 10);
-          if (Number.isFinite(ml) && ml !== 0) addHydration(ml);
+          if (Number.isFinite(ml) && ml !== 0) {
+            addHydration(ml);
+            track('watch_hydration_logged', { ml });
+          }
           break;
         }
         case 'set_day_type': {
@@ -252,6 +257,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
               });
             }
             updateSettings({ dayTypeOverride: next });
+            track('watch_day_type_changed', { dayType: next });
           }
           break;
         }
@@ -302,6 +308,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
         await saveLatestProHealthSignals(live);
         queryClient.setQueryData(['pro_health_signals'], live);
       }
+      track('health_integration_enabled');
       return true;
     } catch (error) {
       console.warn('[HealthKit] enableHealthIntegration failed', error);
@@ -310,6 +317,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
   }, [queryClient, settings]);
 
   const disableHealthIntegration = useCallback(() => {
+    track('health_integration_disabled');
     settingsMutation.mutate({
       ...settings,
       healthIntegrationEnabled: false,

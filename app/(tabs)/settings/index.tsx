@@ -59,6 +59,7 @@ import { getReminderSettings, saveReminderSettings } from '../../../storage/remi
 import { cancelAllReminders, requestNotificationPermission } from '../../../services/reminders';
 import type { ReminderSettings } from '../../../features/reminders/reminderPlan';
 import { REMINDER_SETTINGS_QUERY_KEY } from '../../../components/RemindersSync';
+import { track } from '../../../services/analytics';
 
 type EditMode = 'none' | 'profile' | 'nutrition';
 
@@ -111,6 +112,7 @@ export default function SettingsScreen() {
     if (reminderSettings.enabled) {
       await updateReminderSettings({ enabled: false });
       await cancelAllReminders();
+      track('reminders_master_toggled', { enabled: false });
       return;
     }
     const granted = await requestNotificationPermission();
@@ -126,6 +128,7 @@ export default function SettingsScreen() {
       return;
     }
     await updateReminderSettings({ enabled: true });
+    track('reminders_master_toggled', { enabled: true });
   }, [reminderSettings, updateReminderSettings]);
   const hydrationTileSide = useMemo(() => {
     const maxGrid = screenWidth - Spacing.lg * 2 - Spacing.md * 2;

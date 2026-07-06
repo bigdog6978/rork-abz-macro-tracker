@@ -21,6 +21,10 @@ import InteractionFeedbackInit from "../components/InteractionFeedbackInit";
 // Side-effect import: defines the background refresh task at module scope so
 // iOS can wake it headlessly.
 import { registerBackgroundRefresh } from "../services/backgroundRefresh";
+import { initAnalytics } from "../services/analytics";
+
+// Module scope so Sentry hooks in before the first render; no-ops without keys.
+initAnalytics();
 
 SplashScreen.preventAutoHideAsync();
 

@@ -44,6 +44,7 @@ import SuggestionsSection from '../components/add-food/SuggestionsSection';
 import RecentsSection, { type RecentFoodItem } from '../components/add-food/RecentsSection';
 import VoiceMealReviewModal from '../components/add-food/VoiceMealReviewModal';
 import { Radius } from '../theme/tokens';
+import { track } from '../services/analytics';
 
 const HEADER_BUTTON_SIZE = 44;
 
@@ -444,6 +445,7 @@ export default function AddFoodScreen() {
       );
 
       addEntries(entries, dateKeyParam);
+      track('food_logged', { method: 'voice', items: entries.length });
       await Promise.all(
         voiceMealDraft.items.map((item) => foodService.addToRecent(item.food, item.grams))
       );
@@ -626,6 +628,7 @@ export default function AddFoodScreen() {
         textResolvedItem.entryOpts
       );
       addEntry(entry, dateKeyParam);
+      track('food_logged', { method: 'best_match', items: 1 });
       await foodService.addToRecent(textResolvedItem.food, textResolvedItem.grams);
       if (saveToLibrary && !isFromSavedFoods) {
         const _item = textResolvedItem;
@@ -717,6 +720,14 @@ export default function AddFoodScreen() {
       );
 
       addEntry(entry, dateKeyParam);
+      track('food_logged', {
+        method: selectedFood
+          ? selectedFood.providerId === 'manual'
+            ? 'saved'
+            : 'search'
+          : 'manual',
+        items: 1,
+      });
 
       const normalizedForRecent =
         selectedFood ??
