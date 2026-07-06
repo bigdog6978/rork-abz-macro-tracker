@@ -16,7 +16,7 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playFeedback } from '../../../utils/interactionFeedback';
 import { track } from '../../../services/analytics';
-import { Flame, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon } from 'lucide-react-native';
+import { Flame, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon, Mic, Scan, CopyPlus } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
@@ -35,7 +35,18 @@ import { DAY_TYPE_PICKER_SHORT_LABELS } from '../../../features/pro/constants';
 import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier, MacroTargets } from '../../../types';
 import PremiumCard from '../../../components/ui/PremiumCard';
 import TodayLogSection from '../../../components/home/TodayLogSection';
+import EmptyLogActions from '../../../components/home/EmptyLogActions';
 import GreetingHeader from '../../../components/ui/GreetingHeader';
+import * as foodService from '../../../features/food/foodService';
+import { entryMealType } from '../../../features/food/mealType';
+import {
+  cloneEntriesForToday,
+  getYesterdayEntries,
+  getYesterdayMeal,
+  selectRecentChips,
+  type RecentChip,
+} from '../../../features/food/repeatLogging';
+import type { FabAction } from '../../../components/ui/Fab';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import EmptyState from '../../../components/ui/EmptyState';
 import CalorieGauge from '../../../components/ui/CalorieGauge';
@@ -266,7 +277,7 @@ export default function DashboardScreen() {
   const calorieIconSize = useMemo(() => Math.max(14, Math.round(dialSize * 0.12)), [dialSize]);
   const calorieDialIconGap = useMemo(() => Math.max(2, Math.round(dialSize * 0.015)), [dialSize]);
   const calorieTextGap = useMemo(() => Math.max(4, Math.round(dialSize * 0.018)), [dialSize]);
-  const { todayEntries, todayTotals, removeEntry, getStreak } = useDailyLog();
+  const { todayEntries, todayTotals, removeEntry, getStreak, addEntries, logs } = useDailyLog();
   const { showPrompt, hasBaseline, dismissPrompt } = useMeasurements();
   const {
     settings: proSettings,
@@ -311,6 +322,87 @@ export default function DashboardScreen() {
   const handleAddFood = useCallback(() => {
     router.push('/add-food' as never);
   }, []);
+
+  // ── One-tap repeat logging ────────────────────────────────────────────────
+  const [recentChips, setRecentChips] = useState<RecentChip[]>([]);
+  const logIsEmpty = todayEntries.length === 0;
+
+  useEffect(() => {
+    if (!logIsEmpty) return;
+    foodService
+      .getRecentFoodsList()
+      .then((recents) => setRecentChips(selectRecentChips(recents)))
+      .catch(() => setRecentChips([]));
+  }, [logIsEmpty]);
+
+  const yesterdayEntries = useMemo(() => getYesterdayEntries(logs), [logs]);
+
+  /** Meals empty today that have yesterday entries to copy. */
+  const mealCopySuggestions = useMemo(() => {
+    if (todayEntries.length === 0) return [];
+    return (['breakfast', 'lunch', 'dinner'] as const).filter(
+      (meal) =>
+        !todayEntries.some((e) => entryMealType(e) === meal) &&
+        getYesterdayMeal(logs, meal).length > 0
+    );
+  }, [todayEntries, logs]);
+
+  const handleCopyYesterday = useCallback(() => {
+    const cloned = cloneEntriesForToday(getYesterdayEntries(logs));
+    if (cloned.length === 0) return;
+    addEntries(cloned);
+    track('food_logged', { method: 'copy_yesterday', items: cloned.length });
+    playFeedback('success');
+  }, [logs, addEntries]);
+
+  const handleCopyYesterdayMeal = useCallback(
+    (meal: 'breakfast' | 'lunch' | 'dinner') => {
+      const cloned = cloneEntriesForToday(getYesterdayMeal(logs, meal));
+      if (cloned.length === 0) return;
+      addEntries(cloned);
+      track('food_logged', { method: 'copy_yesterday_meal', items: cloned.length });
+      playFeedback('success');
+    },
+    [logs, addEntries]
+  );
+
+  const handleLogChip = useCallback(
+    (chip: RecentChip) => {
+      const macros = foodService.computeMacrosForServing(chip.food, chip.grams);
+      const entry = foodService.createFoodEntry(chip.food, chip.food.name, chip.grams, macros, false);
+      addEntries([entry]);
+      void foodService.addToRecent(chip.food, chip.grams);
+      track('food_logged', { method: 'recent_chip', items: 1 });
+      playFeedback('success');
+    },
+    [addEntries]
+  );
+
+  const fabActions = useMemo((): FabAction[] => {
+    const actions: FabAction[] = [
+      {
+        key: 'voice',
+        label: 'Speak a meal',
+        icon: <Mic size={18} color={colors.primary} />,
+        onPress: () => router.push({ pathname: '/add-food', params: { autoStart: 'voice' } } as never),
+      },
+      {
+        key: 'scan',
+        label: 'Scan barcode',
+        icon: <Scan size={18} color={colors.primary} />,
+        onPress: () => router.push({ pathname: '/add-food', params: { autoStart: 'scanner' } } as never),
+      },
+    ];
+    if (yesterdayEntries.length > 0 && logIsEmpty) {
+      actions.push({
+        key: 'copy-yesterday',
+        label: 'Copy yesterday',
+        icon: <CopyPlus size={18} color={colors.primary} />,
+        onPress: handleCopyYesterday,
+      });
+    }
+    return actions;
+  }, [colors.primary, yesterdayEntries.length, logIsEmpty, handleCopyYesterday]);
 
   const handleEditEntry = useCallback((id: string) => {
     router.push({ pathname: '/edit-log-entry', params: { entryId: id } } as never);
@@ -702,19 +794,46 @@ export default function DashboardScreen() {
         {/* Today's Log */}
         <Animated.View style={{ opacity: stagger[4] }}>
           {todayEntries.length > 0 ? (
-            <TodayLogSection
-              entries={todayEntries}
-              onEditEntry={handleEditEntry}
-              onRemoveEntry={handleRemoveEntry}
-            />
+            <>
+              <TodayLogSection
+                entries={todayEntries}
+                onEditEntry={handleEditEntry}
+                onRemoveEntry={handleRemoveEntry}
+              />
+              {mealCopySuggestions.length > 0 && (
+                <View style={styles.mealCopyRow}>
+                  {mealCopySuggestions.map((meal) => (
+                    <PhysiqPressable
+                      key={meal}
+                      feedback="select"
+                      style={styles.mealCopyChip}
+                      onPress={() => handleCopyYesterdayMeal(meal)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Copy yesterday's ${meal}`}
+                    >
+                      <CopyPlus size={12} color={colors.textSecondary} />
+                      <Text style={styles.mealCopyChipText}>
+                        Yesterday&apos;s {meal}
+                      </Text>
+                    </PhysiqPressable>
+                  ))}
+                </View>
+              )}
+            </>
           ) : (
-            <EmptyState />
+            <EmptyLogActions
+              yesterdayEntries={yesterdayEntries}
+              recentChips={recentChips}
+              onCopyYesterday={handleCopyYesterday}
+              onLogChip={handleLogChip}
+              onOpenAddFood={handleAddFood}
+            />
           )}
         </Animated.View>
         </ResponsiveContainer>
       </ScrollView>
 
-      <Fab onPress={handleAddFood} testID="add-food-button" />
+      <Fab onPress={handleAddFood} actions={fabActions} testID="add-food-button" />
 
       <CustomMacrosModal
         visible={editMacrosVisible}
@@ -1114,6 +1233,29 @@ const createStyles = (colors: AppColors) =>
     },
     entryDelete: {
       padding: 8,
+    },
+    mealCopyRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 2,
+    },
+    mealCopyChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      borderRadius: Radius.sm,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    mealCopyChipText: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '600' as const,
+      textTransform: 'capitalize' as const,
     },
     promptBanner: {
       flexDirection: 'row',
