@@ -255,6 +255,9 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     const sub = subscribePhysiqWatch('onWatchPayload', (body) => {
       const payload = (body.payload as Record<string, string> | undefined) ?? {};
       switch (payload.action) {
+        // Deprecated: only watch builds ≤1.3.4 send hydration_ack (fixed
+        // 250 ml). Current watch builds send log_water with the unit-aware
+        // amount. Keep until those builds age out.
         case 'hydration_ack':
           addHydration(250);
           break;

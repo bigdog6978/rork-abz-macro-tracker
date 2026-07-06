@@ -113,8 +113,17 @@ final class PhysiqPhoneWatchSession: NSObject, WCSessionDelegate {
   }
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    // Legacy path: watch builds ≤1.3.4 queued actions via applicationContext.
+    // Current builds queue via transferUserInfo (see didReceiveUserInfo).
     guard let action = applicationContext["action"] as? String, !action.isEmpty else { return }
     emitPayload(applicationContext, source: "applicationContext")
+  }
+
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    // Queued watch → phone actions: each transferUserInfo arrives separately
+    // and in order, so multiple offline hydration logs are all delivered.
+    guard let action = userInfo["action"] as? String, !action.isEmpty else { return }
+    emitPayload(userInfo, source: "userInfo")
   }
 
   func session(

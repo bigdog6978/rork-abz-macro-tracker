@@ -30,10 +30,6 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     return fromPhone.isEmpty ? "auto" : fromPhone
   }
 
-  func sendHydrationAck() {
-    send(["action": "hydration_ack"])
-  }
-
   func logWater(ml: Int) {
     send(["action": "log_water", "ml": String(ml)])
   }
@@ -104,11 +100,14 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         message,
         replyHandler: { _ in },
         errorHandler: { _ in
-          try? WCSession.default.updateApplicationContext(message)
+          // transferUserInfo queues each action and delivers all in order.
+          // applicationContext is latest-wins and would silently drop earlier
+          // queued actions (e.g. two hydration logs while the phone is away).
+          WCSession.default.transferUserInfo(message)
         }
       )
     } else {
-      try? WCSession.default.updateApplicationContext(message)
+      WCSession.default.transferUserInfo(message)
     }
   }
 
@@ -125,21 +124,13 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
           DispatchQueue.main.async { onReply(reply) }
         },
         errorHandler: { _ in
-          do {
-            try WCSession.default.updateApplicationContext(message)
-            DispatchQueue.main.async { onQueued() }
-          } catch {
-            DispatchQueue.main.async { onFailed("Could not reach iPhone.") }
-          }
+          WCSession.default.transferUserInfo(message)
+          DispatchQueue.main.async { onQueued() }
         }
       )
     } else {
-      do {
-        try WCSession.default.updateApplicationContext(message)
-        DispatchQueue.main.async { onQueued() }
-      } catch {
-        DispatchQueue.main.async { onFailed("Could not reach iPhone.") }
-      }
+      WCSession.default.transferUserInfo(message)
+      DispatchQueue.main.async { onQueued() }
     }
   }
 
