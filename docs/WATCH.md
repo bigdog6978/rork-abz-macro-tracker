@@ -1,5 +1,44 @@
 # Apple Watch (watchOS) + iPhone integration
 
+## Complications (watch-widget target)
+
+`targets/watch-widget/` is a WidgetKit extension embedded in the watch app
+(`type: 'watch-widget'`, watchOS **9.0+**). Four widgets in
+`PhysiqComplications.swift`:
+
+| Widget | Families |
+|---|---|
+| **Calories Left** | accessoryCircular (gauge), accessoryCorner, accessoryInline |
+| **Protein** | accessoryCircular, accessoryInline |
+| **Hydration** (unit-aware) | accessoryCircular, accessoryInline |
+| **Daily Summary** | accessoryRectangular (cal left + P/C/F) |
+
+**Data flow:** watch app `mergeSnapshot` → `ComplicationStore.write` puts the
+raw `[String: String]` context into App Group
+`group.app.rork.abz-macro-tracker` (key `physiq_complication_snapshot_v1`) →
+`WidgetCenter.reloadAllTimelines()`. The widget's `ComplicationEntry.swift`
+parses the same keys as `WatchSnapshot.parse` — **keep key names in sync**.
+Timelines also self-refresh every ~15 min from the stored snapshot.
+
+**Freshness without opening the watch app:** the iPhone module calls
+`transferCurrentComplicationUserInfo` when `isComplicationEnabled`, throttled
+to ≥30 min between pushes (system budget ≈50/day); the watch merges it in
+`didReceiveUserInfo` and rewrites the store.
+
+## Queued actions & staleness
+
+- Watch → phone actions fall back to **`transferUserInfo`** when the phone is
+  unreachable (each action queued and delivered in order). `applicationContext`
+  is no longer used for actions — it is latest-wins and previously dropped
+  earlier queued actions (e.g. two offline hydration logs). The phone module
+  handles `didReceiveUserInfo`; the legacy applicationContext filter remains
+  for watch builds ≤1.3.4.
+- `hydration_ack` (fixed 250 ml) is retired on the watch; the phone keeps its
+  handler for old builds. Current builds send `log_water` with the unit-aware
+  amount.
+- Page headers show **“as of 7:42 AM”** when the snapshot is >1 hour old
+  (60s tick; clock-exclusion safe).
+
 ## Compatibility
 
 - Minimum watchOS target: **9.0** (set in [`targets/watch/expo-target.config.js`](../targets/watch/expo-target.config.js); `TextFieldLink` system dictation requires 9.0+).

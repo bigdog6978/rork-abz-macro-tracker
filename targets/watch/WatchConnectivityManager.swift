@@ -153,6 +153,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         incoming.removeValue(forKey: "dayTypeOverrideLabel")
       }
       self.context.merge(incoming) { _, new in new }
+      ComplicationStore.write(context: self.context)
       if let pending = self.pendingDayTypeOverride,
          let confirmed = strings["dayTypeOverride"],
          confirmed == pending {
@@ -207,6 +208,15 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     print("[PhysiqWatch] didReceiveMessage")
     #endif
     mergeSnapshot(message)
+  }
+
+  /// Snapshots pushed while the watch app was closed (transferUserInfo /
+  /// transferCurrentComplicationUserInfo from iPhone) merge like any other.
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    #if DEBUG
+    print("[PhysiqWatch] didReceiveUserInfo")
+    #endif
+    mergeSnapshot(userInfo)
   }
 
   func session(
