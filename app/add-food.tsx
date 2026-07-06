@@ -12,16 +12,12 @@ import {
   Animated,
   Easing,
   Keyboard,
-  Modal,
-  Pressable,
-  Linking,
 } from 'react-native';
 import DismissKeyboard from '../components/ui/DismissKeyboard';
 import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import Constants from 'expo-constants';
-import { Check, Search, Clock, Pencil, X, ChevronRight, Scan, Bookmark, Mic, LoaderCircle } from 'lucide-react-native';
+import { Check, Search, Pencil, X, ChevronRight, Scan, Bookmark, Mic, LoaderCircle } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
@@ -31,40 +27,25 @@ import { NormalizedFood } from '../features/food/types';
 import * as foodService from '../features/food/foodService';
 import * as foodsRepo from '../src/data/foodsRepo';
 import QuantityPillsCompact from '../components/ui/QuantityPillsCompact';
-import QuantityCallout, { type CalloutReason } from '../components/ui/QuantityCallout';
+import QuantityCallout from '../components/ui/QuantityCallout';
 import DensityModal from '../components/ui/DensityModal';
 import VoiceRecordingSheet from '../components/ui/VoiceRecordingSheet';
 import BarcodeScannerPanel from '../components/ui/BarcodeScannerPanel';
 import type { UnitKind, UnitId } from '../src/lib/units';
 import { getPreferredServingUnit } from '../storage/userSettingsRepo';
 import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
-import {
   detectUnitFromName,
   pluralizeUnit,
 } from '../features/food/servingDefaults';
-import { parseMealVoiceTranscript } from '../features/food/mealVoiceParser';
-import { parseTextInput } from '../features/food/inputParser';
-import {
-  resolveVoiceItem,
-  resolveVoiceItems,
-  scoreConfidence,
-  type VoiceResolvedItem,
-  type VoiceUnresolvedItem,
-} from '../features/food/voiceResolver';
+import { useFoodSearch } from '../features/food/hooks/useFoodSearch';
+import { useQuantityForm } from '../features/food/hooks/useQuantityForm';
+import { useVoiceMeal } from '../features/food/hooks/useVoiceMeal';
+import SuggestionsSection from '../components/add-food/SuggestionsSection';
+import RecentsSection, { type RecentFoodItem } from '../components/add-food/RecentsSection';
+import VoiceMealReviewModal from '../components/add-food/VoiceMealReviewModal';
 import { Radius } from '../theme/tokens';
 
-const DEBOUNCE_MS = 300;
 const HEADER_BUTTON_SIZE = 44;
-
-type VoiceMealDraft = {
-  transcript: string;
-  items: VoiceResolvedItem[];
-  unresolved: VoiceUnresolvedItem[];
-  totals: { calories: number; protein_g: number; carbs_g: number; fat_g: number };
-};
 
 function getSearchErrorMessage(
   searchStatus: string,
@@ -106,21 +87,6 @@ function getSearchErrorMessage(
   return 'No results found';
 }
 
-
-function canUseVoiceMealCapture(): boolean {
-  if (Constants.appOwnership === 'expo') {
-    return false;
-  }
-
-  try {
-    return typeof ExpoSpeechRecognitionModule.isRecognitionAvailable === 'function'
-      ? ExpoSpeechRecognitionModule.isRecognitionAvailable()
-      : false;
-  } catch {
-    return false;
-  }
-}
-
 export default function AddFoodScreen() {
   const { addEntry, addEntries } = useDailyLog();
   const colors = useThemeColors();
@@ -133,118 +99,114 @@ export default function AddFoodScreen() {
   const dateKeyParam = typeof params.dateKey === 'string' ? params.dateKey : undefined;
   const isFromSavedFoods = params.sourceContext === 'saved-foods';
 
-  const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<NormalizedFood[]>([]);
-  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'error' | 'rate_limited'>('idle');
-  const [searchErrorCode, setSearchErrorCode] = useState<string | undefined>();
-  const [searchErrorDetail, setSearchErrorDetail] = useState<string | undefined>();
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedFood, setSelectedFood] = useState<NormalizedFood | null>(null);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const {
+    query,
+    setQuery,
+    suggestions,
+    searchStatus,
+    searchErrorCode,
+    searchErrorDetail,
+    isSearching,
+    showSuggestions,
+    setShowSuggestions,
+    parsedInput,
+    setParsedInput,
+    textResolvedItem,
+    setTextResolvedItem,
+    isResolvingText,
+    setIsResolvingText,
+    showOtherResults,
+    setShowOtherResults,
+    parsedInputRef,
+    resolveRequestIdRef,
+    handleSearch,
+  } = useFoodSearch();
 
-  const [name, setName] = useState('');
-  const [unitKind, setUnitKind] = useState<UnitKind>('mass');
-  const [unitId, setUnitId] = useState<UnitId>('g');
-  const [quantityInput, setQuantityInput] = useState('100');
-  const [unitLabel, setUnitLabel] = useState<string>('egg');
-  const [servingWeightG, setServingWeightG] = useState<number>(50);
-  const [showDensityModal, setShowDensityModal] = useState(false);
-  const [scalingReason, setScalingReason] = useState<CalloutReason | null>(null);
-  const [protein, setProtein] = useState('');
-  const [carbs, setCarbs] = useState('');
-  const [fat, setFat] = useState('');
-  const [isCustomized, setIsCustomized] = useState(false);
+  const {
+    name,
+    setName,
+    unitKind,
+    setUnitKind,
+    unitId,
+    setUnitId,
+    quantityInput,
+    setQuantityInput,
+    unitLabel,
+    setUnitLabel,
+    servingWeightG,
+    setServingWeightG,
+    showDensityModal,
+    setShowDensityModal,
+    scalingReason,
+    setScalingReason,
+    protein,
+    carbs,
+    fat,
+    setProtein,
+    setCarbs,
+    setFat,
+    isCustomized,
+    setIsCustomized,
+    selectedFood,
+    setSelectedFood,
+    computedMacrosRef,
+    computedCalories,
+    applyScalingResult,
+    applyMacros,
+    handleQuantityChange,
+    handleServingWeightChange,
+    handleMacroEdit,
+    handleKindChange: handleKindChangeForm,
+    handleUnitChange,
+    resetForm,
+  } = useQuantityForm();
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveToLibrary, setSaveToLibrary] = useState(true);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerViewportWidth, setScannerViewportWidth] = useState(0);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState('');
-  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
-  const [voiceMealDraft, setVoiceMealDraft] = useState<VoiceMealDraft | null>(null);
-  const [voiceModalVisible, setVoiceModalVisible] = useState(false);
-  const [dismissedUnresolvedIds, setDismissedUnresolvedIds] = useState<string[]>([]);
-
-  const [recentFoods, setRecentFoods] = useState<
-    { food: NormalizedFood; lastServingGrams: number }[]
-  >([]);
+  const [recentFoods, setRecentFoods] = useState<RecentFoodItem[]>([]);
   const [savedFoods, setSavedFoods] = useState<NormalizedFood[]>([]);
 
-  type ParsedInput = { quantity: number; unitId: UnitId; unitKind: UnitKind; foodQuery: string };
-  const [parsedInput, setParsedInput] = useState<ParsedInput | null>(null);
-  const [textResolvedItem, setTextResolvedItem] = useState<VoiceResolvedItem | null>(null);
-  const [isResolvingText, setIsResolvingText] = useState(false);
-  const [showOtherResults, setShowOtherResults] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const resolveRequestIdRef = useRef(0);
-  // Ref mirrors parsedInput state for synchronous reads inside callbacks
-  const parsedInputRef = useRef<ParsedInput | null>(null);
   const scannerAnim = useRef(new Animated.Value(0)).current;
-  const voiceRequestIdRef = useRef(0);
-  const voiceUserIntentRef = useRef(false);
-  const computedMacrosRef = useRef<{
-    calories: number;
-    protein_g: number;
-    carbs_g: number;
-    fat_g: number;
-  } | null>(null);
 
   const apiAvailable = useMemo(() => foodService.isApiAvailable(), []);
-  const voiceMealAvailable = useMemo(() => canUseVoiceMealCapture(), []);
 
-  const buildVoiceMealDraft = useCallback(async (transcript: string) => {
-    const parsedItems = parseMealVoiceTranscript(transcript);
-    if (parsedItems.length === 0) {
-      Alert.alert(
-        'No meal detected',
-        'Try speaking a full meal like "2 eggs, 1 avocado, 6 oz orange juice."'
-      );
-      return;
+  const animateScanner = useCallback(
+    (toValue: number, onComplete?: () => void) => {
+      Animated.timing(scannerAnim, {
+        toValue,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start(({ finished }) => {
+        if (finished) onComplete?.();
+      });
+    },
+    [scannerAnim]
+  );
+
+  const handleVoiceWillStart = useCallback(() => {
+    Keyboard.dismiss();
+    setShowSuggestions(false);
+    if (scannerOpen) {
+      animateScanner(0, () => setScannerOpen(false));
     }
+  }, [animateScanner, scannerOpen, setShowSuggestions]);
 
-    const requestId = Date.now();
-    voiceRequestIdRef.current = requestId;
-    setIsVoiceProcessing(true);
-
-    try {
-      // All items resolved through the same unified resolver used by typed search
-      const results = await resolveVoiceItems(parsedItems);
-      if (voiceRequestIdRef.current !== requestId) return;
-
-      const items: VoiceResolvedItem[] = [];
-      const unresolved: VoiceUnresolvedItem[] = [];
-      for (const r of results) {
-        if (r.status === 'resolved') items.push(r.item);
-        else unresolved.push(r.item);
-      }
-
-      const totals = items.reduce(
-        (acc, item) => ({
-          calories: acc.calories + item.macros.calories,
-          protein_g: Math.round((acc.protein_g + item.macros.protein_g) * 10) / 10,
-          carbs_g: Math.round((acc.carbs_g + item.macros.carbs_g) * 10) / 10,
-          fat_g: Math.round((acc.fat_g + item.macros.fat_g) * 10) / 10,
-        }),
-        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-      );
-
-      setVoiceMealDraft({ transcript, items, unresolved, totals });
-      setDismissedUnresolvedIds([]);
-      setVoiceModalVisible(true);
-
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(
-          unresolved.length === 0
-            ? Haptics.NotificationFeedbackType.Success
-            : Haptics.NotificationFeedbackType.Warning
-        );
-      }
-    } finally {
-      if (voiceRequestIdRef.current === requestId) {
-        setIsVoiceProcessing(false);
-      }
-    }
-  }, []);
+  const {
+    voiceMealAvailable,
+    isListening,
+    voiceTranscript,
+    isVoiceProcessing,
+    voiceMealDraft,
+    voiceModalVisible,
+    setVoiceModalVisible,
+    dismissedUnresolvedIds,
+    setDismissedUnresolvedIds,
+    handleStartVoiceMeal,
+    handleCancelVoice,
+  } = useVoiceMeal({ onWillStart: handleVoiceWillStart });
 
   useEffect(() => {
     foodService
@@ -267,20 +229,6 @@ export default function AddFoodScreen() {
       .catch((err) => console.log('[AddFood] Error loading saved foods:', err));
   }, [params.fromBarcode]);
 
-  const animateScanner = useCallback(
-    (toValue: number, onComplete?: () => void) => {
-      Animated.timing(scannerAnim, {
-        toValue,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start(({ finished }) => {
-        if (finished) onComplete?.();
-      });
-    },
-    [scannerAnim]
-  );
-
   useEffect(() => {
     getPreferredServingUnit()
       .then((unit) => {
@@ -291,7 +239,7 @@ export default function AddFoodScreen() {
         }
       })
       .catch((err) => console.log('[AddFood] Error loading unit pref:', err));
-  }, []);
+  }, [setUnitKind, setUnitId, setQuantityInput]);
 
   const loadFoodIntoForm = useCallback(async (id: string) => {
     try {
@@ -391,62 +339,30 @@ export default function AddFoodScreen() {
     } catch (err) {
       console.log('[AddFood] Error loading barcode food:', err);
     }
-  }, [animateScanner]);
+  }, [
+    animateScanner,
+    computedMacrosRef,
+    setCarbs,
+    setFat,
+    setIsCustomized,
+    setName,
+    setProtein,
+    setQuantityInput,
+    setQuery,
+    setScalingReason,
+    setSelectedFood,
+    setServingWeightG,
+    setShowSuggestions,
+    setUnitId,
+    setUnitKind,
+    setUnitLabel,
+  ]);
 
   useEffect(() => {
     const id = params.fromBarcode;
     if (!id || typeof id !== 'string') return;
     loadFoodIntoForm(id);
   }, [loadFoodIntoForm, params.fromBarcode]);
-
-  useSpeechRecognitionEvent('start', () => {
-    setIsListening(true);
-  });
-
-  useSpeechRecognitionEvent('end', () => {
-    setIsListening(false);
-    voiceUserIntentRef.current = false;
-  });
-
-  useSpeechRecognitionEvent('result', (event) => {
-    const transcript = event.results[0]?.transcript?.trim() ?? '';
-    if (!transcript) return;
-    setVoiceTranscript(transcript);
-
-    if (event.isFinal) {
-      void buildVoiceMealDraft(transcript);
-    }
-  });
-
-  const BENIGN_SPEECH_ERRORS = new Set(['aborted', 'no-speech', 'interrupted', 'not-allowed']);
-
-  useSpeechRecognitionEvent('error', (event) => {
-    setIsListening(false);
-    setIsVoiceProcessing(false);
-
-    if (BENIGN_SPEECH_ERRORS.has(event.error)) {
-      voiceUserIntentRef.current = false;
-      return;
-    }
-
-    if (!voiceUserIntentRef.current) {
-      return;
-    }
-
-    voiceUserIntentRef.current = false;
-    Alert.alert('Voice entry unavailable', event.message || 'Speech recognition failed. Please try again.');
-  });
-
-  useEffect(() => {
-    return () => {
-      voiceUserIntentRef.current = false;
-      try {
-        ExpoSpeechRecognitionModule.abort();
-      } catch {
-        // Ignore missing native module during teardown.
-      }
-    };
-  }, []);
 
   const handleScanBarcode = useCallback(() => {
     Keyboard.dismiss();
@@ -457,91 +373,7 @@ export default function AddFoodScreen() {
     }
     setScannerOpen(true);
     animateScanner(1);
-  }, [animateScanner, scannerOpen]);
-
-  const handleStartVoiceMeal = useCallback(async () => {
-    if (!voiceMealAvailable) {
-      Alert.alert(
-        'Voice meal not available',
-        'Speech meal entry requires a fresh development build or production build with the speech-recognition native module included.'
-      );
-      return;
-    }
-
-    if (isListening) {
-      ExpoSpeechRecognitionModule.stop();
-      return;
-    }
-
-    try {
-      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!permission.granted) {
-        if (!permission.canAskAgain) {
-          Alert.alert(
-            'Microphone access needed',
-            'To speak meals into your food log, turn on microphone and speech recognition access for this app in Settings.',
-            [
-              {
-                text: 'Open Settings',
-                onPress: () => {
-                  Linking.openSettings();
-                },
-              },
-              { text: 'Cancel', style: 'cancel' },
-            ]
-          );
-        } else {
-          Alert.alert(
-            'Microphone access needed',
-            'Microphone and speech recognition permissions are used to speak meals into your food log.'
-          );
-        }
-        return;
-      }
-
-      Keyboard.dismiss();
-      setShowSuggestions(false);
-      setVoiceMealDraft(null);
-      setVoiceModalVisible(false);
-      setVoiceTranscript('');
-      setIsVoiceProcessing(false);
-      setDismissedUnresolvedIds([]);
-
-      if (scannerOpen) {
-        animateScanner(0, () => setScannerOpen(false));
-      }
-
-      voiceUserIntentRef.current = true;
-      ExpoSpeechRecognitionModule.start({
-        lang: 'en-US',
-        interimResults: true,
-        continuous: false,
-        maxAlternatives: 1,
-        contextualStrings: [
-          'eggs',
-          'avocado',
-          'orange juice',
-          'chicken breast',
-          'greek yogurt',
-          'protein shake',
-        ],
-      });
-    } catch (err) {
-      console.log('[AddFood] Voice start error:', err);
-      Alert.alert('Voice entry unavailable', 'Unable to start speech recognition on this device.');
-    }
-  }, [animateScanner, isListening, scannerOpen, voiceMealAvailable]);
-
-  const handleCancelVoice = useCallback(() => {
-    voiceUserIntentRef.current = false;
-    try {
-      ExpoSpeechRecognitionModule.abort();
-    } catch {
-      // native module may not be available
-    }
-    setIsListening(false);
-    setIsVoiceProcessing(false);
-  }, []);
+  }, [animateScanner, scannerOpen, setShowSuggestions]);
 
   const saveManualToLibrary = useCallback(
     async (
@@ -647,111 +479,7 @@ export default function AddFoodScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [addEntries, dateKeyParam, voiceMealDraft, saveToLibrary, saveManualToLibrary, isFromSavedFoods]);
-
-  const computedCalories =
-    (parseFloat(protein) || 0) * 4 +
-    (parseFloat(carbs) || 0) * 4 +
-    (parseFloat(fat) || 0) * 9;
-
-  const handleSearch = useCallback(
-    (text: string) => {
-      setQuery(text);
-      setShowSuggestions(true);
-
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-
-      if (!text.trim()) {
-        parsedInputRef.current = null;
-        setParsedInput(null);
-        setTextResolvedItem(null);
-        setIsResolvingText(false);
-        setShowOtherResults(false);
-        setSuggestions([]);
-        setSearchStatus('idle');
-        setIsSearching(false);
-        return;
-      }
-
-      setIsSearching(true);
-      setSearchStatus('loading');
-      const parsed = parseTextInput(text);
-      const nextParsed =
-        parsed.quantity != null && parsed.unitId != null && parsed.unitKind != null
-          ? { quantity: parsed.quantity, unitId: parsed.unitId, unitKind: parsed.unitKind, foodQuery: parsed.foodQuery }
-          : null;
-      parsedInputRef.current = nextParsed;
-      setParsedInput(nextParsed);
-
-      // When a quantity+unit is parsed, run the voice resolver in parallel for a clean top pick
-      if (nextParsed) {
-        const requestId = ++resolveRequestIdRef.current;
-        setTextResolvedItem(null);
-        setIsResolvingText(true);
-        setShowOtherResults(false);
-        resolveVoiceItem({
-          label: text.trim(),
-          query: nextParsed.foodQuery,
-          quantity: nextParsed.quantity,
-          unitId: nextParsed.unitId,
-          unitKind: nextParsed.unitKind,
-          ambiguousOunces: false,
-        }).then((result) => {
-          if (resolveRequestIdRef.current !== requestId) return;
-          setIsResolvingText(false);
-          if (result.status === 'resolved') {
-            setTextResolvedItem(result.item);
-          } else {
-            setTextResolvedItem(null);
-          }
-        }).catch(() => {
-          if (resolveRequestIdRef.current !== requestId) return;
-          setIsResolvingText(false);
-          setTextResolvedItem(null);
-        });
-      } else {
-        setTextResolvedItem(null);
-        setIsResolvingText(false);
-        setShowOtherResults(true);
-      }
-
-      const searchQuery = parsed.foodQuery || text.trim();
-      debounceRef.current = setTimeout(async () => {
-        try {
-          const result = await foodService.searchSuggestions(searchQuery);
-          if (result.status === 'ok') {
-            setSuggestions(result.results);
-            setSearchStatus('idle');
-            setSearchErrorCode(undefined);
-            setSearchErrorDetail(undefined);
-          } else if (result.status === 'empty') {
-            setSuggestions([]);
-            setSearchStatus('idle');
-            setSearchErrorCode(undefined);
-            setSearchErrorDetail(undefined);
-          } else if (result.status === 'rate_limited') {
-            setSuggestions([]);
-            setSearchStatus('rate_limited');
-            setSearchErrorCode(undefined);
-            setSearchErrorDetail(undefined);
-          } else {
-            setSuggestions([]);
-            setSearchStatus('error');
-            setSearchErrorCode(result.status === 'error' ? result.errorCode : undefined);
-            setSearchErrorDetail(result.status === 'error' ? result.errorDetail : undefined);
-          }
-        } catch {
-          setSuggestions([]);
-          setSearchStatus('error');
-          setSearchErrorCode('UNKNOWN');
-          setSearchErrorDetail(undefined);
-        } finally {
-          setIsSearching(false);
-        }
-      }, DEBOUNCE_MS);
-    },
-    []
-  );
+  }, [addEntries, dateKeyParam, voiceMealDraft, saveToLibrary, saveManualToLibrary, isFromSavedFoods, setVoiceModalVisible]);
 
   const handleSelectSuggestion = useCallback(
     async (food: NormalizedFood) => {
@@ -799,37 +527,13 @@ export default function AddFoodScreen() {
           setUnitLabel(detected?.unitLabel ?? 'serving');
           setServingWeightG(sw);
           const foodForServing = { ...foodWithServing, servingWeightGrams: sw };
-          const result = foodService.scaleMacrosFromQuantity(
-            foodForServing,
-            parsed.quantity,
-            parsed.unitId,
-            parsed.unitKind
+          applyScalingResult(
+            foodService.scaleMacrosFromQuantity(foodForServing, parsed.quantity, parsed.unitId, parsed.unitKind)
           );
-          if (result.ok) {
-            computedMacrosRef.current = result.macros;
-            setProtein(String(result.macros.protein_g));
-            setCarbs(String(result.macros.carbs_g));
-            setFat(String(result.macros.fat_g));
-            setScalingReason(null);
-          } else {
-            setScalingReason(result.reason);
-          }
         } else {
-          const result = foodService.scaleMacrosFromQuantity(
-            foodWithServing,
-            parsed.quantity,
-            parsed.unitId,
-            parsed.unitKind
+          applyScalingResult(
+            foodService.scaleMacrosFromQuantity(foodWithServing, parsed.quantity, parsed.unitId, parsed.unitKind)
           );
-          if (result.ok) {
-            computedMacrosRef.current = result.macros;
-            setProtein(String(result.macros.protein_g));
-            setCarbs(String(result.macros.carbs_g));
-            setFat(String(result.macros.fat_g));
-            setScalingReason(null);
-          } else {
-            setScalingReason(result.reason);
-          }
         }
       } else if (detected) {
         setUnitKind('serving');
@@ -837,16 +541,9 @@ export default function AddFoodScreen() {
         setUnitLabel(detected.unitLabel);
         setServingWeightG(detected.servingWeightG);
         setQuantityInput('1');
-        const result = foodService.scaleMacrosFromQuantity(foodWithServing, 1, 'piece', 'serving');
-        if (result.ok) {
-          computedMacrosRef.current = result.macros;
-          setProtein(String(result.macros.protein_g));
-          setCarbs(String(result.macros.carbs_g));
-          setFat(String(result.macros.fat_g));
-          setScalingReason(null);
-        } else {
-          setScalingReason(result.reason);
-        }
+        applyScalingResult(
+          foodService.scaleMacrosFromQuantity(foodWithServing, 1, 'piece', 'serving')
+        );
       } else if (resolvedFood.unitLabel === 'oz' && resolvedFood.servingWeightGrams) {
         const ozPerG = resolvedFood.servingWeightGrams;
         setUnitKind('mass');
@@ -860,27 +557,11 @@ export default function AddFoodScreen() {
             : String(Math.round(rawOz * 10) / 10);
         setQuantityInput(ozStr);
         const ozValue = parseFloat(ozStr) || rawOz;
-        const result = foodService.scaleMacrosFromQuantity(
-          resolvedFood,
-          ozValue,
-          'oz',
-          'mass'
-        );
-        if (result.ok) {
-          computedMacrosRef.current = result.macros;
-          setProtein(String(result.macros.protein_g));
-          setCarbs(String(result.macros.carbs_g));
-          setFat(String(result.macros.fat_g));
-          setScalingReason(null);
-        } else {
+        const result = foodService.scaleMacrosFromQuantity(resolvedFood, ozValue, 'oz', 'mass');
+        if (!applyScalingResult(result)) {
           const lastGrams = lastGramsFromRecent(resolvedFood);
           const gramsForFallback = lastGrams ?? ozPerG;
-          const macros = foodService.computeMacrosForServing(resolvedFood, gramsForFallback);
-          computedMacrosRef.current = macros;
-          setProtein(String(macros.protein_g));
-          setCarbs(String(macros.carbs_g));
-          setFat(String(macros.fat_g));
-          setScalingReason(null);
+          applyMacros(foodService.computeMacrosForServing(resolvedFood, gramsForFallback));
         }
       } else if (resolvedFood.unitLabel === 'lb' && resolvedFood.servingWeightGrams) {
         const lbPerG = resolvedFood.servingWeightGrams;
@@ -895,115 +576,41 @@ export default function AddFoodScreen() {
             : String(Math.round(rawLb * 10) / 10);
         setQuantityInput(lbStr);
         const lbValue = parseFloat(lbStr) || rawLb;
-        const result = foodService.scaleMacrosFromQuantity(
-          resolvedFood,
-          lbValue,
-          'lb',
-          'mass'
-        );
-        if (result.ok) {
-          computedMacrosRef.current = result.macros;
-          setProtein(String(result.macros.protein_g));
-          setCarbs(String(result.macros.carbs_g));
-          setFat(String(result.macros.fat_g));
-          setScalingReason(null);
-        } else {
+        const result = foodService.scaleMacrosFromQuantity(resolvedFood, lbValue, 'lb', 'mass');
+        if (!applyScalingResult(result)) {
           const lastGrams = lastGramsFromRecent(resolvedFood);
           const gramsForFallback = lastGrams ?? lbPerG;
-          const macros = foodService.computeMacrosForServing(resolvedFood, gramsForFallback);
-          computedMacrosRef.current = macros;
-          setProtein(String(macros.protein_g));
-          setCarbs(String(macros.carbs_g));
-          setFat(String(macros.fat_g));
-          setScalingReason(null);
+          applyMacros(foodService.computeMacrosForServing(resolvedFood, gramsForFallback));
         }
       } else {
         setUnitKind('mass');
         setUnitId('g');
         setQuantityInput('100');
-        const result = foodService.scaleMacrosFromQuantity(resolvedFood, 100, 'g', 'mass');
-        if (result.ok) {
-          computedMacrosRef.current = result.macros;
-          setProtein(String(result.macros.protein_g));
-          setCarbs(String(result.macros.carbs_g));
-          setFat(String(result.macros.fat_g));
-          setScalingReason(null);
-        } else {
-          setScalingReason(result.reason);
-        }
-      }
-
-    },
-    [recentFoods]
-  );
-
-  const handleQuickAdd = useCallback(
-    async (food: NormalizedFood) => {
-      const parsed = parsedInputRef.current;
-      if (!parsed) return;
-
-      const resolvedFood =
-        food.providerId === 'usda' && food.externalId
-          ? (await foodService.getFood(food.externalId)) ?? food
-          : food;
-
-      const detected = detectUnitFromName(resolvedFood.name);
-      const foodWithServing = detected
-        ? { ...resolvedFood, servingWeightGrams: resolvedFood.servingWeightGrams ?? detected.servingWeightG }
-        : resolvedFood;
-
-      const scaling =
-        parsed.unitKind === 'serving'
-          ? foodService.scaleMacrosFromQuantity(
-              { ...foodWithServing, servingWeightGrams: detected?.servingWeightG ?? 100 },
-              parsed.quantity,
-              parsed.unitId,
-              parsed.unitKind
-            )
-          : foodService.scaleMacrosFromQuantity(
-              foodWithServing,
-              parsed.quantity,
-              parsed.unitId,
-              parsed.unitKind
-            );
-
-      if (!scaling.ok) return;
-
-      const entryOpts =
-        parsed.unitKind === 'serving' && detected
-          ? { measureMode: 'qty' as const, quantity: parsed.quantity, servingWeightG: detected.servingWeightG }
-          : parsed.unitId === 'oz'
-            ? { measureMode: 'ounces' as const, quantity: parsed.quantity }
-            : { measureMode: 'grams' as const, quantity: scaling.gramsUsedForScaling };
-
-      const entry = foodService.createFoodEntry(
-        resolvedFood,
-        resolvedFood.name,
-        scaling.gramsUsedForScaling,
-        scaling.macros,
-        false,
-        entryOpts
-      );
-
-      setIsSaving(true);
-      try {
-        addEntry(entry, dateKeyParam);
-        await foodService.addToRecent(resolvedFood, scaling.gramsUsedForScaling);
-        parsedInputRef.current = null;
-        setParsedInput(null);
-        setTextResolvedItem(null);
-        if (Platform.OS !== 'web') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-        router.back();
-      } catch (err) {
-        console.log('[AddFood] Quick add error:', err);
-        Alert.alert('Error', 'Failed to add food. Please try again.');
-      } finally {
-        setIsSaving(false);
+        applyScalingResult(
+          foodService.scaleMacrosFromQuantity(resolvedFood, 100, 'g', 'mass')
+        );
       }
     },
-    [addEntry, dateKeyParam]
+    [
+      recentFoods,
+      applyMacros,
+      applyScalingResult,
+      parsedInputRef,
+      resolveRequestIdRef,
+      setIsCustomized,
+      setIsResolvingText,
+      setName,
+      setParsedInput,
+      setQuantityInput,
+      setQuery,
+      setSelectedFood,
+      setServingWeightG,
+      setShowSuggestions,
+      setTextResolvedItem,
+      setUnitId,
+      setUnitKind,
+      setUnitLabel,
+    ]
   );
 
   const handleConfirmTextResolved = useCallback(async () => {
@@ -1048,66 +655,7 @@ export default function AddFoodScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [textResolvedItem, addEntry, dateKeyParam, saveToLibrary, saveManualToLibrary, isFromSavedFoods]);
-
-  const handleQuantityChange = useCallback(
-    (text: string) => {
-      setQuantityInput(text);
-      const value = parseFloat(text) || 0;
-      if (!selectedFood || value <= 0) return;
-      const foodWithServing =
-        unitKind === 'serving'
-          ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? servingWeightG }
-          : selectedFood;
-      const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unitId, unitKind);
-      if (result.ok) {
-        computedMacrosRef.current = result.macros;
-        setProtein(String(result.macros.protein_g));
-        setCarbs(String(result.macros.carbs_g));
-        setFat(String(result.macros.fat_g));
-        setIsCustomized(false);
-        setScalingReason(null);
-      } else {
-        setScalingReason(result.reason);
-      }
-    },
-    [selectedFood, unitKind, unitId, servingWeightG]
-  );
-
-  const handleServingWeightChange = useCallback(
-    (val: number) => {
-      const g = val > 0 ? val : 50;
-      setServingWeightG(g);
-      const value = parseFloat(quantityInput) || 0;
-      if (!selectedFood || value <= 0) return;
-      const foodWithServing = { ...selectedFood, servingWeightGrams: g };
-      const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, unitId, 'serving');
-      if (result.ok) {
-        computedMacrosRef.current = result.macros;
-        setProtein(String(result.macros.protein_g));
-        setCarbs(String(result.macros.carbs_g));
-        setFat(String(result.macros.fat_g));
-        setIsCustomized(false);
-        setScalingReason(null);
-      } else {
-        setScalingReason(result.reason);
-      }
-    },
-    [selectedFood, quantityInput, unitId]
-  );
-
-  const handleMacroEdit = useCallback(
-    (field: 'protein' | 'carbs' | 'fat', value: string) => {
-      if (field === 'protein') setProtein(value);
-      if (field === 'carbs') setCarbs(value);
-      if (field === 'fat') setFat(value);
-
-      if (selectedFood && computedMacrosRef.current) {
-        setIsCustomized(true);
-      }
-    },
-    [selectedFood]
-  );
+  }, [textResolvedItem, addEntry, dateKeyParam, saveToLibrary, saveManualToLibrary, isFromSavedFoods, parsedInputRef, setParsedInput, setTextResolvedItem]);
 
   const handleSave = useCallback(async () => {
     const foodName = name.trim() || query.trim();
@@ -1213,6 +761,7 @@ export default function AddFoodScreen() {
     unitKind,
     unitId,
     servingWeightG,
+    unitLabel,
     selectedFood,
     isCustomized,
     saveToLibrary,
@@ -1241,25 +790,26 @@ export default function AddFoodScreen() {
       setUnitId('g');
       setQuantityInput('100');
     }
-  }, [query]);
+  }, [
+    query,
+    computedMacrosRef,
+    setIsCustomized,
+    setName,
+    setQuantityInput,
+    setScalingReason,
+    setSelectedFood,
+    setServingWeightG,
+    setShowSuggestions,
+    setUnitId,
+    setUnitKind,
+    setUnitLabel,
+  ]);
 
   const handleClearSelection = useCallback(() => {
-    setSelectedFood(null);
-    setName('');
+    resetForm();
     setQuery('');
-    setProtein('');
-    setCarbs('');
-    setFat('');
-    setUnitKind('mass');
-    setUnitId('g');
-    setQuantityInput('100');
-    setUnitLabel('egg');
-    setServingWeightG(50);
-    setIsCustomized(false);
-    computedMacrosRef.current = null;
-    setScalingReason(null);
     setShowSuggestions(false);
-  }, []);
+  }, [resetForm, setQuery, setShowSuggestions]);
 
   const handleSelectRecent = useCallback(
     (food: NormalizedFood, lastGrams: number) => {
@@ -1334,80 +884,51 @@ export default function AddFoodScreen() {
       setCarbs(String(macros.carbs_g));
       setFat(String(macros.fat_g));
       setScalingReason(result.ok ? null : result.reason);
-
     },
-    []
+    [
+      computedMacrosRef,
+      setCarbs,
+      setFat,
+      setIsCustomized,
+      setName,
+      setProtein,
+      setQuantityInput,
+      setQuery,
+      setScalingReason,
+      setSelectedFood,
+      setServingWeightG,
+      setShowSuggestions,
+      setUnitId,
+      setUnitKind,
+      setUnitLabel,
+    ]
   );
 
   const handleKindChange = useCallback(
     (k: UnitKind) => {
-      setUnitKind(k);
-      if (k === 'mass') {
-        setUnitId('g');
-      } else if (k === 'volume') {
-        setUnitId('ml');
-      } else {
-        setUnitId('serving');
-        // Update serving label/weight from the current food name (Bug B fix)
-        const detected = detectUnitFromName(name || query);
-        if (detected) {
-          setUnitLabel(detected.unitLabel);
-          setServingWeightG(detected.servingWeightG);
-        }
-      }
-      // Don't recalculate if user has manually edited macros (Bug C fix)
-      if (isCustomized) return;
-      const value = parseFloat(quantityInput) || 0;
-      const newUnit = k === 'mass' ? 'g' : k === 'volume' ? 'ml' : 'serving';
-      const effectiveSwg =
-        k === 'serving'
-          ? (detectUnitFromName(name || query)?.servingWeightG ?? servingWeightG)
-          : servingWeightG;
-      const foodWithServing: NormalizedFood | null =
-        k === 'serving' && selectedFood
-          ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? effectiveSwg }
-          : selectedFood;
-      if (foodWithServing && value > 0) {
-        const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, newUnit, k);
-        if (result.ok) {
-          computedMacrosRef.current = result.macros;
-          setProtein(String(result.macros.protein_g));
-          setCarbs(String(result.macros.carbs_g));
-          setFat(String(result.macros.fat_g));
-          setScalingReason(null);
-        } else {
-          setScalingReason(result.reason);
-        }
-      }
+      handleKindChangeForm(k, name || query);
     },
-    [quantityInput, selectedFood, servingWeightG, isCustomized, name, query]
+    [handleKindChangeForm, name, query]
   );
 
-  const handleUnitChange = useCallback(
-    (u: UnitId) => {
-      setUnitId(u);
-      // Don't recalculate if user has manually edited macros (Bug C fix)
-      if (isCustomized) return;
-      const value = parseFloat(quantityInput) || 0;
-      const foodWithServing: NormalizedFood | null =
-        unitKind === 'serving' && selectedFood
-          ? { ...selectedFood, servingWeightGrams: selectedFood.servingWeightGrams ?? servingWeightG }
-          : selectedFood;
-      if (foodWithServing && value > 0) {
-        const result = foodService.scaleMacrosFromQuantity(foodWithServing, value, u, unitKind);
-        if (result.ok) {
-          computedMacrosRef.current = result.macros;
-          setProtein(String(result.macros.protein_g));
-          setCarbs(String(result.macros.carbs_g));
-          setFat(String(result.macros.fat_g));
-          setScalingReason(null);
-        } else {
-          setScalingReason(result.reason);
-        }
-      }
+  const handleToggleOtherResults = useCallback(() => {
+    setShowOtherResults((v) => !v);
+  }, [setShowOtherResults]);
+
+  const handleDismissUnresolved = useCallback(
+    (id: string) => {
+      setDismissedUnresolvedIds((prev) => [...prev, id]);
     },
-    [quantityInput, unitKind, selectedFood, servingWeightG, isCustomized]
+    [setDismissedUnresolvedIds]
   );
+
+  const handleToggleSaveToLibrary = useCallback(() => {
+    setSaveToLibrary((v) => !v);
+  }, []);
+
+  const handleCloseVoiceModal = useCallback(() => {
+    setVoiceModalVisible(false);
+  }, [setVoiceModalVisible]);
 
   const searchShellStyle = {
     height: scannerAnim.interpolate({
@@ -1610,143 +1131,20 @@ export default function AddFoodScreen() {
             </View>
           </View>
 
-          {showSuggestions && (textResolvedItem || isResolvingText || suggestions.length > 0) && (() => {
-            const parsed = parsedInput;
-            // Derive unit label for "other results" scaled macros (no resolver)
-            const otherUnitLabel =
-              parsed?.unitId === 'fl_oz'
-                ? 'fl oz'
-                : parsed?.unitId ?? '';
-
-            // Resolved quantity and unit for the best-match card header
-            const resolvedQtyDisplay = textResolvedItem?.quantity ?? 0;
-            const resolvedUnitLabel = textResolvedItem?.displayUnit ?? '';
-
-            return (
-            <View style={styles.suggestionsSection}>
-              {/* ── Best Match Card (voice-resolver result) ── */}
-              {(isResolvingText || textResolvedItem) && (
-                <View style={styles.quickAddSection}>
-                  {isResolvingText ? (
-                    <View style={styles.resolvingRow}>
-                      <ActivityIndicator size="small" color={colors.primary} />
-                      <Text style={styles.resolvingText}>Finding best match…</Text>
-                    </View>
-                  ) : textResolvedItem ? (
-                    <>
-                      <Text style={styles.quickAddHeader}>
-                        BEST MATCH
-                      </Text>
-                      <PhysiqPressable
-                        feedback="confirm"
-                        style={styles.quickAddCard}
-                        onPress={handleConfirmTextResolved}
-                        disabled={isSaving}
-                        testID="quick-add-card"
-                      >
-                        <View style={styles.quickAddContent}>
-                          <Text style={styles.quickAddAmountLabel}>
-                            {resolvedQtyDisplay} {resolvedUnitLabel}
-                          </Text>
-                          <Text style={styles.quickAddTitle} numberOfLines={2}>
-                            {textResolvedItem.displayName}
-                          </Text>
-                          <Text style={styles.quickAddMacros}>
-                            {formatNumber(textResolvedItem.macros.calories)} cal ·{' '}
-                            {formatNumber(textResolvedItem.macros.protein_g)}p ·{' '}
-                            {formatNumber(textResolvedItem.macros.carbs_g)}c ·{' '}
-                            {formatNumber(textResolvedItem.macros.fat_g)}f
-                          </Text>
-                        </View>
-                        <View style={[styles.quickAddButton, { backgroundColor: colors.primary }]}>
-                          <Text style={styles.quickAddButtonText}>+ Add</Text>
-                        </View>
-                      </PhysiqPressable>
-
-                      {/* ── Other Results toggle ── */}
-                      {suggestions.length > 0 && (
-                        <PhysiqPressable
-                          feedback="tap"
-                          style={styles.otherResultsToggle}
-                          onPress={() => setShowOtherResults(v => !v)}
-                        >
-                          <Text style={styles.otherResultsToggleText}>
-                            {showOtherResults ? 'Hide other results ▲' : 'Other results ▼'}
-                          </Text>
-                        </PhysiqPressable>
-                      )}
-                    </>
-                  ) : null}
-                </View>
-              )}
-
-              {/* ── Suggestion list (always shown when no resolver is active; toggled otherwise) ── */}
-              {(!textResolvedItem && !isResolvingText) || showOtherResults ? (
-                suggestions.map((food) => {
-                  const cardDetected = parsed?.unitKind === 'serving' ? detectUnitFromName(food.name) : null;
-                  const cardFood =
-                    cardDetected && parsed?.unitKind === 'serving'
-                      ? { ...food, servingWeightGrams: food.servingWeightGrams ?? cardDetected.servingWeightG }
-                      : food;
-                  const cardScaling = parsed
-                    ? foodService.scaleMacrosFromQuantity(cardFood, parsed.quantity, parsed.unitId, parsed.unitKind)
-                    : null;
-                  const showScaled = cardScaling?.ok;
-
-                  return (
-                    <PhysiqPressable
-                      key={food.id}
-                      feedback="select"
-                      style={styles.suggestionCard}
-                      onPress={() => handleSelectSuggestion(food)}
-                      testID={`suggestion-${food.id}`}
-                    >
-                      <View style={styles.suggestionInfo}>
-                        <Text style={styles.suggestionName} numberOfLines={1}>
-                          {food.name}
-                        </Text>
-                        {food.brand ? (
-                          <Text style={styles.suggestionBrand} numberOfLines={1}>
-                            {food.brand}
-                          </Text>
-                        ) : null}
-                        {showScaled && cardScaling ? (
-                          <Text style={styles.suggestionMacros}>
-                            {formatNumber(cardScaling.macros.calories)} cal ·{' '}
-                            {formatNumber(cardScaling.macros.protein_g)}p ·{' '}
-                            {formatNumber(cardScaling.macros.carbs_g)}c ·{' '}
-                            {formatNumber(cardScaling.macros.fat_g)}f
-                            {'  '}
-                            <Text style={styles.suggestionMacrosFor}>
-                              for {parsed?.quantity} {otherUnitLabel}
-                            </Text>
-                          </Text>
-                        ) : (
-                          <Text style={styles.suggestionMacros}>
-                            {formatNumber(food.per100g.calories)} cal · {formatNumber(food.per100g.protein_g)}p ·{' '}
-                            {formatNumber(food.per100g.carbs_g)}c · {formatNumber(food.per100g.fat_g)}f per 100g
-                          </Text>
-                        )}
-                      </View>
-                      <ChevronRight size={16} color={Colors.textTertiary} />
-                    </PhysiqPressable>
-                  );
-                })
-              ) : null}
-
-              <PhysiqPressable
-                feedback="tap"
-                style={styles.manualFallback}
-                onPress={handleManualMode}
-              >
-                <Pencil size={14} color={colors.primary} />
-                <Text style={styles.manualFallbackText}>
-                  Can't find it? Enter manually
-                </Text>
-              </PhysiqPressable>
-            </View>
-            );
-          })()}
+          {showSuggestions && (textResolvedItem || isResolvingText || suggestions.length > 0) && (
+            <SuggestionsSection
+              suggestions={suggestions}
+              parsedInput={parsedInput}
+              textResolvedItem={textResolvedItem}
+              isResolvingText={isResolvingText}
+              showOtherResults={showOtherResults}
+              onToggleOtherResults={handleToggleOtherResults}
+              isSaving={isSaving}
+              onConfirmTextResolved={handleConfirmTextResolved}
+              onSelectSuggestion={handleSelectSuggestion}
+              onManualMode={handleManualMode}
+            />
+          )}
 
           {showSuggestions &&
             !isSearching &&
@@ -1826,14 +1224,9 @@ export default function AddFoodScreen() {
                         setUnitId('g');
                         setQuantityInput('100');
                         if (selectedFood) {
-                          const result = foodService.scaleMacrosFromQuantity(selectedFood, 100, 'g', 'mass');
-                          if (result.ok) {
-                            computedMacrosRef.current = result.macros;
-                            setProtein(String(result.macros.protein_g));
-                            setCarbs(String(result.macros.carbs_g));
-                            setFat(String(result.macros.fat_g));
-                            setScalingReason(null);
-                          }
+                          applyScalingResult(
+                            foodService.scaleMacrosFromQuantity(selectedFood, 100, 'g', 'mass')
+                          );
                         }
                       }
                     }}
@@ -1844,14 +1237,9 @@ export default function AddFoodScreen() {
                             setUnitId('g');
                             setQuantityInput('100');
                             if (selectedFood) {
-                              const result = foodService.scaleMacrosFromQuantity(selectedFood, 100, 'g', 'mass');
-                              if (result.ok) {
-                                computedMacrosRef.current = result.macros;
-                                setProtein(String(result.macros.protein_g));
-                                setCarbs(String(result.macros.carbs_g));
-                                setFat(String(result.macros.fat_g));
-                                setScalingReason(null);
-                              }
+                              applyScalingResult(
+                                foodService.scaleMacrosFromQuantity(selectedFood, 100, 'g', 'mass')
+                              );
                             }
                           }
                         : undefined
@@ -1881,11 +1269,7 @@ export default function AddFoodScreen() {
                     const value = parseFloat(quantityInput) || 0;
                     const result = foodService.scaleMacrosFromQuantity(updated, value, unitId, unitKind);
                     if (result.ok) {
-                      computedMacrosRef.current = result.macros;
-                      setProtein(String(result.macros.protein_g));
-                      setCarbs(String(result.macros.carbs_g));
-                      setFat(String(result.macros.fat_g));
-                      setScalingReason(null);
+                      applyScalingResult(result);
                     }
                   }}
                   onCancel={() => setShowDensityModal(false)}
@@ -1949,7 +1333,7 @@ export default function AddFoodScreen() {
                   <PhysiqPressable
                     feedback="select"
                     style={styles.saveToLibraryRow}
-                    onPress={() => setSaveToLibrary((v) => !v)}
+                    onPress={handleToggleSaveToLibrary}
                   >
                     <Bookmark
                       size={18}
@@ -2024,7 +1408,7 @@ export default function AddFoodScreen() {
                 {isSaving ? (
                   <ActivityIndicator size="small" color={colors.onPrimary} />
                 ) : (
-                  <Text style={styles.saveButtonText}>Add to Today's Log</Text>
+                  <Text style={styles.saveButtonText}>Add to Today&apos;s Log</Text>
                 )}
               </PhysiqPressable>
             </View>
@@ -2034,247 +1418,29 @@ export default function AddFoodScreen() {
             !selectedFood &&
             query.length === 0 &&
             (recentFoods.length > 0 || savedFoods.length > 0) && (
-              <View style={styles.recentsSection}>
-                {recentFoods.length > 0 && (
-                  <>
-                    <View style={styles.recentHeader}>
-                      <Clock size={14} color={Colors.textSecondary} />
-                      <Text style={styles.recentTitle}>Recent</Text>
-                    </View>
-                    {recentFoods.slice(0, 10).map((item) => (
-                      <PhysiqPressable
-                        key={item.food.id}
-                        feedback="select"
-                        style={styles.recentCard}
-                        onPress={() =>
-                          handleSelectRecent(item.food, item.lastServingGrams)
-                        }
-                      >
-                        <View style={styles.recentInfo}>
-                          <Text style={styles.recentName} numberOfLines={1}>
-                            {item.food.name}
-                          </Text>
-                          <Text style={styles.recentMeta}>
-                            {item.lastServingGrams}g ·{' '}
-                            {formatNumber(
-                              (item.food.per100g.calories * item.lastServingGrams) /
-                                100
-                            )}{' '}
-                            cal
-                          </Text>
-                        </View>
-                        <ChevronRight size={16} color={Colors.textTertiary} />
-                      </PhysiqPressable>
-                    ))}
-                  </>
-                )}
-                {savedFoods.length > 0 && (
-                  <>
-                    <View style={[styles.recentHeader, { marginTop: recentFoods.length > 0 ? 20 : 0 }]}>
-                      <Scan size={14} color={Colors.textSecondary} />
-                      <Text style={styles.recentTitle}>Saved Foods</Text>
-                    </View>
-                    {savedFoods.slice(0, 10).map((food) => (
-                      <PhysiqPressable
-                        key={food.id}
-                        feedback="select"
-                        style={styles.recentCard}
-                        onPress={() => handleSelectSuggestion(food)}
-                      >
-                        <View style={styles.recentInfo}>
-                          <Text style={styles.recentName} numberOfLines={1}>
-                            {food.name}
-                          </Text>
-                          <Text style={styles.recentMeta}>
-                            {formatNumber(food.per100g.calories)} cal ·{' '}
-                            {formatNumber(food.per100g.protein_g)}p ·{' '}
-                            {formatNumber(food.per100g.carbs_g)}c ·{' '}
-                            {formatNumber(food.per100g.fat_g)}f per 100g
-                          </Text>
-                        </View>
-                        <ChevronRight size={16} color={Colors.textTertiary} />
-                      </PhysiqPressable>
-                    ))}
-                  </>
-                )}
-              </View>
+              <RecentsSection
+                recentFoods={recentFoods}
+                savedFoods={savedFoods}
+                onSelectRecent={handleSelectRecent}
+                onSelectSaved={handleSelectSuggestion}
+              />
             )}
           </ResponsiveContainer>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
+      <VoiceMealReviewModal
         visible={voiceModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setVoiceModalVisible(false)}
-      >
-        <PhysiqPressable feedback="tap" style={styles.voiceModalOverlay} onPress={() => setVoiceModalVisible(false)}>
-          <Pressable style={styles.voiceModalSheet} onPress={() => {}}>
-            <Text style={styles.voiceModalTitle}>Review Spoken Meal</Text>
-            <Text style={styles.voiceModalSubtitle}>
-              Check the items and macros before adding to your log.
-            </Text>
-
-            {voiceMealDraft && (() => {
-              const activeUnresolved = voiceMealDraft.unresolved.filter(
-                (u) => !dismissedUnresolvedIds.includes(u.id)
-              );
-              const hasResolved = voiceMealDraft.items.length > 0;
-              const confirmLabel = hasResolved && activeUnresolved.length > 0
-                ? `Add ${voiceMealDraft.items.length} item${voiceMealDraft.items.length !== 1 ? 's' : ''} to Log`
-                : 'Confirm and Add';
-
-              return (
-                <>
-                  <View style={styles.voiceTranscriptCard}>
-                    <Text style={styles.voiceTranscriptLabel}>Transcript</Text>
-                    <Text style={styles.voiceTranscriptModalText}>{voiceMealDraft.transcript}</Text>
-                  </View>
-
-                  <ScrollView
-                    style={styles.voiceItemsScroll}
-                    contentContainerStyle={styles.voiceItemsContent}
-                    showsVerticalScrollIndicator={false}
-                  >
-                    {voiceMealDraft.items.map((item) => (
-                      <View key={item.id} style={styles.voiceItemCard}>
-                        <View style={styles.voiceItemHeader}>
-                          <View style={styles.voiceItemNameRow}>
-                            <Text style={styles.voiceItemName} numberOfLines={2}>
-                              {item.quantity} {item.displayUnit} {item.displayName}
-                            </Text>
-                            {item.confidence !== 'high' && (
-                              <View
-                                style={[
-                                  styles.voiceConfidenceBadge,
-                                  item.confidence === 'medium'
-                                    ? styles.voiceConfidenceMedium
-                                    : styles.voiceConfidenceLow,
-                                ]}
-                              >
-                                <Text style={styles.voiceConfidenceText}>
-                                  {item.confidence === 'medium' ? '~match' : '?match'}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text style={styles.voiceItemCalories}>
-                            {formatNumber(item.macros.calories)} cal
-                          </Text>
-                        </View>
-                        <Text style={styles.voiceItemMacros}>
-                          {formatNumber(item.macros.protein_g)}p · {formatNumber(item.macros.carbs_g)}c · {formatNumber(item.macros.fat_g)}f
-                        </Text>
-                        {item.confidence !== 'high' && item.alternatives.length > 0 && (
-                          <Text style={styles.voiceAlternativesHint}>
-                            {item.alternatives.length} alternative{item.alternatives.length > 1 ? 's' : ''} available — retake to refine
-                          </Text>
-                        )}
-                      </View>
-                    ))}
-
-                    {activeUnresolved.length > 0 && (
-                      <View style={styles.voiceUnresolvedCard}>
-                        <Text style={styles.voiceUnresolvedTitle}>Could not resolve</Text>
-                        {activeUnresolved.map((item) => (
-                          <View key={item.id} style={styles.voiceUnresolvedRow}>
-                            <View style={styles.voiceUnresolvedInfo}>
-                              <Text style={styles.voiceUnresolvedLabel}>{item.label}</Text>
-                              <Text style={styles.voiceUnresolvedReason}>{item.reason}</Text>
-                            </View>
-                            <PhysiqPressable
-                              feedback="tap"
-                              onPress={() =>
-                                setDismissedUnresolvedIds((prev) => [...prev, item.id])
-                              }
-                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                              accessibilityLabel={`Dismiss ${item.label}`}
-                            >
-                              <X size={16} color={Colors.textTertiary} />
-                            </PhysiqPressable>
-                          </View>
-                        ))}
-                        {hasResolved && (
-                          <Text style={styles.voiceUnresolvedDismissHint}>
-                            Tap × to dismiss and add the rest
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </ScrollView>
-
-                  <View style={styles.voiceTotalsCard}>
-                    <Text style={styles.voiceTotalsTitle}>Meal totals</Text>
-                    <Text style={styles.voiceTotalsValue}>
-                      {formatNumber(voiceMealDraft.totals.calories)} cal · {formatNumber(voiceMealDraft.totals.protein_g)}p · {formatNumber(voiceMealDraft.totals.carbs_g)}c · {formatNumber(voiceMealDraft.totals.fat_g)}f
-                    </Text>
-                  </View>
-
-                  {!isFromSavedFoods && (
-                    <PhysiqPressable
-                      feedback="select"
-                      style={styles.saveToLibraryRow}
-                      onPress={() => setSaveToLibrary((v) => !v)}
-                    >
-                      <Bookmark
-                        size={18}
-                        color={saveToLibrary ? colors.primary : Colors.textTertiary}
-                      />
-                      <Text
-                        style={[
-                          styles.saveToLibraryText,
-                          saveToLibrary && styles.saveToLibraryTextActive,
-                        ]}
-                      >
-                        Save to Saved Foods
-                      </Text>
-                      <View
-                        style={[
-                          styles.toggleTrack,
-                          saveToLibrary && styles.toggleTrackActive,
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.toggleThumb,
-                            saveToLibrary && styles.toggleThumbActive,
-                          ]}
-                        />
-                      </View>
-                    </PhysiqPressable>
-                  )}
-
-                  <View style={styles.voiceModalActions}>
-                    <PhysiqPressable
-                      feedback="tap"
-                      style={styles.voiceSecondaryButton}
-                      onPress={() => setVoiceModalVisible(false)}
-                    >
-                      <Text style={styles.voiceSecondaryButtonText}>Cancel</Text>
-                    </PhysiqPressable>
-                    <PhysiqPressable
-                      feedback="confirm"
-                      style={[
-                        styles.voicePrimaryButton,
-                        (!hasResolved || isSaving) && styles.voicePrimaryButtonDisabled,
-                      ]}
-                      onPress={handleConfirmVoiceMeal}
-                      disabled={!hasResolved || isSaving}
-                    >
-                      {isSaving ? (
-                        <ActivityIndicator size="small" color={colors.onPrimary} />
-                      ) : (
-                        <Text style={styles.voicePrimaryButtonText}>{confirmLabel}</Text>
-                      )}
-                    </PhysiqPressable>
-                  </View>
-                </>
-              );
-            })()}
-          </Pressable>
-        </PhysiqPressable>
-      </Modal>
+        draft={voiceMealDraft}
+        dismissedUnresolvedIds={dismissedUnresolvedIds}
+        onDismissUnresolved={handleDismissUnresolved}
+        showSaveToLibrary={!isFromSavedFoods}
+        saveToLibrary={saveToLibrary}
+        onToggleSaveToLibrary={handleToggleSaveToLibrary}
+        isSaving={isSaving}
+        onClose={handleCloseVoiceModal}
+        onConfirm={handleConfirmVoiceMeal}
+      />
     </View>
     </DismissKeyboard>
   );
@@ -2400,322 +1566,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '600' as const,
   },
-  voiceModalOverlay: {
-    flex: 1,
-    backgroundColor: Colors.overlay,
-    justifyContent: 'flex-end',
-  },
-  voiceModalSheet: {
-    backgroundColor: Colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 32,
-    maxHeight: '82%',
-  },
-  voiceModalTitle: {
-    color: Colors.text,
-    fontSize: 20,
-    fontWeight: '800' as const,
-  },
-  voiceModalSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 6,
-  },
-  voiceTranscriptCard: {
-    backgroundColor: Colors.cardElevated,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    padding: 14,
-    marginTop: 16,
-  },
-  voiceTranscriptLabel: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  voiceTranscriptModalText: {
-    color: Colors.text,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  voiceItemsScroll: {
-    marginTop: 14,
-    maxHeight: 280,
-  },
-  voiceItemsContent: {
-    gap: 10,
-  },
-  voiceItemCard: {
-    backgroundColor: Colors.cardElevated,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    padding: 14,
-  },
-  voiceItemHeader: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'flex-start',
-  },
-  voiceItemNameRow: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 6,
-  },
-  voiceItemName: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '700' as const,
-    flexShrink: 1,
-  },
-  voiceConfidenceBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  voiceConfidenceMedium: {
-    backgroundColor: Colors.warningMuted,
-  },
-  voiceConfidenceLow: {
-    backgroundColor: Colors.dangerMuted,
-  },
-  voiceConfidenceText: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    color: Colors.textSecondary,
-  },
-  voiceAlternativesHint: {
-    color: Colors.textTertiary,
-    fontSize: 11,
-    fontWeight: '500' as const,
-    marginTop: 6,
-  },
-  voiceItemCalories: {
-    color: Colors.calories,
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  voiceItemMacros: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500' as const,
-    marginTop: 6,
-  },
-  voiceUnresolvedCard: {
-    backgroundColor: Colors.dangerMuted,
-    borderRadius: 12,
-    padding: 14,
-  },
-  voiceUnresolvedTitle: {
-    color: Colors.danger,
-    fontSize: 13,
-    fontWeight: '700' as const,
-    marginBottom: 8,
-  },
-  voiceUnresolvedRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginTop: 6,
-  },
-  voiceUnresolvedInfo: {
-    flex: 1,
-  },
-  voiceUnresolvedLabel: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  voiceUnresolvedReason: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  voiceUnresolvedDismissHint: {
-    color: Colors.textTertiary,
-    fontSize: 11,
-    fontWeight: '500' as const,
-    marginTop: 10,
-  },
-  voiceTotalsCard: {
-    backgroundColor: colors.primaryMuted,
-    borderRadius: 14,
-    padding: 14,
-    marginTop: 16,
-  },
-  voiceTotalsTitle: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  voiceTotalsValue: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '700' as const,
-    marginTop: 6,
-  },
-  voiceModalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 18,
-  },
-  voiceSecondaryButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    paddingVertical: 15,
-    backgroundColor: Colors.cardElevated,
-  },
-  voiceSecondaryButtonText: {
-    color: Colors.textSecondary,
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  voicePrimaryButton: {
-    flex: 1.3,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 15,
-    backgroundColor: colors.primary,
-  },
-  voicePrimaryButtonDisabled: {
-    opacity: 0.45,
-  },
-  voicePrimaryButtonText: {
-    color: colors.onPrimary,
-    fontSize: 15,
-    fontWeight: '800' as const,
-  },
-  suggestionsSection: {
-    marginBottom: 8,
-  },
-  suggestionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  suggestionInfo: {
-    flex: 1,
-  },
-  suggestionName: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  suggestionBrand: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500' as const,
-    marginTop: 1,
-  },
-  suggestionMacros: {
-    color: Colors.textTertiary,
-    fontSize: 11,
-    fontWeight: '500' as const,
-    marginTop: 3,
-  },
-  quickAddSection: {
-    marginBottom: 12,
-  },
-  quickAddHeader: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '600' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-    marginBottom: 6,
-    paddingHorizontal: 2,
-  },
-  quickAddCard: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
-    borderWidth: 2,
-    borderRadius: 14,
-    padding: 14,
-  },
-  quickAddContent: {
-    flex: 1,
-  },
-  quickAddTitle: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '700' as const,
-  },
-  quickAddMacros: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '600' as const,
-    marginTop: 4,
-  },
-  quickAddForLabel: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500' as const,
-  },
-  quickAddButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginLeft: 12,
-  },
-  quickAddButtonText: {
-    color: colors.onPrimary,
-    fontSize: 15,
-    fontWeight: '700' as const,
-  },
-  quickAddAmountLabel: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: '600' as const,
-    marginBottom: 2,
-  },
-  resolvingRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-    paddingVertical: 12,
-  },
-  resolvingText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
-  otherResultsToggle: {
-    paddingVertical: 10,
-    alignItems: 'center' as const,
-  },
-  otherResultsToggleText: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  suggestionMacrosFor: {
-    color: Colors.textTertiary,
-    fontSize: 11,
-    fontWeight: '500' as const,
-  },
   manualFallback: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2787,69 +1637,6 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   servingSection: {
     marginBottom: 16,
-  },
-  servingControlRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  servingToggle: {
-    flex: 3,
-  },
-  servingTextInput: {
-    flex: 2,
-    minWidth: 80,
-    backgroundColor: Colors.inputBg,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '600' as const,
-    textAlign: 'center' as const,
-  },
-  perItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 12,
-  },
-  perItemLabel: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  perItemInput: {
-    width: 70,
-    backgroundColor: Colors.inputBg,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '600' as const,
-    textAlign: 'center' as const,
-  },
-  perItemUnit: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  servingHelper: {
-    color: Colors.textTertiary,
-    fontSize: 12,
-    fontWeight: '500' as const,
-    marginTop: 6,
-  },
-  servingUnit: {
-    color: Colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '600' as const,
-    marginLeft: 10,
   },
   macroInputRow: {
     flexDirection: 'row',
@@ -2961,45 +1748,5 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '700' as const,
-  },
-  recentsSection: {
-    marginTop: 12,
-  },
-  recentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-  },
-  recentTitle: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  recentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  recentInfo: {
-    flex: 1,
-  },
-  recentName: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  recentMeta: {
-    color: Colors.textTertiary,
-    fontSize: 12,
-    fontWeight: '500' as const,
-    marginTop: 2,
   },
 });
