@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { Text, StyleSheet, Animated } from 'react-native';
-import Colors from '../../constants/colors';
 import { getGreeting, getMotivationHook, ProgressLevel } from '../../utils/greeting';
 import { useFadeIn } from '../../utils/motion';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import { Type } from '../../theme/tokens';
 
 interface GreetingHeaderProps {
   firstName?: string | null;
@@ -65,16 +65,16 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   greeting: {
     fontSize: 24,
+    lineHeight: 30,
     fontWeight: '800' as const,
-    color: Colors.text,
+    color: colors.text,
   },
   greetingCompact: {
     fontSize: 20,
   },
   hook: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-    color: Colors.textTertiary,
+    ...Type.bodySm,
+    color: colors.textTertiary,
     marginTop: 2,
   },
   status: {
@@ -91,14 +91,14 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flexShrink: 1,
   },
   greetingCompactInline: {
-    fontSize: 20,
-    fontWeight: '800' as const,
-    color: Colors.text,
+    ...Type.title,
+    color: colors.text,
     flexShrink: 1,
   },
   statusInline: {
+    ...Type.numeric,
     fontSize: 13,
-    fontWeight: '600' as const,
+    lineHeight: 17,
     color: colors.primary,
     flexShrink: 0,
   },

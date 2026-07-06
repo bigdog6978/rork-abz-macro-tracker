@@ -8,7 +8,6 @@ import React, { memo, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { X } from 'lucide-react-native';
-import Colors from '../../constants/colors';
 import { Radius, Shadows } from '../../theme/tokens';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 import PhysiqPressable from '../ui/PhysiqPressable';
@@ -56,7 +55,7 @@ function LogCoachMark({ entryCount }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Dismiss tip"
         >
-          <X size={14} color={Colors.textTertiary} />
+          <X size={14} color={colors.textTertiary} />
         </PhysiqPressable>
       </View>
       <View style={styles.arrow} />
@@ -77,7 +76,7 @@ const createStyles = (colors: AppColors) =>
       alignItems: 'center',
       gap: 10,
       maxWidth: 260,
-      backgroundColor: Colors.cardElevated,
+      backgroundColor: colors.cardElevated,
       borderColor: colors.primary,
       borderWidth: 1,
       borderRadius: Radius.md,
@@ -87,7 +86,7 @@ const createStyles = (colors: AppColors) =>
     },
     text: {
       flexShrink: 1,
-      color: Colors.text,
+      color: colors.text,
       fontSize: 13,
       fontWeight: '600' as const,
       lineHeight: 18,
