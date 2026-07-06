@@ -6,18 +6,9 @@ import { useDailyLog } from '../providers/DailyLogProvider';
 import { useThemeColors } from '../providers/ThemeProvider';
 import { usePro } from '../providers/ProProvider';
 import { useDashboardTargets } from '../hooks/useDashboardTargets';
-import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS } from '../types';
-import Colors from '../constants/colors';
 import { processVoiceMealTranscript } from '../features/food/processVoiceMealTranscript';
 import * as foodService from '../features/food/foodService';
-import type { ProDayType } from '../features/pro/types';
-import { DAY_TYPE_OVERRIDE_LABELS } from '../features/pro/constants';
-
-const DAY_TYPE_LABELS: Record<ProDayType, string> = {
-  workout_day: 'Workout day',
-  high_activity_day: 'High activity',
-  rest_day: 'Rest day',
-};
+import { buildWatchSnapshotPayload } from '../features/pro/buildWatchSnapshot';
 
 const VOICE_FEEDBACK_TTL_MS = 45_000;
 
@@ -51,90 +42,39 @@ export default function PhysiqWatchSync() {
   }, []);
 
   const payload = useMemo((): Record<string, string> => {
-    const caloriesRemaining = Math.max(targets.calories - todayTotals.calories, 0);
-    const streak = getStreak();
-    const eatingStyle = EATING_STYLE_LABELS[profile.eatingStyle] ?? 'Standard';
-    const modifiers = (profile.dietModifiers ?? [])
-      .map((m) => DIETARY_MODIFIER_LABELS[m])
-      .filter(Boolean);
-    const dietLine = [eatingStyle, ...modifiers].join(' · ');
-    const round1 = (n: number) => String(Math.round(n * 10) / 10);
-    const syncState = profile.onboardingComplete ? 'ready' : 'onboarding_incomplete';
-    const syncMessage = profile.onboardingComplete
-      ? ''
-      : 'Finish onboarding on iPhone to sync macro targets.';
-    const dayTypeLabel = DAY_TYPE_LABELS[inferredDayType] ?? inferredDayType;
-    const dayTypeOverride = settings.dayTypeOverride ?? 'auto';
-    const dayTypeOverrideLabel = DAY_TYPE_OVERRIDE_LABELS[dayTypeOverride];
-    const dayTypeSource = dayTypeOverride !== 'auto' ? 'override' : 'inferred';
-    const healthLine = healthSignals
-      ? `${Math.round(healthSignals.activeEnergyKcal)} kcal active · ${healthSignals.workoutMinutes} min training`
-      : '';
-
     if (__DEV__ && !profile.onboardingComplete) {
       console.log('[PhysiqWatchSync] sending degraded payload: onboarding incomplete');
     }
 
-    return {
-      caloriesRemaining: String(Math.round(caloriesRemaining)),
-      caloriesTarget: String(Math.round(targets.calories)),
-      caloriesConsumed: String(Math.round(todayTotals.calories)),
-      proteinConsumed: round1(todayTotals.protein_g),
-      proteinTarget: round1(targets.protein_g),
-      carbsConsumed: round1(todayTotals.carbs_g),
-      carbsTarget: round1(targets.carbs_g),
-      fatConsumed: round1(todayTotals.fat_g),
-      fatTarget: round1(targets.fat_g),
-      hydrationConsumedMl: String(Math.round(hydration.consumedMl)),
-      hydrationTargetMl: String(Math.round(hydration.targetMl)),
-      hydration: `${Math.round(hydration.consumedMl)}/${Math.round(hydration.targetMl)} ml`,
+    // Payload construction lives in buildWatchSnapshotPayload so the
+    // background refresh task produces an identical snapshot.
+    return buildWatchSnapshotPayload({
+      profile,
+      targets,
+      totals: todayTotals,
+      streak: getStreak(),
+      hydrationConsumedMl: hydration.consumedMl,
+      hydrationTargetMl: hydration.targetMl,
       hydrationUnit,
-      streak: String(streak),
-      firstName: profile.firstName ?? '',
-      eatingStyle,
-      dietLine,
       primaryHex: colors.primary,
-      proteinHex: Colors.protein,
-      carbsHex: Colors.carbs,
-      fatHex: Colors.fat,
-      hydrationHex: Colors.hydration,
-      tier: 'unlocked',
-      athleteSport: athleteProfile.enabled ? athleteProfile.sport : '',
-      syncState,
-      syncMessage,
-      dayType: inferredDayType,
-      dayTypeLabel,
-      dayTypeOverride,
-      dayTypeOverrideLabel,
-      dayTypeSource,
-      healthConnected: healthConnectionStatus === 'connected' ? '1' : '0',
-      activeEnergyKcal: healthSignals ? String(Math.round(healthSignals.activeEnergyKcal)) : '0',
-      workoutMinutes: healthSignals ? String(healthSignals.workoutMinutes) : '0',
-      healthLine,
+      athleteProfile,
+      settings,
+      inferredDayType,
+      healthSignals,
+      healthConnected: healthConnectionStatus === 'connected',
       voiceMealFeedback,
-    };
+    });
   }, [
-    profile.firstName,
-    profile.onboardingComplete,
-    profile.eatingStyle,
-    profile.dietModifiers,
-    targets.calories,
-    targets.protein_g,
-    targets.carbs_g,
-    targets.fat_g,
-    todayTotals.calories,
-    todayTotals.protein_g,
-    todayTotals.carbs_g,
-    todayTotals.fat_g,
+    profile,
+    targets,
+    todayTotals,
     colors.primary,
     hydration.consumedMl,
     hydration.targetMl,
     hydrationUnit,
-    athleteProfile.enabled,
-    athleteProfile.sport,
+    athleteProfile,
     inferredDayType,
-    settings.dayTypeOverride,
-    settings.dynamicMacrosEnabled,
+    settings,
     targetSource,
     healthSignals,
     healthConnectionStatus,

@@ -36,11 +36,10 @@ import {
 } from '../features/pro/types';
 import { defaultHydrationUnit } from '../utils/hydration';
 import {
-  applyAthleteAdjustments,
-  applyProAdjustments,
-  getAthleteHydrationTargetMl,
-  getHydrationTargetMl,
-} from '../features/pro/proMacroEngine';
+  computeDynamicState,
+  computeHydrationLogState,
+  computeHydrationTargetMl,
+} from '../features/pro/computeDynamicState';
 import { getTodayDateKey } from '../utils/dateKey';
 import { isHealthKitAvailable, readTodayHealthSignals, requestHealthKitPermissions } from '../services/healthkit';
 import { setSoundEffectsEnabled } from '../utils/interactionFeedback';
@@ -115,59 +114,36 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
       ? 'connected'
       : (settings.healthPermissionStatus ?? 'not_connected');
 
-  const dynamic = useMemo(() => {
-    if (!settings.dynamicMacrosEnabled) {
-      return {
-        targets: baseMacros,
-        reason: 'Core macro targets active.',
-        inferredDayType: 'rest_day' as const,
-        tierApplied: 'core' as const,
-        explainability: ['Dynamic layer disabled'],
-        adjustmentConfidence: 'high' as const,
-        fuelingStrategy: 'Base fueling only.',
-      };
-    }
-    const proAdjusted = applyProAdjustments(baseMacros, healthSignals, settings.dayTypeOverride);
-    if (!athleteProfile.enabled) return { ...proAdjusted, tierApplied: 'pro' as const };
-    return applyAthleteAdjustments(
-      baseMacros,
-      proAdjusted,
-      athleteProfile,
-      cycleProfile.enabled ? cycleDerived : null
-    );
-  }, [
-    settings.dynamicMacrosEnabled,
-    settings.dayTypeOverride,
-    baseMacros,
-    healthSignals,
-    athleteProfile,
-    cycleProfile.enabled,
-    cycleDerived,
-  ]);
+  // Shared with services/backgroundRefresh.ts so background snapshots match
+  // the dashboard exactly.
+  const dynamic = useMemo(
+    () =>
+      computeDynamicState(
+        baseMacros,
+        settings,
+        healthSignals,
+        athleteProfile,
+        cycleProfile.enabled ? cycleDerived : null
+      ),
+    [settings, baseMacros, healthSignals, athleteProfile, cycleProfile.enabled, cycleDerived]
+  );
 
   const hydrationUnit: HydrationUnit =
     settings.hydrationUnit ?? defaultHydrationUnit(profile.measurementSystem);
 
   const hydration = useMemo(() => {
     const base = hydrationQuery.data ?? defaultHydration;
-    const target = settings.hydrationEnabled
-      ? athleteProfile.enabled
-        ? getAthleteHydrationTargetMl(
-            dynamic.targets,
-            healthSignals,
-            athleteProfile,
-            cycleProfile.enabled ? cycleDerived : null
-          )
-        : getHydrationTargetMl(dynamic.targets, healthSignals)
-      : 2400;
-    const today = getTodayDateKey();
-    if (base.dateKey !== today) {
-      return { ...base, dateKey: today, consumedMl: 0, targetMl: target };
-    }
-    return { ...base, targetMl: target };
+    const target = computeHydrationTargetMl(
+      settings,
+      athleteProfile,
+      dynamic.targets,
+      healthSignals,
+      cycleProfile.enabled ? cycleDerived : null
+    );
+    return computeHydrationLogState(base, getTodayDateKey(), target);
   }, [
     hydrationQuery.data,
-    settings.hydrationEnabled,
+    settings,
     athleteProfile,
     dynamic.targets,
     healthSignals,

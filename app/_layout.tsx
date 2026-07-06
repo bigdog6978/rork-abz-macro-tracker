@@ -17,6 +17,9 @@ import ErrorBoundary from "../components/ui/ErrorBoundary";
 import PostProHealthFlow from "../components/ui/PostProHealthFlow";
 import PhysiqWatchSync from "../components/PhysiqWatchSync";
 import InteractionFeedbackInit from "../components/InteractionFeedbackInit";
+// Side-effect import: defines the background refresh task at module scope so
+// iOS can wake it headlessly.
+import { registerBackgroundRefresh } from "../services/backgroundRefresh";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,6 +39,7 @@ function AppContent() {
       InteractionManager.runAfterInteractions(() => {
         SplashScreen.hideAsync();
       });
+      void registerBackgroundRefresh();
     }
   }, [hydrated]);
 
