@@ -24,6 +24,8 @@ import { toGrams, toMilliliters, mlToGrams } from '../src/lib/units';
 import { getVolumeWeightGrams, detectUnitFromName } from '../features/food/servingDefaults';
 import { inferDensityFromName } from '../features/food/liquidDensity';
 import * as foodService from '../features/food/foodService';
+import { entryMealType } from '../features/food/mealType';
+import { MEAL_TYPE_LABELS, MEAL_TYPE_ORDER, MealType } from '../types';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 // ─── Unit conversion helpers ──────────────────────────────────────────────────
@@ -120,6 +122,7 @@ export default function EditLogEntryScreen() {
   const [showMacroOverride, setShowMacroOverride] = useState(false);
   const [isCustomMacros, setIsCustomMacros] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [mealType, setMealType] = useState<MealType>('snack');
 
   // Density inferred from food name — used for volume ↔ gram conversions
   const foodDensity = useMemo(() => inferDensityFromName(entry?.name), [entry?.name]);
@@ -141,6 +144,7 @@ export default function EditLogEntryScreen() {
     setFat(String(entry.fat_g));
     setCalories(String(entry.calories));
     setIsCustomMacros(!!entry.isCustomMacros);
+    setMealType(entryMealType(entry));
 
     const grams = entry.servingGrams ?? 100;
     const density = inferDensityFromName(entry.name);
@@ -344,6 +348,7 @@ export default function EditLogEntryScreen() {
           quantity: storedQuantity,
           servingWeightG: unitKind === 'serving' ? servingWeightG : undefined,
           isCustomMacros: isCustomMacros || undefined,
+          mealType,
         },
         dateKey ?? undefined
       );
@@ -373,6 +378,7 @@ export default function EditLogEntryScreen() {
     isCustomMacros,
     computedMacros,
     displayCalories,
+    mealType,
     updateEntry,
     dateKey,
   ]);
@@ -445,6 +451,30 @@ export default function EditLogEntryScreen() {
                 placeholder="e.g. Grilled Chicken"
                 placeholderTextColor={Colors.textTertiary}
               />
+            </View>
+
+            <View style={styles.mealTypeSection}>
+              <Text style={styles.inputLabel}>Meal</Text>
+              <View style={styles.mealTypeRow}>
+                {MEAL_TYPE_ORDER.map((meal) => {
+                  const active = mealType === meal;
+                  return (
+                    <PhysiqPressable
+                      key={meal}
+                      feedback="select"
+                      style={[styles.mealTypeChip, active && styles.mealTypeChipActive]}
+                      onPress={() => setMealType(meal)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={`Assign to ${MEAL_TYPE_LABELS[meal]}`}
+                    >
+                      <Text style={[styles.mealTypeChipText, active && styles.mealTypeChipTextActive]}>
+                        {MEAL_TYPE_LABELS[meal]}
+                      </Text>
+                    </PhysiqPressable>
+                  );
+                })}
+              </View>
             </View>
 
             <View style={styles.servingSection}>
@@ -615,6 +645,34 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   servingSection: {
     marginBottom: 16,
+  },
+  mealTypeSection: {
+    marginBottom: 16,
+  },
+  mealTypeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  mealTypeChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    backgroundColor: Colors.inputBg,
+  },
+  mealTypeChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryMuted,
+  },
+  mealTypeChipText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  mealTypeChipTextActive: {
+    color: colors.primary,
   },
   macroPreview: {
     flexDirection: 'row',

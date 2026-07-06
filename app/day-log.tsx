@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { ChevronRight, Trash2, Plus } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import Colors from '../constants/colors';
 import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { formatNumber } from '../utils/formatNumber';
@@ -19,7 +19,7 @@ import { useUser } from '../providers/UserProvider';
 import { getAdherencePercent } from '../utils/macroEngine';
 import { fromDateKey } from '../utils/dateKey';
 import { Radius, Spacing } from '../theme/tokens';
-import PremiumCard from '../components/ui/PremiumCard';
+import TodayLogSection from '../components/home/TodayLogSection';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 
 export default function DayLogScreen() {
@@ -112,35 +112,12 @@ export default function DayLogScreen() {
         </View>
 
         {entries.length > 0 ? (
-          <View style={styles.entriesSection}>
-            <Text style={styles.sectionTitle}>Foods</Text>
-            {entries.map((entry) => (
-              <PremiumCard key={entry.id} style={styles.entryCard}>
-                <PhysiqPressable
-                  feedback="tap"
-                  style={styles.entryTapArea}
-                  onPress={() => handleEditEntry(entry.id)}
-                >
-                  <View style={styles.entryInfo}>
-                    <Text style={styles.entryName}>{entry.name}</Text>
-                    <Text style={styles.entryMacros}>
-                      {formatNumber(entry.calories)} cal · {formatNumber(entry.protein_g)}p ·{' '}
-                      {formatNumber(entry.carbs_g)}c · {formatNumber(entry.fat_g)}f
-                    </Text>
-                  </View>
-                  <ChevronRight size={18} color={Colors.textTertiary} style={styles.entryChevron} />
-                </PhysiqPressable>
-                <PhysiqPressable
-                  feedback="destructive"
-                  style={styles.entryDelete}
-                  onPress={() => handleRemoveEntry(entry.id)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Trash2 size={16} color={Colors.textTertiary} />
-                </PhysiqPressable>
-              </PremiumCard>
-            ))}
-          </View>
+          <TodayLogSection
+            title="Foods"
+            entries={entries}
+            onEditEntry={handleEditEntry}
+            onRemoveEntry={handleRemoveEntry}
+          />
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No foods logged</Text>

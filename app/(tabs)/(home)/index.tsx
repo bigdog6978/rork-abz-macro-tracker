@@ -16,7 +16,7 @@ import { router, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playFeedback } from '../../../utils/interactionFeedback';
 import { track } from '../../../services/analytics';
-import { Flame, Trash2, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon } from 'lucide-react-native';
+import { Flame, Ruler, X, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Spacing } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
@@ -34,6 +34,7 @@ import type { ProDayType } from '../../../features/pro/types';
 import { DAY_TYPE_PICKER_SHORT_LABELS } from '../../../features/pro/constants';
 import { EATING_STYLE_LABELS, DIETARY_MODIFIER_LABELS, DietaryModifier, MacroTargets } from '../../../types';
 import PremiumCard from '../../../components/ui/PremiumCard';
+import TodayLogSection from '../../../components/home/TodayLogSection';
 import GreetingHeader from '../../../components/ui/GreetingHeader';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -701,40 +702,11 @@ export default function DashboardScreen() {
         {/* Today's Log */}
         <Animated.View style={{ opacity: stagger[4] }}>
           {todayEntries.length > 0 ? (
-            <View style={styles.entriesSection}>
-              <Text style={styles.sectionTitle}>Today's Log</Text>
-              {todayEntries.map((entry) => (
-                <PremiumCard key={entry.id} style={styles.entryCard}>
-                  <PhysiqPressable
-                    feedback="tap"
-                    style={styles.entryTapArea}
-                    onPress={() => handleEditEntry(entry.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Edit ${entry.name}, ${formatNumber(entry.calories)} calories`}
-                    accessibilityHint="Opens this log entry for editing"
-                  >
-                    <View style={styles.entryInfo}>
-                      <Text style={styles.entryName}>{entry.name}</Text>
-                      <Text style={styles.entryMacros}>
-                        {formatNumber(entry.calories)} cal · {formatNumber(entry.protein_g)}p ·{' '}
-                        {formatNumber(entry.carbs_g)}c · {formatNumber(entry.fat_g)}f
-                      </Text>
-                    </View>
-                    <ChevronRight size={18} color={colors.textTertiary} style={styles.entryChevron} />
-                  </PhysiqPressable>
-                  <PhysiqPressable
-                    feedback="destructive"
-                    style={styles.entryDelete}
-                    onPress={() => handleRemoveEntry(entry.id)}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete ${entry.name}`}
-                  >
-                    <Trash2 size={16} color={colors.textTertiary} />
-                  </PhysiqPressable>
-                </PremiumCard>
-              ))}
-            </View>
+            <TodayLogSection
+              entries={todayEntries}
+              onEditEntry={handleEditEntry}
+              onRemoveEntry={handleRemoveEntry}
+            />
           ) : (
             <EmptyState />
           )}
