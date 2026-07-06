@@ -1,80 +1,51 @@
 import { createSafeContextHook } from '../utils/createSafeContextHook';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AppState } from 'react-native';
 import { FoodEntry, MacroTargets } from '../types';
-import { getTodayDateKey, toDateKey } from '../utils/dateKey';
-import { loadData, saveData, removeData, STORAGE_KEYS } from '../services/storage';
-import * as foodService from '../features/food/foodService';
+import { getTodayDateKey } from '../utils/dateKey';
+import * as dailyLogRepo from '../storage/dailyLogRepo';
+import {
+  StoredLogs,
+  computeStreak,
+  ensureEntryMacros,
+} from '../storage/dailyLogMigration';
 
-interface StoredLogs {
-  [date: string]: FoodEntry[];
+const LOGS_QUERY_KEY = ['food_logs'] as const;
+const EMPTY_LOGS: StoredLogs = {};
+const EMPTY_ENTRIES: FoodEntry[] = [];
+
+function sumTotals(entries: FoodEntry[]): MacroTargets {
+  return entries.reduce(
+    (acc, entry) => ({
+      calories: acc.calories + entry.calories,
+      protein_g: acc.protein_g + entry.protein_g,
+      carbs_g: acc.carbs_g + entry.carbs_g,
+      fat_g: acc.fat_g + entry.fat_g,
+    }),
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+  );
 }
 
-/** Migrate legacy entries: measureMode 'units' -> 'qty' */
-function migrateEntry(entry: FoodEntry): FoodEntry {
-  if (entry.measureMode === 'units') {
-    return { ...entry, measureMode: 'qty' };
-  }
-  return entry;
-}
-
-function migrateLogs(logs: StoredLogs): StoredLogs {
-  const out: StoredLogs = {};
-  for (const [date, entries] of Object.entries(logs)) {
-    out[date] = entries.map(migrateEntry);
-  }
-  return out;
-}
-
-/** Recompute entry macros from nutrientsPer100g when not custom */
-function ensureEntryMacros(entry: FoodEntry): FoodEntry {
-  if (entry.isCustomMacros || !entry.nutrientsPer100g) return entry;
-  const mode = (entry.measureMode === 'units' ? 'qty' : entry.measureMode) ?? 'grams';
-  const qty = entry.quantity ?? entry.servingGrams ?? 100;
-  const totalGrams = foodService.computeTotalGrams(mode, qty, entry.servingWeightG);
-  const macros = foodService.computeMacrosFromNutrients(entry.nutrientsPer100g, totalGrams);
-  return {
-    ...entry,
-    servingGrams: totalGrams,
-    protein_g: macros.protein_g,
-    carbs_g: macros.carbs_g,
-    fat_g: macros.fat_g,
-    calories: macros.calories,
-  };
-}
-
+/**
+ * Daily food log state.
+ *
+ * The React Query cache (['food_logs']) is the single source of truth for UI
+ * state; storage/dailyLogRepo.ts owns persistence (SQLite, row-per-entry).
+ * Mutations apply a synchronous functional cache update (instant UI, no stale
+ * closures) and then persist the same row-level change fire-and-forget —
+ * matching the previous AsyncStorage behavior where persistence errors were
+ * logged, not surfaced.
+ */
 export const [DailyLogProvider, useDailyLog] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
-  const [logs, setLogs] = useState<StoredLogs>({});
   const [today, setToday] = useState(getTodayDateKey());
 
   const logsQuery = useQuery({
-    queryKey: ['food_logs'],
-    queryFn: async () => {
-      let stored = await loadData<StoredLogs>(STORAGE_KEYS.DAILY_LOGS);
-      if (!stored) {
-        const legacy = await loadData<StoredLogs>('abz_food_logs');
-        if (legacy) {
-          stored = legacy;
-          await saveData(STORAGE_KEYS.DAILY_LOGS, stored);
-          await removeData('abz_food_logs');
-        }
-      }
-      const migrated = migrateLogs(stored ?? {});
-      const normalized: StoredLogs = {};
-      for (const [date, entries] of Object.entries(migrated)) {
-        normalized[date] = entries.map(ensureEntryMacros);
-      }
-      return normalized;
-    },
+    queryKey: LOGS_QUERY_KEY,
+    queryFn: dailyLogRepo.loadAllLogs,
   });
-
-  useEffect(() => {
-    if (logsQuery.data) {
-      setLogs(logsQuery.data);
-    }
-  }, [logsQuery.data]);
+  const logs = logsQuery.data ?? EMPTY_LOGS;
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
@@ -95,31 +66,27 @@ export const [DailyLogProvider, useDailyLog] = createSafeContextHook(() => {
     return () => clearTimeout(timer);
   }, [today]);
 
-  const saveMutation = useMutation({
-    mutationFn: async (updated: StoredLogs) => {
-      await saveData(STORAGE_KEYS.DAILY_LOGS, updated);
-      return updated;
+  /** Synchronous functional cache update; returns the next map. */
+  const setLogsCache = useCallback(
+    (updater: (prev: StoredLogs) => StoredLogs): StoredLogs => {
+      const next = updater(queryClient.getQueryData<StoredLogs>(LOGS_QUERY_KEY) ?? {});
+      queryClient.setQueryData<StoredLogs>(LOGS_QUERY_KEY, next);
+      return next;
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['food_logs'], data);
-    },
-  });
+    [queryClient]
+  );
 
   const addEntries = useCallback(
     (entries: FoodEntry[], dateKey?: string) => {
       if (entries.length === 0) return;
       const targetDate = dateKey ?? today;
-      setLogs((current) => {
-        const updated = { ...current };
-        if (!updated[targetDate]) {
-          updated[targetDate] = [];
-        }
-        updated[targetDate] = [...updated[targetDate], ...entries];
-        saveMutation.mutate(updated);
-        return updated;
-      });
+      setLogsCache((prev) => ({
+        ...prev,
+        [targetDate]: [...(prev[targetDate] ?? []), ...entries],
+      }));
+      void dailyLogRepo.insertEntries(targetDate, entries);
     },
-    [today, saveMutation]
+    [setLogsCache, today]
   );
 
   const addEntry = useCallback(
@@ -132,155 +99,152 @@ export const [DailyLogProvider, useDailyLog] = createSafeContextHook(() => {
   const removeEntry = useCallback(
     (entryId: string, dateKey?: string) => {
       const targetDate = dateKey ?? today;
-      const updated = { ...logs };
-      if (updated[targetDate]) {
-        updated[targetDate] = updated[targetDate].filter((e) => e.id !== entryId);
-        setLogs(updated);
-        saveMutation.mutate(updated);
-      }
+      setLogsCache((prev) => {
+        if (!prev[targetDate]) return prev;
+        return {
+          ...prev,
+          [targetDate]: prev[targetDate].filter((e) => e.id !== entryId),
+        };
+      });
+      void dailyLogRepo.deleteEntry(entryId);
     },
-    [logs, today, saveMutation]
+    [setLogsCache, today]
   );
 
   const updateEntry = useCallback(
     (entryId: string, updates: Partial<FoodEntry>, dateKey?: string) => {
       const targetDate = dateKey ?? today;
-      const updated = { ...logs };
-      if (updated[targetDate]) {
-        const idx = updated[targetDate].findIndex((e) => e.id === entryId);
-        if (idx !== -1) {
-          updated[targetDate] = [...updated[targetDate]];
-          let merged = { ...updated[targetDate][idx], ...updates };
-          if (!merged.isCustomMacros && merged.nutrientsPer100g) {
-            merged = ensureEntryMacros(merged);
-          }
-          updated[targetDate][idx] = merged;
-          setLogs(updated);
-          saveMutation.mutate(updated);
-        }
+      const current = queryClient.getQueryData<StoredLogs>(LOGS_QUERY_KEY) ?? {};
+      const existing = current[targetDate]?.find((e) => e.id === entryId);
+      if (!existing) return;
+      let merged: FoodEntry = { ...existing, ...updates };
+      if (!merged.isCustomMacros && merged.nutrientsPer100g) {
+        merged = ensureEntryMacros(merged);
       }
+      const nextEntry = merged;
+      setLogsCache((prev) => ({
+        ...prev,
+        [targetDate]: (prev[targetDate] ?? []).map((e) => (e.id === entryId ? nextEntry : e)),
+      }));
+      void dailyLogRepo.updateEntry(targetDate, nextEntry);
     },
-    [logs, today, saveMutation]
+    [queryClient, setLogsCache, today]
   );
 
   const clearToday = useCallback(() => {
-    const updated = { ...logs };
-    delete updated[today];
-    setLogs(updated);
-    saveMutation.mutate(updated);
-  }, [logs, today, saveMutation]);
+    setLogsCache((prev) => {
+      const { [today]: _removed, ...rest } = prev;
+      return rest;
+    });
+    void dailyLogRepo.deleteDay(today);
+  }, [setLogsCache, today]);
 
   const clearAll = useCallback(async () => {
-    await removeData(STORAGE_KEYS.DAILY_LOGS);
-    setLogs({});
-    queryClient.setQueryData(['food_logs'], {});
+    queryClient.setQueryData<StoredLogs>(LOGS_QUERY_KEY, {});
+    await dailyLogRepo.clearAll();
   }, [queryClient]);
 
   const todayEntries = useMemo(() => {
-    return logs[today] ?? [];
+    return logs[today] ?? EMPTY_ENTRIES;
   }, [logs, today]);
 
-  const todayTotals: MacroTargets = useMemo(() => {
-    return todayEntries.reduce(
-      (acc, entry) => ({
-        calories: acc.calories + entry.calories,
-        protein_g: acc.protein_g + entry.protein_g,
-        carbs_g: acc.carbs_g + entry.carbs_g,
-        fat_g: acc.fat_g + entry.fat_g,
-      }),
-      { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-    );
-  }, [todayEntries]);
+  const todayTotals: MacroTargets = useMemo(() => sumTotals(todayEntries), [todayEntries]);
 
   const getEntriesForDate = useCallback(
     (date: string): FoodEntry[] => {
-      return logs[date] ?? [];
+      return logs[date] ?? EMPTY_ENTRIES;
     },
     [logs]
   );
 
   const getTotalsForDate = useCallback(
     (date: string): MacroTargets => {
-      const entries = logs[date] ?? [];
-      return entries.reduce(
-        (acc, entry) => ({
-          calories: acc.calories + entry.calories,
-          protein_g: acc.protein_g + entry.protein_g,
-          carbs_g: acc.carbs_g + entry.carbs_g,
-          fat_g: acc.fat_g + entry.fat_g,
-        }),
-        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-      );
+      return sumTotals(logs[date] ?? EMPTY_ENTRIES);
     },
     [logs]
   );
 
   const getDatesWithEntries = useCallback((): string[] => {
-    return Object.keys(logs).filter((date) => logs[date].length > 0).sort().reverse();
+    return Object.keys(logs)
+      .filter((date) => logs[date].length > 0)
+      .sort()
+      .reverse();
   }, [logs]);
 
+  /**
+   * Empty-day keys are cache-only: they never render anywhere
+   * (getDatesWithEntries filters them, getEntriesForDate returns [] for
+   * missing dates) so persisting them had no user-visible effect.
+   */
   const ensureDayExists = useCallback(
     (dateKey: string): StoredLogs => {
-      const updated = { ...logs };
-      if (!updated[dateKey]) {
-        updated[dateKey] = [];
-        setLogs(updated);
-        saveMutation.mutate(updated);
-      }
-      return updated;
+      return setLogsCache((prev) => (prev[dateKey] ? prev : { ...prev, [dateKey]: [] }));
     },
-    [logs, saveMutation]
+    [setLogsCache]
   );
 
   const clearDay = useCallback(
     (dateKey: string) => {
-      const updated = { ...logs };
-      const entries = updated[dateKey] ?? [];
-      if (entries.length > 0) {
+      const current = queryClient.getQueryData<StoredLogs>(LOGS_QUERY_KEY) ?? {};
+      if ((current[dateKey] ?? []).length > 0) {
         if (__DEV__) {
           console.warn('[DailyLog] clearDay: day has entries, refusing to clear');
         }
         return;
       }
-      delete updated[dateKey];
-      setLogs(updated);
-      saveMutation.mutate(updated);
+      setLogsCache((prev) => {
+        const { [dateKey]: _removed, ...rest } = prev;
+        return rest;
+      });
+      void dailyLogRepo.deleteDay(dateKey);
     },
-    [logs, saveMutation]
+    [queryClient, setLogsCache]
   );
 
-  const getStreak = useCallback((): number => {
-    let streak = 0;
-    const d = new Date();
-    for (let i = 0; i < 365; i++) {
-      const dateStr = toDateKey(d);
-      const entries = logs[dateStr] ?? [];
-      if (entries.length > 0) {
-        streak++;
-      } else if (i > 0) {
-        break;
-      }
-      d.setDate(d.getDate() - 1);
-    }
-    return streak;
-  }, [logs]);
+  // O(365) walk runs once per logs change instead of on every render /
+  // watch-sync payload rebuild. `today` keeps it fresh across midnight.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const streak = useMemo(() => computeStreak(logs), [logs, today]);
+  const getStreak = useCallback((): number => streak, [streak]);
 
-  return {
-    todayEntries,
-    todayTotals,
-    addEntry,
-    addEntries,
-    removeEntry,
-    updateEntry,
-    clearToday,
-    clearAll,
-    clearDay,
-    ensureDayExists,
-    getEntriesForDate,
-    getTotalsForDate,
-    getDatesWithEntries,
-    getStreak,
-    logs,
-    isLoading: logsQuery.isLoading,
-  };
+  const isLoading = logsQuery.isLoading;
+
+  return useMemo(
+    () => ({
+      todayEntries,
+      todayTotals,
+      addEntry,
+      addEntries,
+      removeEntry,
+      updateEntry,
+      clearToday,
+      clearAll,
+      clearDay,
+      ensureDayExists,
+      getEntriesForDate,
+      getTotalsForDate,
+      getDatesWithEntries,
+      getStreak,
+      logs,
+      isLoading,
+    }),
+    [
+      todayEntries,
+      todayTotals,
+      addEntry,
+      addEntries,
+      removeEntry,
+      updateEntry,
+      clearToday,
+      clearAll,
+      clearDay,
+      ensureDayExists,
+      getEntriesForDate,
+      getTotalsForDate,
+      getDatesWithEntries,
+      getStreak,
+      logs,
+      isLoading,
+    ]
+  );
 }, 'useDailyLog', 'DailyLogProvider');

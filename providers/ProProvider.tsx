@@ -63,6 +63,18 @@ const defaultAthleteProfile: AthleteProfile = {
   schedule: [],
 };
 
+const defaultProSettings: ProSettings = {
+  dynamicMacrosEnabled: true,
+  hydrationEnabled: true,
+  healthIntegrationEnabled: false,
+  electrolyteNudgesEnabled: false,
+  healthPermissionStatus: 'not_connected',
+  healthEducationDismissed: false,
+  soundEffectsEnabled: true,
+};
+
+const emptyCycleLogs: AthleteCycleLogEntry[] = [];
+
 const defaultCycleProfile: AthleteCycleProfile = {
   enabled: false,
   trackingMode: 'manual',
@@ -85,18 +97,10 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
 
   const entitlement: ProEntitlementState = 'unlocked';
   const hasPremium = true;
-  const settings = settingsQuery.data ?? {
-    dynamicMacrosEnabled: true,
-    hydrationEnabled: true,
-    healthIntegrationEnabled: false,
-    electrolyteNudgesEnabled: false,
-    healthPermissionStatus: 'not_connected',
-    healthEducationDismissed: false,
-    soundEffectsEnabled: true,
-  };
+  const settings = settingsQuery.data ?? defaultProSettings;
   const athleteProfile = athleteProfileQuery.data ?? defaultAthleteProfile;
   const cycleProfile = athleteCycleProfileQuery.data ?? defaultCycleProfile;
-  const cycleLogs = athleteCycleLogsQuery.data ?? [];
+  const cycleLogs = athleteCycleLogsQuery.data ?? emptyCycleLogs;
   const cycleDerived = useMemo(() => deriveAthleteCycleState(cycleProfile, cycleLogs), [cycleProfile, cycleLogs]);
   const healthSignals = healthQuery.data ?? null;
   const healthAvailabilityQuery = useQuery({
@@ -378,35 +382,65 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     return () => sub.remove();
   }, [queryClient, refreshHealthSignals, settings.healthIntegrationEnabled]);
 
-  return {
-    entitlement,
-    hasPremium,
-    settings,
-    healthKitAvailable,
-    healthKitAvailabilityReady,
-    healthConnectionStatus,
-    healthSignals,
-    athleteProfile,
-    cycleProfile,
-    cycleLogs,
-    cycleDerived,
-    dynamicTargets: dynamic.targets,
-    dynamicReason: dynamic.reason,
-    dynamicExplainability: dynamic.explainability ?? [],
-    adjustmentConfidence: dynamic.adjustmentConfidence ?? 'medium',
-    fuelingStrategy: dynamic.fuelingStrategy ?? '',
-    inferredDayType: dynamic.inferredDayType,
-    hydration,
-    hydrationUnit,
-    updateSettings,
-    enableHealthIntegration,
-    disableHealthIntegration,
-    refreshHealthSignals,
-    addHydration,
-    syncDynamicTargets,
-    updateAthleteProfile,
-    updateCycleProfile,
-    addCycleLog,
-    clearCycleData,
-  };
+  // Stable context value so consumers only re-render on actual data changes.
+  return useMemo(
+    () => ({
+      entitlement,
+      hasPremium,
+      settings,
+      healthKitAvailable,
+      healthKitAvailabilityReady,
+      healthConnectionStatus,
+      healthSignals,
+      athleteProfile,
+      cycleProfile,
+      cycleLogs,
+      cycleDerived,
+      dynamicTargets: dynamic.targets,
+      dynamicReason: dynamic.reason,
+      dynamicExplainability: dynamic.explainability ?? [],
+      adjustmentConfidence: dynamic.adjustmentConfidence ?? 'medium',
+      fuelingStrategy: dynamic.fuelingStrategy ?? '',
+      inferredDayType: dynamic.inferredDayType,
+      hydration,
+      hydrationUnit,
+      updateSettings,
+      enableHealthIntegration,
+      disableHealthIntegration,
+      refreshHealthSignals,
+      addHydration,
+      syncDynamicTargets,
+      updateAthleteProfile,
+      updateCycleProfile,
+      addCycleLog,
+      clearCycleData,
+    }),
+    [
+      settings,
+      healthKitAvailable,
+      healthKitAvailabilityReady,
+      healthConnectionStatus,
+      healthSignals,
+      athleteProfile,
+      cycleProfile,
+      cycleLogs,
+      cycleDerived,
+      dynamic,
+      hydration,
+      hydrationUnit,
+      updateSettings,
+      enableHealthIntegration,
+      disableHealthIntegration,
+      refreshHealthSignals,
+      addHydration,
+      syncDynamicTargets,
+      updateAthleteProfile,
+      updateCycleProfile,
+      addCycleLog,
+      clearCycleData,
+      // entitlement/hasPremium are render-scope constants
+      entitlement,
+      hasPremium,
+    ]
+  );
 }, 'usePro', 'ProProvider');

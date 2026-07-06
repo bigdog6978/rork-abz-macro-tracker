@@ -22,6 +22,7 @@ import {
 import { computeTrends, computeGoalScore, shouldShowPrompt } from '../features/progress/progressScoring';
 
 const USER_ID = 'local_user';
+const EMPTY_RECORDS: MeasurementRecord[] = [];
 
 export const [MeasurementsProvider, useMeasurements] = createSafeContextHook(() => {
   const queryClient = useQueryClient();
@@ -37,7 +38,7 @@ export const [MeasurementsProvider, useMeasurements] = createSafeContextHook(() 
     queryFn: () => repoGetPromptSettings(USER_ID),
   });
 
-  const records = measurementsQuery.data ?? [];
+  const records = measurementsQuery.data ?? EMPTY_RECORDS;
   const promptSettings = promptSettingsQuery.data ?? null;
 
   const baseline = useMemo(() => {
@@ -152,24 +153,47 @@ export const [MeasurementsProvider, useMeasurements] = createSafeContextHook(() 
     },
   });
 
-  return {
-    records,
-    baseline,
-    latest,
-    hasBaseline,
-    trends,
-    goalScore,
-    showPrompt,
-    promptSettings,
-    isLoading: measurementsQuery.isLoading,
-    addMeasurement: addMeasurementMutation.mutate,
-    deleteMeasurement: deleteMeasurementMutation.mutate,
-    deleteMeasurementAsync: deleteMeasurementMutation.mutateAsync,
-    getMeasurementByDateKey,
-    isAdding: addMeasurementMutation.isPending,
-    initPromptSettings,
-    updateCadence: updateCadence.mutate,
-    dismissPrompt: dismissPrompt.mutate,
-    userId: USER_ID,
-  };
+  // Stable context value so consumers only re-render on actual data changes
+  // (mutation .mutate/.mutateAsync references are stable in React Query v5).
+  return useMemo(
+    () => ({
+      records,
+      baseline,
+      latest,
+      hasBaseline,
+      trends,
+      goalScore,
+      showPrompt,
+      promptSettings,
+      isLoading: measurementsQuery.isLoading,
+      addMeasurement: addMeasurementMutation.mutate,
+      deleteMeasurement: deleteMeasurementMutation.mutate,
+      deleteMeasurementAsync: deleteMeasurementMutation.mutateAsync,
+      getMeasurementByDateKey,
+      isAdding: addMeasurementMutation.isPending,
+      initPromptSettings,
+      updateCadence: updateCadence.mutate,
+      dismissPrompt: dismissPrompt.mutate,
+      userId: USER_ID,
+    }),
+    [
+      records,
+      baseline,
+      latest,
+      hasBaseline,
+      trends,
+      goalScore,
+      showPrompt,
+      promptSettings,
+      measurementsQuery.isLoading,
+      addMeasurementMutation.mutate,
+      addMeasurementMutation.isPending,
+      deleteMeasurementMutation.mutate,
+      deleteMeasurementMutation.mutateAsync,
+      getMeasurementByDateKey,
+      initPromptSettings,
+      updateCadence.mutate,
+      dismissPrompt.mutate,
+    ]
+  );
 }, 'useMeasurements', 'MeasurementsProvider');

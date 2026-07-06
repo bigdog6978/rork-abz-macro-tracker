@@ -58,3 +58,34 @@ This implementation uses only existing project dependencies:
 - `@react-native-async-storage/async-storage` for persistence
 - `@tanstack/react-query` patterns (used in providers)
 - Native `fetch` for USDA API calls
+
+## Daily Log Storage (July 2026)
+
+### SQLite row-per-entry store
+
+Daily food logs live in `physiq_logs.db` (`storage/dailyLogRepo.ts`), one row
+per `FoodEntry` (JSON payload + `date_key` index) — not in the old
+`physiq_daily_logs` AsyncStorage blob. Rationale: the blob was rewritten in
+full on every add/edit/delete and re-normalized over the entire history on
+every launch, so cost grew linearly with lifetime usage. Row writes are O(1)
+and per-day queries are indexed.
+
+- **Migration:** one-time, on first open. The legacy blob is normalized once
+  (`storage/dailyLogMigration.ts`), inserted in a single transaction, and
+  preserved at `physiq_daily_logs_backup_v1` as a rollback path (never
+  deleted).
+- **Fallback:** if SQLite is unavailable (web) or migration fails, the repo
+  transparently falls back to the AsyncStorage blob with the pre-refactor
+  behavior. Data is never lost to a failed migration.
+- **State ownership:** the React Query cache (`['food_logs']`) is the single
+  source of truth in `DailyLogProvider`; mutations are synchronous functional
+  cache updates plus fire-and-forget row writes serialized through a write
+  queue.
+
+### USDA API key (future)
+
+The USDA key is embedded client-side via `app.config.ts` `extra`. Acceptable
+for a free FDC key, but all installs share one rate limit and the key is
+extractable. When a backend exists (e.g. for AI photo logging), route USDA
+calls through a thin proxy and drop the embedded key — the `FoodProvider`
+abstraction makes this a one-file change in `features/food/providers/usda/`.
