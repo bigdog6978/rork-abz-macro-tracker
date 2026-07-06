@@ -13,8 +13,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, ChevronDown, ChevronRight, ChevronUp, FileText, Mail, RefreshCw, Shield, Trash2, User, Utensils, Zap } from 'lucide-react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertCircle, Bell, ChevronDown, ChevronRight, ChevronUp, FileText, Mail, RefreshCw, Shield, Trash2, User, Utensils, Zap } from 'lucide-react-native';
 import Colors from '../../../constants/colors';
 import { Radius, Shadows, Spacing } from '../../../theme/tokens';
 import { useTheme, useThemeColors, type AppColors } from '../../../providers/ThemeProvider';
@@ -55,6 +55,11 @@ import {
 } from '../../../utils/hydration';
 import { DAY_TYPE_TILE_GAP } from '../../../components/ui/DayTypeTileGrid';
 import HydrationActionTileGrid from '../../../components/ui/HydrationActionTileGrid';
+import { getReminderSettings, saveReminderSettings } from '../../../storage/reminderSettingsRepo';
+import { cancelAllReminders, requestNotificationPermission } from '../../../services/reminders';
+import type { ReminderSettings } from '../../../features/reminders/reminderPlan';
+import { REMINDER_SETTINGS_QUERY_KEY } from '../../../components/RemindersSync';
+import { track } from '../../../services/analytics';
 
 type EditMode = 'none' | 'profile' | 'nutrition';
 
@@ -85,6 +90,46 @@ export default function SettingsScreen() {
   const colors = useThemeColors();
   const { accentTheme, setAccentTheme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const queryClient = useQueryClient();
+  const reminderSettingsQuery = useQuery({
+    queryKey: REMINDER_SETTINGS_QUERY_KEY,
+    queryFn: getReminderSettings,
+  });
+  const reminderSettings = reminderSettingsQuery.data;
+
+  const updateReminderSettings = useCallback(
+    async (updates: Partial<ReminderSettings>) => {
+      if (!reminderSettings) return;
+      const next = { ...reminderSettings, ...updates };
+      queryClient.setQueryData(REMINDER_SETTINGS_QUERY_KEY, next);
+      await saveReminderSettings(next);
+    },
+    [queryClient, reminderSettings]
+  );
+
+  const toggleRemindersMaster = useCallback(async () => {
+    if (!reminderSettings) return;
+    if (reminderSettings.enabled) {
+      await updateReminderSettings({ enabled: false });
+      await cancelAllReminders();
+      track('reminders_master_toggled', { enabled: false });
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    if (!granted) {
+      Alert.alert(
+        'Notifications are off',
+        'Turn on notifications for Physiq in iOS Settings to get reminders.',
+        [
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
+    await updateReminderSettings({ enabled: true });
+    track('reminders_master_toggled', { enabled: true });
+  }, [reminderSettings, updateReminderSettings]);
   const hydrationTileSide = useMemo(() => {
     const maxGrid = screenWidth - Spacing.lg * 2 - Spacing.md * 2;
     return Math.max(44, Math.min(80, Math.floor((maxGrid - DAY_TYPE_TILE_GAP) / 2)));
@@ -622,6 +667,70 @@ export default function SettingsScreen() {
           </View>
           )}
         </View>
+
+        {reminderSettings ? (
+          <View style={styles.sectionCard}>
+            <View style={styles.settingsRow}>
+              <View style={[styles.iconBadge, { backgroundColor: colors.primaryMuted }]}>
+                <Bell size={16} color={colors.primary} />
+              </View>
+              <View style={styles.rowCopy}>
+                <Text style={styles.rowTitle}>Reminders</Text>
+                <Text style={styles.rowSubtitle}>
+                  {reminderSettings.enabled
+                    ? 'Local notifications — nothing leaves your device'
+                    : 'Protein, hydration & log reminders (off)'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.chipWrap}>
+              <Chip
+                active={reminderSettings.enabled}
+                label="Reminders"
+                onPress={() => void toggleRemindersMaster()}
+                colors={colors}
+                styles={styles}
+              />
+              <Chip
+                active={reminderSettings.enabled && reminderSettings.proteinNudgeEnabled}
+                label="Protein Nudge · 7pm"
+                onPress={() =>
+                  void updateReminderSettings({
+                    proteinNudgeEnabled: !reminderSettings.proteinNudgeEnabled,
+                  })
+                }
+                colors={colors}
+                styles={styles}
+              />
+              <Chip
+                active={reminderSettings.enabled && reminderSettings.hydrationRemindersEnabled}
+                label="Hydration Pace"
+                onPress={() =>
+                  void updateReminderSettings({
+                    hydrationRemindersEnabled: !reminderSettings.hydrationRemindersEnabled,
+                  })
+                }
+                colors={colors}
+                styles={styles}
+              />
+              <Chip
+                active={reminderSettings.enabled && reminderSettings.logReminderEnabled}
+                label="Log Reminder · 8pm"
+                onPress={() =>
+                  void updateReminderSettings({
+                    logReminderEnabled: !reminderSettings.logReminderEnabled,
+                  })
+                }
+                colors={colors}
+                styles={styles}
+              />
+            </View>
+            <Text style={styles.feedbackHint}>
+              Reminders cancel themselves when you hit the target — the protein nudge only fires
+              if 25g+ is still open at 7pm.
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.sectionCard}>
           <PhysiqPressable feedback="tap" style={styles.settingsRow} onPress={() => setEditMode(editMode === 'profile' ? 'none' : 'profile')}>

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Colors from '../../constants/colors';
 import PhysiqPressable from './PhysiqPressable';
+import { reportError } from '../../services/analytics';
 
 type Props = {
   children: React.ReactNode;
@@ -27,6 +28,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     if (__DEV__) {
       console.error('[ErrorBoundary] caught render error', error, info.componentStack);
     }
+    reportError(error, { componentStack: info.componentStack });
   }
 
   handleRetry = () => {

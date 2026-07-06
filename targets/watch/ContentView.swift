@@ -7,6 +7,11 @@ struct ContentView: View {
   @State private var voiceMealSending = false
   @State private var voiceMealLegacySheetVisible = false
   @State private var selectedPage: Int
+  /// Ticks every 60s so the staleness caption appears without a new snapshot.
+  @State private var stalenessNow = Date()
+
+  private static let stalenessThreshold: TimeInterval = 60 * 60
+  private static let stalenessTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
   init() {
     #if DEBUG
@@ -44,6 +49,9 @@ struct ContentView: View {
       }
     }
     .background(PhysiqTheme.background.ignoresSafeArea())
+    .onReceive(Self.stalenessTimer) { now in
+      stalenessNow = now
+    }
     .overlay {
       #if DEBUG
       if WatchDebugHarness.isClockProbeEnabled {
@@ -138,11 +146,44 @@ struct ContentView: View {
       Circle()
         .fill(statusColor)
         .frame(width: 5, height: 5)
+      if let staleLabel = stalenessLabel {
+        Text(staleLabel)
+          .font(.system(size: 9, weight: .semibold))
+          .foregroundStyle(PhysiqTheme.textSecondary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
+      }
       Spacer(minLength: 0)
     }
     .padding(.leading, metrics.leadingInset)
+    // Never run under the system clock in the top-right corner.
+    .padding(.trailing, WatchLayoutMetrics.clockExclusionWidth)
     .padding(.top, WatchLayoutMetrics.headerTopInset)
     .frame(width: metrics.faceWidth, height: WatchLayoutMetrics.headerBandHeight, alignment: .leading)
+  }
+
+  /// "as of 7:42 AM" when the phone snapshot is over an hour old.
+  private var stalenessLabel: String? {
+    guard let updatedAt = snapshot.updatedAt,
+          let date = Self.parseISO8601(updatedAt) else { return nil }
+    guard stalenessNow.timeIntervalSince(date) > Self.stalenessThreshold else { return nil }
+    return "as of \(date.formatted(date: .omitted, time: .shortened))"
+  }
+
+  private static let isoParser: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+  }()
+
+  private static let isoParserNoFraction: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    return f
+  }()
+
+  static func parseISO8601(_ value: String) -> Date? {
+    isoParser.date(from: value) ?? isoParserNoFraction.date(from: value)
   }
 
   // MARK: - Calories

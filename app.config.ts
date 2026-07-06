@@ -92,6 +92,9 @@ export default (): ExpoConfig => ({
     ],
     'expo-sqlite',
     'expo-audio',
+    // Adds UIBackgroundModes: processing + BGTaskSchedulerPermittedIdentifiers
+    // for the watch-snapshot background refresh (services/backgroundRefresh.ts).
+    'expo-background-task',
     [
       'react-native-health',
       {

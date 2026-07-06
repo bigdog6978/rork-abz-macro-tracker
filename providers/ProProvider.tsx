@@ -36,14 +36,16 @@ import {
 } from '../features/pro/types';
 import { defaultHydrationUnit } from '../utils/hydration';
 import {
-  applyAthleteAdjustments,
-  applyProAdjustments,
-  getAthleteHydrationTargetMl,
-  getHydrationTargetMl,
-} from '../features/pro/proMacroEngine';
+  computeDynamicState,
+  computeHydrationLogState,
+  computeHydrationTargetMl,
+} from '../features/pro/computeDynamicState';
 import { getTodayDateKey } from '../utils/dateKey';
 import { isHealthKitAvailable, readTodayHealthSignals, requestHealthKitPermissions } from '../services/healthkit';
 import { setSoundEffectsEnabled } from '../utils/interactionFeedback';
+import { track } from '../services/analytics';
+import { loadEntitlementState } from '../services/entitlement';
+import { IAP_MONETIZATION_ENABLED } from '../services/iapMapping';
 
 const defaultHydration: ProHydrationLog = {
   dateKey: '',
@@ -95,8 +97,17 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
   const athleteCycleProfileQuery = useQuery({ queryKey: ['athlete_cycle_profile'], queryFn: getAthleteCycleProfile });
   const athleteCycleLogsQuery = useQuery({ queryKey: ['athlete_cycle_logs'], queryFn: getAthleteCycleLogs });
 
-  const entitlement: ProEntitlementState = 'unlocked';
-  const hasPremium = true;
+  // Resolves 'unlocked' while IAP_MONETIZATION_ENABLED is false (current
+  // state); once flipped, RevenueCat ownership + trial drive this. The
+  // loading fallback mirrors the resolved value for the disabled flag so
+  // there is no premium flicker today.
+  const entitlementQuery = useQuery({
+    queryKey: ['pro_entitlement_state'],
+    queryFn: loadEntitlementState,
+  });
+  const entitlement: ProEntitlementState =
+    entitlementQuery.data?.entitlement ?? (IAP_MONETIZATION_ENABLED ? 'core' : 'unlocked');
+  const hasPremium = entitlementQuery.data?.hasPremium ?? !IAP_MONETIZATION_ENABLED;
   const settings = settingsQuery.data ?? defaultProSettings;
   const athleteProfile = athleteProfileQuery.data ?? defaultAthleteProfile;
   const cycleProfile = athleteCycleProfileQuery.data ?? defaultCycleProfile;
@@ -115,59 +126,36 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
       ? 'connected'
       : (settings.healthPermissionStatus ?? 'not_connected');
 
-  const dynamic = useMemo(() => {
-    if (!settings.dynamicMacrosEnabled) {
-      return {
-        targets: baseMacros,
-        reason: 'Core macro targets active.',
-        inferredDayType: 'rest_day' as const,
-        tierApplied: 'core' as const,
-        explainability: ['Dynamic layer disabled'],
-        adjustmentConfidence: 'high' as const,
-        fuelingStrategy: 'Base fueling only.',
-      };
-    }
-    const proAdjusted = applyProAdjustments(baseMacros, healthSignals, settings.dayTypeOverride);
-    if (!athleteProfile.enabled) return { ...proAdjusted, tierApplied: 'pro' as const };
-    return applyAthleteAdjustments(
-      baseMacros,
-      proAdjusted,
-      athleteProfile,
-      cycleProfile.enabled ? cycleDerived : null
-    );
-  }, [
-    settings.dynamicMacrosEnabled,
-    settings.dayTypeOverride,
-    baseMacros,
-    healthSignals,
-    athleteProfile,
-    cycleProfile.enabled,
-    cycleDerived,
-  ]);
+  // Shared with services/backgroundRefresh.ts so background snapshots match
+  // the dashboard exactly.
+  const dynamic = useMemo(
+    () =>
+      computeDynamicState(
+        baseMacros,
+        settings,
+        healthSignals,
+        athleteProfile,
+        cycleProfile.enabled ? cycleDerived : null
+      ),
+    [settings, baseMacros, healthSignals, athleteProfile, cycleProfile.enabled, cycleDerived]
+  );
 
   const hydrationUnit: HydrationUnit =
     settings.hydrationUnit ?? defaultHydrationUnit(profile.measurementSystem);
 
   const hydration = useMemo(() => {
     const base = hydrationQuery.data ?? defaultHydration;
-    const target = settings.hydrationEnabled
-      ? athleteProfile.enabled
-        ? getAthleteHydrationTargetMl(
-            dynamic.targets,
-            healthSignals,
-            athleteProfile,
-            cycleProfile.enabled ? cycleDerived : null
-          )
-        : getHydrationTargetMl(dynamic.targets, healthSignals)
-      : 2400;
-    const today = getTodayDateKey();
-    if (base.dateKey !== today) {
-      return { ...base, dateKey: today, consumedMl: 0, targetMl: target };
-    }
-    return { ...base, targetMl: target };
+    const target = computeHydrationTargetMl(
+      settings,
+      athleteProfile,
+      dynamic.targets,
+      healthSignals,
+      cycleProfile.enabled ? cycleDerived : null
+    );
+    return computeHydrationLogState(base, getTodayDateKey(), target);
   }, [
     hydrationQuery.data,
-    settings.hydrationEnabled,
+    settings,
     athleteProfile,
     dynamic.targets,
     healthSignals,
@@ -255,12 +243,19 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
     const sub = subscribePhysiqWatch('onWatchPayload', (body) => {
       const payload = (body.payload as Record<string, string> | undefined) ?? {};
       switch (payload.action) {
+        // Deprecated: only watch builds ≤1.3.4 send hydration_ack (fixed
+        // 250 ml). Current watch builds send log_water with the unit-aware
+        // amount. Keep until those builds age out.
         case 'hydration_ack':
           addHydration(250);
+          track('watch_hydration_logged', { ml: 250, legacy: true });
           break;
         case 'log_water': {
           const ml = Number.parseInt(payload.ml ?? '', 10);
-          if (Number.isFinite(ml) && ml !== 0) addHydration(ml);
+          if (Number.isFinite(ml) && ml !== 0) {
+            addHydration(ml);
+            track('watch_hydration_logged', { ml });
+          }
           break;
         }
         case 'set_day_type': {
@@ -273,6 +268,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
               });
             }
             updateSettings({ dayTypeOverride: next });
+            track('watch_day_type_changed', { dayType: next });
           }
           break;
         }
@@ -323,6 +319,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
         await saveLatestProHealthSignals(live);
         queryClient.setQueryData(['pro_health_signals'], live);
       }
+      track('health_integration_enabled');
       return true;
     } catch (error) {
       console.warn('[HealthKit] enableHealthIntegration failed', error);
@@ -331,6 +328,7 @@ export const [ProProvider, usePro] = createSafeContextHook(() => {
   }, [queryClient, settings]);
 
   const disableHealthIntegration = useCallback(() => {
+    track('health_integration_disabled');
     settingsMutation.mutate({
       ...settings,
       healthIntegrationEnabled: false,

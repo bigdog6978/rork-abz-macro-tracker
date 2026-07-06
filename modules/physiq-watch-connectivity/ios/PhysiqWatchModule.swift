@@ -31,6 +31,11 @@ public class PhysiqWatchModule: Module {
 final class PhysiqPhoneWatchSession: NSObject, WCSessionDelegate {
   weak var module: PhysiqWatchModule?
 
+  /// transferCurrentComplicationUserInfo has a ~50/day budget; throttle so
+  /// frequent snapshot sends (every food log) can't exhaust it.
+  private var lastComplicationPushAt: Date?
+  private let complicationPushMinInterval: TimeInterval = 30 * 60
+
   var activationStateLabel: String {
     switch WCSession.default.activationState {
     case .activated: return "activated"
@@ -86,6 +91,30 @@ final class PhysiqPhoneWatchSession: NSObject, WCSessionDelegate {
         }
       )
     }
+
+    pushComplicationUpdateIfNeeded(session: session, payload: payload)
+  }
+
+  /// Wakes the watch to refresh complications even when the watch app is
+  /// closed. Guarded by the enabled check and a 30-minute throttle so the
+  /// system budget (~50/day) is never exhausted; never throws to JS.
+  private func pushComplicationUpdateIfNeeded(session: WCSession, payload: [String: String]) {
+    guard session.isComplicationEnabled else { return }
+    if let last = lastComplicationPushAt,
+       Date().timeIntervalSince(last) < complicationPushMinInterval {
+      return
+    }
+    guard session.remainingComplicationUserInfoTransfers > 0 else {
+      #if DEBUG
+      print("[PhysiqWatch iPhone] complication transfer budget exhausted")
+      #endif
+      return
+    }
+    lastComplicationPushAt = Date()
+    session.transferCurrentComplicationUserInfo(payload)
+    #if DEBUG
+    print("[PhysiqWatch iPhone] transferCurrentComplicationUserInfo sent (remaining=\(session.remainingComplicationUserInfoTransfers))")
+    #endif
   }
 
   func session(
@@ -113,8 +142,17 @@ final class PhysiqPhoneWatchSession: NSObject, WCSessionDelegate {
   }
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    // Legacy path: watch builds ≤1.3.4 queued actions via applicationContext.
+    // Current builds queue via transferUserInfo (see didReceiveUserInfo).
     guard let action = applicationContext["action"] as? String, !action.isEmpty else { return }
     emitPayload(applicationContext, source: "applicationContext")
+  }
+
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    // Queued watch → phone actions: each transferUserInfo arrives separately
+    // and in order, so multiple offline hydration logs are all delivered.
+    guard let action = userInfo["action"] as? String, !action.isEmpty else { return }
+    emitPayload(userInfo, source: "userInfo")
   }
 
   func session(

@@ -11,4 +11,8 @@ module.exports = (config) => ({
   // Floor at watchOS 8.0 so Apple Watch Series 3 (42mm) and newer can install.
   deploymentTarget: '8.0',
   bundleIdentifier: '.watch',
+  // Shared with the watch-widget target: complication snapshot handoff.
+  entitlements: {
+    'com.apple.security.application-groups': ['group.app.rork.abz-macro-tracker'],
+  },
 });
