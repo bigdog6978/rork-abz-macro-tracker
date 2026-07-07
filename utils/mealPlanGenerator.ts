@@ -592,6 +592,14 @@ const DAILY_TOLERANCE = { protein: 8, carbs: 15, fat: 6, calories: 60 };
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.5;
 const RECOVERY_MAX_SCALE = 4.0;
+/** Rebalancing may shrink a surplus food to garnish size (below MIN_SCALE)
+ * because structural macro surpluses often sit exactly at the normal floor. */
+const REBALANCE_MIN_SCALE = 0.2;
+/** Near-pure single-macro foods (butter, oils — ratio >= 4 vs the paired
+ * macro) may scale past RECOVERY_MAX_SCALE: extreme splits like carnivore
+ * 105p/178f are only expressible through the plan's few mono-macro levers. */
+const REBALANCE_PURE_MAX_SCALE = 6.0;
+const REBALANCE_PURE_RATIO = 4;
 const SOLVER_ITERATIONS = 80;
 const DAILY_RECONCILIATION_ITERATIONS = 160;
 
@@ -1065,14 +1073,15 @@ function adjustSuggestionByGramDeltaWithBounds(
   suggestionIdx: number,
   gramDelta: number,
   measurementSystem: MeasurementSystem,
-  maxScale: number
+  maxScale: number,
+  minScale: number = MIN_SCALE
 ): MealSlot[] {
   const nextMeals = cloneMeals(meals);
   const suggestion = nextMeals[mealIdx].suggestions[suggestionIdx];
   const food = FOODS[suggestion.foodId];
   if (!food) return meals;
 
-  const minGrams = Math.round(food.basePortionG * MIN_SCALE);
+  const minGrams = Math.round(food.basePortionG * minScale);
   const maxGrams = Math.round(food.basePortionG * maxScale);
   const targetGrams = Math.max(
     minGrams,
@@ -1162,6 +1171,177 @@ function reconcileDailyTotals(
           if (candidateScore + 0.0001 < bestScore) {
             bestScore = candidateScore;
             bestMeals = nextMeals;
+          }
+        }
+      }
+    }
+
+    if (bestScore + 0.0001 >= currentScore) {
+      return workingMeals;
+    }
+
+    workingMeals = bestMeals;
+  }
+
+  return workingMeals;
+}
+
+/**
+ * Final composition pass. The greedy passes above move ONE food at a time, so
+ * once calories converge they stall: any single-food move disturbs calories
+ * and gets rejected, freezing the plan with one macro over target and another
+ * under (e.g. keto at 2x its carb budget while fat runs short). This pass
+ * trades grams between a food dense in the deficient macro and a food dense
+ * in the surplus macro as a single calorie-matched move, so macro balance can
+ * shift while calories stay put.
+ */
+function rebalanceMacroComposition(
+  meals: MealSlot[],
+  dailyTarget: MacroTargets,
+  measurementSystem: MeasurementSystem = 'us'
+): MealSlot[] {
+  let workingMeals = cloneMeals(meals);
+
+  const kcalPerGram = (food: FoodItemData): number =>
+    getCaloriesFromMacros(food.per100g) / 100;
+
+  // Absolute tolerances are meaningless against tiny targets (15g of carbs
+  // vs a 30g keto budget is 50% off) — cap each at 15% of target, floor 3g.
+  const toleranceFor = (key: MacroKey): number => {
+    const abs =
+      key === 'protein_g'
+        ? DAILY_TOLERANCE.protein
+        : key === 'carbs_g'
+          ? DAILY_TOLERANCE.carbs
+          : DAILY_TOLERANCE.fat;
+    return Math.min(abs, Math.max(3, dailyTarget[key] * 0.15));
+  };
+  const effectiveTolerance: MacroTolerance = {
+    protein: toleranceFor('protein_g'),
+    carbs: toleranceFor('carbs_g'),
+    fat: toleranceFor('fat_g'),
+    calories: DAILY_TOLERANCE.calories,
+  };
+
+  /**
+   * Candidates ranked by how DECOUPLED they are: the best food to grow for a
+   * fat deficit is dense in fat but light in the surplus macro (butter), and
+   * the best to shrink for a protein surplus is protein-heavy but lean in
+   * the deficit macro (90/10 beef, not ribeye). Plain single-macro density
+   * ordering picks coupled foods whose swaps cancel out.
+   */
+  const candidatesFor = (mealsState: MealSlot[], key: MacroKey, otherKey: MacroKey) =>
+    mealsState
+      .flatMap((meal, mealIdx) =>
+        meal.suggestions
+          .map((suggestion, suggestionIdx) => {
+            const food = FOODS[suggestion.foodId];
+            if (!food) return null;
+            const density = food.per100g[key];
+            return {
+              mealIdx,
+              suggestionIdx,
+              food,
+              priority: getSuggestionRolePriority(suggestion, food, key),
+              density,
+              ratio: density / (food.per100g[otherKey] + 0.1),
+            };
+          })
+          .filter((c): c is NonNullable<typeof c> => c != null && c.priority > 0 && c.density > 0)
+      )
+      .sort((a, b) => {
+        if (Math.abs(a.ratio - b.ratio) > 0.001) return b.ratio - a.ratio;
+        return b.density - a.density;
+      })
+      .slice(0, 8);
+
+  for (let iter = 0; iter < 60; iter++) {
+    const totals = getDailyTotals(workingMeals);
+    if (withinTolerance(totals, dailyTarget, effectiveTolerance)) {
+      return workingMeals;
+    }
+
+    const gaps = (['protein_g', 'carbs_g', 'fat_g'] as MacroKey[]).map((key) => ({
+      key,
+      gap: getMacroGap(totals, dailyTarget, key),
+      relGap: getMacroGap(totals, dailyTarget, key) / Math.max(dailyTarget[key], 1),
+    }));
+
+    // Pairing: grow the most-under macro, shrink the most-over one — but
+    // anchor on macros OUTSIDE tolerance first. Raw relative gaps mislead on
+    // tiny targets (a 1.5g carb shortfall vs a 5g carnivore budget "wins"
+    // the relative sort while a real 17g protein overage waits). The
+    // within-tolerance side of the pair merely funds/absorbs calories.
+    const byRelGapDesc = [...gaps].sort((a, b) => b.relGap - a.relGap);
+    const outsideDeficits = byRelGapDesc.filter((g) => g.gap > toleranceFor(g.key));
+    const outsideSurpluses = [...byRelGapDesc]
+      .reverse()
+      .filter((g) => -g.gap > toleranceFor(g.key));
+    if (outsideDeficits.length === 0 && outsideSurpluses.length === 0) {
+      return workingMeals;
+    }
+    const upEntry = outsideDeficits[0] ?? byRelGapDesc[0];
+    const downEntry =
+      (outsideSurpluses[0]?.key !== upEntry.key ? outsideSurpluses[0] : outsideSurpluses[1]) ??
+      [...byRelGapDesc].reverse().find((g) => g.key !== upEntry.key);
+    if (!downEntry || upEntry.key === downEntry.key) {
+      return workingMeals;
+    }
+
+    const currentScore = scoreTargets(totals, dailyTarget);
+    const currentCalDeviation = Math.abs(totals.calories - dailyTarget.calories);
+    // Never buy macro balance with calorie drift beyond tolerance.
+    const calDeviationCeiling = Math.max(currentCalDeviation, DAILY_TOLERANCE.calories);
+    let bestScore = currentScore;
+    let bestMeals = workingMeals;
+
+    const upCandidates = candidatesFor(workingMeals, upEntry.key, downEntry.key);
+    const downCandidates = candidatesFor(workingMeals, downEntry.key, upEntry.key);
+
+    for (const up of upCandidates) {
+      for (const down of downCandidates) {
+        if (up.mealIdx === down.mealIdx && up.suggestionIdx === down.suggestionIdx) continue;
+
+        const upMaxScale =
+          up.ratio >= REBALANCE_PURE_RATIO ? REBALANCE_PURE_MAX_SCALE : RECOVERY_MAX_SCALE;
+        for (const gramsUp of [40, 28, 20, 14, 10, 6]) {
+          const afterUp = adjustSuggestionByGramDeltaWithBounds(
+            workingMeals,
+            up.mealIdx,
+            up.suggestionIdx,
+            gramsUp,
+            measurementSystem,
+            upMaxScale
+          );
+          if (afterUp === workingMeals) continue; // clamped to no-op
+
+          // Fund the added calories by shrinking the surplus-macro food;
+          // the down side may shrink below the normal floor (garnish-size)
+          // because structural surpluses often sit exactly at MIN_SCALE.
+          const addedCalories = getDailyTotals(afterUp).calories - totals.calories;
+          const downKcal = kcalPerGram(down.food);
+          if (addedCalories <= 0 || downKcal <= 0) continue;
+          const gramsDown = -Math.round(addedCalories / downKcal);
+          if (gramsDown === 0) continue;
+
+          const afterSwap = adjustSuggestionByGramDeltaWithBounds(
+            afterUp,
+            down.mealIdx,
+            down.suggestionIdx,
+            gramsDown,
+            measurementSystem,
+            RECOVERY_MAX_SCALE,
+            REBALANCE_MIN_SCALE
+          );
+
+          const swapTotals = getDailyTotals(afterSwap);
+          if (Math.abs(swapTotals.calories - dailyTarget.calories) > calDeviationCeiling) {
+            continue;
+          }
+          const candidateScore = scoreTargets(swapTotals, dailyTarget);
+          if (candidateScore + 0.0001 < bestScore) {
+            bestScore = candidateScore;
+            bestMeals = afterSwap;
           }
         }
       }
@@ -1471,6 +1651,12 @@ export function generateMealPlan(
   );
   meals = reconcileDailyTotals(meals, normalizedTargets, measurementSystem);
   meals = tightenCloseCalorieGap(meals, eatingStyle, normalizedTargets, measurementSystem);
+  meals = recoverRemainingCalorieGap(meals, eatingStyle, normalizedTargets, measurementSystem);
+  // Calorie-matched macro swaps — fixes plans stuck with traded macros
+  // (calories on target, one macro over / another under).
+  meals = rebalanceMacroComposition(meals, normalizedTargets, measurementSystem);
+  // Rebalancing holds calories, but clamped swaps can leave small drift;
+  // this returns immediately when already inside tolerance.
   meals = recoverRemainingCalorieGap(meals, eatingStyle, normalizedTargets, measurementSystem);
 
   const totalFoods = meals.reduce((s, m) => s + m.suggestions.length, 0);
