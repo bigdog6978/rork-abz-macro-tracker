@@ -2,9 +2,18 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Animated } from 'react-native';
 import Svg, { Path, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { withAlpha } from '../../theme/accentThemes';
 
 const DASH_COUNT = 28;
 const INACTIVE_COLOR = 'rgba(255,255,255,0.14)';
+// Layered-stroke glow (no SVG filters): wide faint pass + tighter falloff
+// under the crisp arc. Spec in docs/DESIGN-SYSTEM.md — keep in sync with
+// MacroRing.
+const GLOW_OUTER_SCALE = 2.6;
+const GLOW_OUTER_ALPHA = 0.14;
+const GLOW_INNER_SCALE = 1.6;
+const GLOW_INNER_ALPHA = 0.22;
+const BED_ALPHA = 0.06;
 
 function polarToCartesian(cx: number, cy: number, r: number, deg: number) {
   const rad = (deg * Math.PI) / 180;
@@ -87,8 +96,9 @@ export default function CalorieGauge({
     <View style={[styles.container, { width: size, height: size }]}>
       <Svg width={size} height={size}>
         <Defs>
+          {/* Accent-tinted bed — the dial sits in a soft pool of its color. */}
           <RadialGradient id="gaugeBg" cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="rgba(0,0,0,0.08)" stopOpacity="1" />
+            <Stop offset="0%" stopColor={withAlpha(color, BED_ALPHA)} stopOpacity="1" />
             <Stop offset="100%" stopColor="transparent" stopOpacity="0" />
           </RadialGradient>
         </Defs>
@@ -96,7 +106,22 @@ export default function CalorieGauge({
           d={`M ${cx} ${cy} m 0 ${-r} a ${r} ${r} 0 0 1 0 ${r * 2} a ${r} ${r} 0 0 1 0 ${-r * 2}`}
           fill="url(#gaugeBg)"
         />
-        {/* Top half: continuous orange arc (always visible) */}
+        {/* Glow under the top arc (two layered strokes, wide → tight) */}
+        <Path
+          d={describeArc(cx, cy, r, 180, 360)}
+          stroke={withAlpha(color, GLOW_OUTER_ALPHA)}
+          strokeWidth={strokeWidth * GLOW_OUTER_SCALE}
+          strokeLinecap="round"
+          fill="none"
+        />
+        <Path
+          d={describeArc(cx, cy, r, 180, 360)}
+          stroke={withAlpha(color, GLOW_INNER_ALPHA)}
+          strokeWidth={strokeWidth * GLOW_INNER_SCALE}
+          strokeLinecap="round"
+          fill="none"
+        />
+        {/* Top half: continuous accent arc (always visible) */}
         <Path
           d={describeArc(cx, cy, r, 180, 360)}
           stroke={color}
@@ -115,7 +140,7 @@ export default function CalorieGauge({
             fill="none"
           />
         ))}
-        {/* Top half: orange progress arc (fills over grey track) */}
+        {/* Top half: progress arc (fills over grey track) */}
         {topArcPath ? (
           <Path
             d={topArcPath}
@@ -130,14 +155,22 @@ export default function CalorieGauge({
           const threshold = (index + 1) / DASH_COUNT;
           const isActive = displayProgress >= threshold;
           return isActive ? (
-            <Path
-              key={`active-${index}`}
-              d={path}
-              stroke={color}
-              strokeWidth={strokeWidth}
-              strokeLinecap="butt"
-              fill="none"
-            />
+            <React.Fragment key={`active-${index}`}>
+              <Path
+                d={path}
+                stroke={withAlpha(color, GLOW_INNER_ALPHA)}
+                strokeWidth={strokeWidth * GLOW_INNER_SCALE}
+                strokeLinecap="round"
+                fill="none"
+              />
+              <Path
+                d={path}
+                stroke={color}
+                strokeWidth={strokeWidth}
+                strokeLinecap="butt"
+                fill="none"
+              />
+            </React.Fragment>
           ) : null;
         })}
       </Svg>

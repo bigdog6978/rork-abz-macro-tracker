@@ -8,8 +8,7 @@
 import React, { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, Trash2 } from 'lucide-react-native';
-import Colors from '../../constants/colors';
-import { Radius, Spacing } from '../../theme/tokens';
+import { Radius, Spacing, Type } from '../../theme/tokens';
 import { formatNumber } from '../../utils/formatNumber';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 import PhysiqPressable from '../ui/PhysiqPressable';
@@ -87,9 +86,8 @@ const createStyles = (colors: AppColors) =>
       marginTop: Spacing.xxl,
     },
     sectionTitle: {
+      ...Type.heading,
       color: colors.text,
-      fontSize: 18,
-      fontWeight: '700' as const,
       marginBottom: Spacing.md,
     },
     mealSection: {
@@ -104,16 +102,15 @@ const createStyles = (colors: AppColors) =>
       paddingHorizontal: 2,
     },
     mealTitle: {
+      ...Type.label,
       color: colors.textSecondary,
-      fontSize: 13,
-      fontWeight: '700' as const,
       textTransform: 'uppercase' as const,
-      letterSpacing: 0.5,
     },
     mealTotals: {
-      color: Colors.textTertiary,
+      ...Type.numeric,
       fontSize: 12,
-      fontWeight: '500' as const,
+      lineHeight: 16,
+      color: colors.textTertiary,
       flexShrink: 1,
     },
     entryCard: {
@@ -135,15 +132,14 @@ const createStyles = (colors: AppColors) =>
       marginLeft: 8,
     },
     entryName: {
-      color: colors.text,
-      fontSize: 15,
+      ...Type.body,
       fontWeight: '600' as const,
+      color: colors.text,
     },
     entryMacros: {
+      ...Type.bodySm,
       color: colors.textSecondary,
-      fontSize: 13,
       marginTop: 3,
-      fontWeight: '500' as const,
     },
     entryDelete: {
       padding: 8,

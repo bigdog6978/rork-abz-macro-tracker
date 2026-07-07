@@ -22,8 +22,11 @@ const Colors = {
   calories: '#EF4444',
   caloriesMuted: 'rgba(239, 68, 68, 0.15)',
   text: '#F5F5F5',
-  textSecondary: '#737373',
-  textTertiary: '#525252',
+  // Contrast bump (design-system pass): tertiary was #525252 (~2.8:1 on
+  // #0D0D0D — failed WCAG AA for the small text it labels). Now tertiary
+  // meets 4.5:1 and secondary steps up to keep the 3-level hierarchy.
+  textSecondary: '#A1A1AA',
+  textTertiary: '#737373',
   border: '#2A2A2A',
   inputBg: '#1A1A1A',
   inputBorder: '#333333',

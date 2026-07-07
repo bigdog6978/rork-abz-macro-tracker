@@ -1,13 +1,20 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import Colors from '../../constants/colors';
+import { withAlpha } from '../../theme/accentThemes';
+import { Type } from '../../theme/typography';
+import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 import { formatNumber } from '../../utils/formatNumber';
 
 const TRACK_COLOR = 'rgba(255,255,255,0.14)';
 const DASH_COUNT = 20;
 const GAP_RATIO = 0.44;
 const DASH_RATIO = 0.56;
+// Layered-stroke glow — keep in sync with CalorieGauge / DESIGN-SYSTEM.md.
+const GLOW_OUTER_SCALE = 2.6;
+const GLOW_OUTER_ALPHA = 0.14;
+const GLOW_INNER_SCALE = 1.6;
+const GLOW_INNER_ALPHA = 0.22;
 
 function polarToCartesian(cx: number, cy: number, r: number, deg: number) {
   const rad = (deg * Math.PI) / 180;
@@ -85,6 +92,21 @@ export default function MacroRing({
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
+        {/* Glow under the locked top arc (wide faint + tight falloff) */}
+        <Path
+          d={topArcPath}
+          stroke={withAlpha(color, GLOW_OUTER_ALPHA)}
+          strokeWidth={strokeWidth * GLOW_OUTER_SCALE}
+          strokeLinecap="round"
+          fill="none"
+        />
+        <Path
+          d={topArcPath}
+          stroke={withAlpha(color, GLOW_INNER_ALPHA)}
+          strokeWidth={strokeWidth * GLOW_INNER_SCALE}
+          strokeLinecap="round"
+          fill="none"
+        />
         {/* Top half: locked, always visible in macro color */}
         <Path
           d={topArcPath}
@@ -109,14 +131,22 @@ export default function MacroRing({
           const threshold = (index + 1) / DASH_COUNT;
           const isActive = displayProgress >= threshold;
           return isActive ? (
-            <Path
-              key={`active-${index}`}
-              d={path}
-              stroke={color}
-              strokeWidth={strokeWidth}
-              strokeLinecap="butt"
-              fill="none"
-            />
+            <React.Fragment key={`active-${index}`}>
+              <Path
+                d={path}
+                stroke={withAlpha(color, GLOW_INNER_ALPHA)}
+                strokeWidth={strokeWidth * GLOW_INNER_SCALE}
+                strokeLinecap="round"
+                fill="none"
+              />
+              <Path
+                d={path}
+                stroke={color}
+                strokeWidth={strokeWidth}
+                strokeLinecap="butt"
+                fill="none"
+              />
+            </React.Fragment>
           ) : null;
         })}
       </Svg>
@@ -141,6 +171,8 @@ export function MacroDial({
   size = 76,
   strokeWidth = 6,
 }: MacroDialProps) {
+  const colors = useThemeColors();
+  const dialStyles = useMemo(() => createDialStyles(colors), [colors]);
   const percent = target > 0 ? Math.round((consumed / target) * 100) : 0;
 
   return (
@@ -155,45 +187,50 @@ export function MacroDial({
           showLabel
         />
         <View style={dialStyles.center}>
-          <Text style={[dialStyles.percent, { color }]}>{percent}%</Text>
+          <Text style={[dialStyles.percent, { color }]} maxFontSizeMultiplier={1.3}>
+            {percent}%
+          </Text>
         </View>
       </View>
       <Text style={dialStyles.label}>{label}</Text>
-      <Text style={dialStyles.target}>
+      <Text style={dialStyles.target} maxFontSizeMultiplier={1.3}>
         {formatNumber(consumed)}g / {formatNumber(target)}g
       </Text>
     </View>
   );
 }
 
-const dialStyles = StyleSheet.create({
-  item: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  ringWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  center: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  percent: {
-    fontSize: 15,
-    fontWeight: '800' as const,
-  },
-  label: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: '600' as const,
-    marginTop: 8,
-  },
-  target: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '500' as const,
-    marginTop: 2,
-  },
-});
+const createDialStyles = (colors: AppColors) =>
+  StyleSheet.create({
+    item: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    ringWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    center: {
+      position: 'absolute',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    percent: {
+      ...Type.numeric,
+      fontSize: 16,
+      lineHeight: 19,
+    },
+    label: {
+      ...Type.bodySm,
+      fontWeight: '600' as const,
+      color: colors.text,
+      marginTop: 8,
+    },
+    target: {
+      ...Type.numeric,
+      fontSize: 11,
+      lineHeight: 14,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+  });

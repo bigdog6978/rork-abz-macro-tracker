@@ -1,5 +1,8 @@
 import { Platform } from 'react-native';
 
+// One-stop token imports: typography lives in ./typography.
+export { Fonts, Type, type TypeToken } from './typography';
+
 export const Radius = {
   sm: 8,
   md: 12,

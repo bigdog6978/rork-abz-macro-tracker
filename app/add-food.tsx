@@ -18,7 +18,6 @@ import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Check, Search, Pencil, X, ChevronRight, Scan, Bookmark, Mic, LoaderCircle } from 'lucide-react-native';
-import Colors from '../constants/colors';
 import { formatNumber } from '../utils/formatNumber';
 import { useDailyLog } from '../providers/DailyLogProvider';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
@@ -43,7 +42,7 @@ import { useVoiceMeal } from '../features/food/hooks/useVoiceMeal';
 import SuggestionsSection from '../components/add-food/SuggestionsSection';
 import RecentsSection, { type RecentFoodItem } from '../components/add-food/RecentsSection';
 import VoiceMealReviewModal from '../components/add-food/VoiceMealReviewModal';
-import { Radius } from '../theme/tokens';
+import { Radius, Type } from '../theme/tokens';
 import { track } from '../services/analytics';
 
 const HEADER_BUTTON_SIZE = 44;
@@ -1002,7 +1001,7 @@ export default function AddFoodScreen() {
                 style={styles.headerIconBtn}
               >
                 <View style={styles.headerIconWrap}>
-                  <X size={22} color={Colors.textSecondary} />
+                  <X size={22} color={colors.textSecondary} />
                 </View>
               </PhysiqPressable>
             </View>
@@ -1051,7 +1050,7 @@ export default function AddFoodScreen() {
           >
             <Animated.View style={[styles.searchShell, searchShellStyle]}>
               <View style={styles.searchContainer}>
-                <Search size={18} color={Colors.textTertiary} style={styles.searchIcon} />
+                <Search size={18} color={colors.textTertiary} style={styles.searchIcon} />
                 <TextInput
                   style={styles.searchInput}
                   value={query}
@@ -1061,7 +1060,7 @@ export default function AddFoodScreen() {
                       ? 'Search foods or enter name...'
                       : 'Enter food name...'
                   }
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={colors.textTertiary}
                   autoFocus={false}
                   editable={!scannerOpen}
                   testID="food-search-input"
@@ -1072,7 +1071,7 @@ export default function AddFoodScreen() {
                     onPress={handleClearSelection}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <X size={18} color={Colors.textTertiary} />
+                    <X size={18} color={colors.textTertiary} />
                   </PhysiqPressable>
                 )}
                 {isSearching && !scannerOpen && (
@@ -1207,7 +1206,7 @@ export default function AddFoodScreen() {
                   )}
                   {isCustomized && (
                     <View style={styles.inputLabelEdited}>
-                      <Pencil size={10} color={Colors.warning} />
+                      <Pencil size={10} color={colors.warning} />
                       <Text style={styles.inputLabelEditedText}>Edited</Text>
                     </View>
                   )}
@@ -1220,7 +1219,7 @@ export default function AddFoodScreen() {
                     if (selectedFood) setIsCustomized(true);
                   }}
                   placeholder="e.g. Grilled Chicken"
-                  placeholderTextColor={Colors.textTertiary}
+                  placeholderTextColor={colors.textTertiary}
                   testID="food-name-input"
                 />
               </View>
@@ -1308,44 +1307,44 @@ export default function AddFoodScreen() {
 
               <View style={styles.macroInputRow}>
                 <View style={styles.macroInput}>
-                  <Text style={[styles.macroInputLabel, { color: Colors.protein }]}>
+                  <Text style={[styles.macroInputLabel, { color: colors.protein }]}>
                     Protein (g)
                   </Text>
                   <TextInput
-                    style={[styles.macroTextInput, { borderColor: Colors.protein }]}
+                    style={[styles.macroTextInput, { borderColor: colors.protein }]}
                     value={protein}
                     onChangeText={(v) => handleMacroEdit('protein', v)}
                     keyboardType="decimal-pad"
                     placeholder="0"
-                    placeholderTextColor={Colors.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     testID="protein-input"
                   />
                 </View>
                 <View style={styles.macroInput}>
-                  <Text style={[styles.macroInputLabel, { color: Colors.carbs }]}>
+                  <Text style={[styles.macroInputLabel, { color: colors.carbs }]}>
                     Carbs (g)
                   </Text>
                   <TextInput
-                    style={[styles.macroTextInput, { borderColor: Colors.carbs }]}
+                    style={[styles.macroTextInput, { borderColor: colors.carbs }]}
                     value={carbs}
                     onChangeText={(v) => handleMacroEdit('carbs', v)}
                     keyboardType="decimal-pad"
                     placeholder="0"
-                    placeholderTextColor={Colors.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     testID="carbs-input"
                   />
                 </View>
                 <View style={styles.macroInput}>
-                  <Text style={[styles.macroInputLabel, { color: Colors.fat }]}>
+                  <Text style={[styles.macroInputLabel, { color: colors.fat }]}>
                     Fat (g)
                   </Text>
                   <TextInput
-                    style={[styles.macroTextInput, { borderColor: Colors.fat }]}
+                    style={[styles.macroTextInput, { borderColor: colors.fat }]}
                     value={fat}
                     onChangeText={(v) => handleMacroEdit('fat', v)}
                     keyboardType="decimal-pad"
                     placeholder="0"
-                    placeholderTextColor={Colors.textTertiary}
+                    placeholderTextColor={colors.textTertiary}
                     testID="fat-input"
                   />
                 </View>
@@ -1367,7 +1366,7 @@ export default function AddFoodScreen() {
                   >
                     <Bookmark
                       size={18}
-                      color={saveToLibrary ? colors.primary : Colors.textTertiary}
+                      color={saveToLibrary ? colors.primary : colors.textTertiary}
                     />
                     <Text
                       style={[
@@ -1479,7 +1478,7 @@ export default function AddFoodScreen() {
 const createStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: colors.background,
   },
   headerBtnContainer: {
     width: HEADER_BUTTON_SIZE,
@@ -1517,9 +1516,9 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
     borderRadius: 14,
     paddingHorizontal: 14,
   },
@@ -1530,11 +1529,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginRight: 10,
   },
   searchInput: {
+    ...Type.body,
+    fontSize: 16,
+    lineHeight: 21,
     flex: 1,
     paddingVertical: 14,
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '500' as const,
+    color: colors.text,
   },
   searchSpinner: {
     marginLeft: 8,
@@ -1544,7 +1544,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: 4,
   },
   apiNoticeText: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 12,
     fontWeight: '500' as const,
   },
@@ -1578,7 +1578,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '600' as const,
   },
   voiceSupportHint: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 12,
     fontWeight: '500' as const,
     marginTop: 8,
@@ -1613,7 +1613,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 20,
   },
   noResultsText: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '500' as const,
     marginBottom: 8,
@@ -1632,14 +1632,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     flexWrap: 'wrap',
   },
   inputLabel: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700' as const,
+    ...Type.label,
+    color: colors.textSecondary,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
   },
   inputLabelMeta: {
-    color: Colors.textTertiary,
+    color: colors.textTertiary,
     fontSize: 11,
     fontWeight: '600' as const,
     letterSpacing: 0.4,
@@ -1650,20 +1648,21 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 4,
   },
   inputLabelEditedText: {
-    color: Colors.warning,
+    color: colors.warning,
     fontSize: 11,
     fontWeight: '700' as const,
   },
   textInput: {
-    backgroundColor: Colors.inputBg,
+    ...Type.body,
+    fontSize: 16,
+    lineHeight: 21,
+    backgroundColor: colors.inputBg,
     borderWidth: 1,
-    borderColor: Colors.inputBorder,
+    borderColor: colors.inputBorder,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '500' as const,
+    color: colors.text,
   },
   servingSection: {
     marginBottom: 16,
@@ -1684,14 +1683,15 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     letterSpacing: 0.5,
   },
   macroTextInput: {
-    backgroundColor: Colors.inputBg,
+    ...Type.numeric,
+    fontSize: 18,
+    lineHeight: 23,
+    backgroundColor: colors.inputBg,
     borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: Colors.text,
-    fontSize: 18,
-    fontWeight: '700' as const,
+    color: colors.text,
     textAlign: 'center' as const,
   },
   caloriePreview: {
@@ -1704,14 +1704,13 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: 16,
   },
   caloriePreviewLabel: {
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: '600' as const,
   },
   caloriePreviewValue: {
+    ...Type.statSm,
     color: colors.primary,
-    fontSize: 22,
-    fontWeight: '800' as const,
   },
   saveToLibraryRow: {
     flexDirection: 'row',
@@ -1722,17 +1721,17 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   },
   saveToLibraryText: {
     flex: 1,
-    color: Colors.textSecondary,
+    color: colors.textSecondary,
     fontSize: 14,
   },
   saveToLibraryTextActive: {
-    color: Colors.text,
+    color: colors.text,
   },
   toggleTrack: {
     width: 44,
     height: 26,
     borderRadius: 13,
-    backgroundColor: Colors.border,
+    backgroundColor: colors.border,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
@@ -1743,11 +1742,11 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: Colors.textTertiary,
+    backgroundColor: colors.textTertiary,
     alignSelf: 'flex-start',
   },
   toggleThumbActive: {
-    backgroundColor: Colors.white,
+    backgroundColor: colors.white,
     alignSelf: 'flex-end',
   },
   usdaSaveBtn: {

@@ -17,8 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playFeedback } from '../../../utils/interactionFeedback';
 import { track } from '../../../services/analytics';
 import { Flame, ChevronRight, Pencil, ChevronDown, Droplet, Activity, Dumbbell, Moon, Mic, Scan, CopyPlus, Info } from 'lucide-react-native';
-import Colors from '../../../constants/colors';
-import { Radius, Spacing } from '../../../theme/tokens';
+import { Fonts, Radius, Spacing, Type } from '../../../theme/tokens';
 import { formatNumber } from '../../../utils/formatNumber';
 import { getGreeting, getProgressLevel } from '../../../utils/greeting';
 import { useStaggerFadeIn } from '../../../utils/motion';
@@ -160,10 +159,10 @@ function CustomMacrosModal({
     color: string;
     errorKey: MacroFieldKey;
   }[] = [
-    { label: 'Calories', value: calories, onChange: setCalories, color: Colors.calories, errorKey: 'calories' },
-    { label: 'Protein (g)', value: protein, onChange: setProtein, color: Colors.protein, errorKey: 'protein' },
-    { label: 'Carbs (g)', value: carbs, onChange: setCarbs, color: Colors.carbs, errorKey: 'carbs' },
-    { label: 'Fat (g)', value: fat, onChange: setFat, color: Colors.fat, errorKey: 'fat' },
+    { label: 'Calories', value: calories, onChange: setCalories, color: colors.calories, errorKey: 'calories' },
+    { label: 'Protein (g)', value: protein, onChange: setProtein, color: colors.protein, errorKey: 'protein' },
+    { label: 'Carbs (g)', value: carbs, onChange: setCarbs, color: colors.carbs, errorKey: 'carbs' },
+    { label: 'Fat (g)', value: fat, onChange: setFat, color: colors.fat, errorKey: 'fat' },
   ];
 
   return (
@@ -205,7 +204,7 @@ function CustomMacrosModal({
                 <Text style={[styles.fieldLabel, { color }]}>{label}</Text>
                 <TextInput
                   ref={inputRefs[index]}
-                  style={[styles.fieldInput, { borderColor: fieldError ? Colors.danger : color }]}
+                  style={[styles.fieldInput, { borderColor: fieldError ? colors.danger : color }]}
                   value={value}
                   onChangeText={onChange}
                   keyboardType="number-pad"
@@ -518,7 +517,7 @@ export default function DashboardScreen() {
                               },
                             ]}
                             numberOfLines={1}
-                            maxFontSizeMultiplier={1}
+                            maxFontSizeMultiplier={1.3}
                             accessibilityLabel={`${formatNumber(caloriesRemaining)} calories remaining`}
                           >
                             {formatNumber(caloriesRemaining)}
@@ -530,7 +529,7 @@ export default function DashboardScreen() {
                             { fontSize: dialSubSize, marginTop: calorieTextGap },
                           ]}
                           numberOfLines={1}
-                          maxFontSizeMultiplier={1}
+                          maxFontSizeMultiplier={1.3}
                         >
                           cal left
                         </Text>
@@ -548,7 +547,7 @@ export default function DashboardScreen() {
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.7}
-                      maxFontSizeMultiplier={1}
+                      maxFontSizeMultiplier={1.3}
                     >
                       {formatNumber(dashboardTargets.calories)}
                     </Text>
@@ -562,7 +561,7 @@ export default function DashboardScreen() {
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.7}
-                      maxFontSizeMultiplier={1}
+                      maxFontSizeMultiplier={1.3}
                     >
                       {formatNumber(todayTotals.calories)}
                     </Text>
@@ -621,19 +620,19 @@ export default function DashboardScreen() {
                 label="Protein"
                 consumed={todayTotals.protein_g}
                 target={dashboardTargets.protein_g}
-                color={Colors.protein}
+                color={colors.protein}
               />
               <MacroDial
                 label="Carbs"
                 consumed={todayTotals.carbs_g}
                 target={dashboardTargets.carbs_g}
-                color={Colors.carbs}
+                color={colors.carbs}
               />
               <MacroDial
                 label="Fat"
                 consumed={todayTotals.fat_g}
                 target={dashboardTargets.fat_g}
-                color={Colors.fat}
+                color={colors.fat}
               />
             </View>
             <View style={styles.dietLineRow}>
@@ -663,7 +662,7 @@ export default function DashboardScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Hydration ${formatHydrationProgress(hydration.consumedMl, hydration.targetMl, hydrationUnit)}. ${hydrationExpanded ? 'Collapse' : 'Expand'} options.`}
               >
-                <Droplet size={16} color={Colors.hydration} />
+                <Droplet size={16} color={colors.hydration} />
                 <Text style={styles.hydrationRowText} numberOfLines={1}>
                   {formatHydrationProgress(hydration.consumedMl, hydration.targetMl, hydrationUnit)}
                 </Text>
@@ -864,7 +863,7 @@ const createModalStyles = (colors: AppColors) => StyleSheet.create({
     textAlign: 'right' as const,
   },
   fieldError: {
-    color: Colors.danger,
+    color: colors.danger,
     fontSize: 12,
     fontWeight: '600' as const,
     textAlign: 'right' as const,
@@ -965,7 +964,11 @@ const createStyles = (colors: AppColors) =>
       justifyContent: 'center',
     },
     dialNumber: {
-      fontWeight: '800' as const,
+      // Size/lineHeight are dial-proportional (set inline); face is the
+      // Rajdhani instrument numeral.
+      fontFamily: Fonts.numericBold,
+      letterSpacing: 0.5,
+      fontVariant: ['tabular-nums'],
       color: colors.text,
       textAlign: 'center' as const,
     },
@@ -1003,23 +1006,21 @@ const createStyles = (colors: AppColors) =>
       gap: 8,
     },
     statLabel: {
+      ...Type.body,
       flexShrink: 0,
       width: 82,
-      fontSize: 16,
       color: colors.textSecondary,
     },
     statValue: {
+      ...Type.stat,
       flex: 1,
-      fontSize: 30,
-      fontWeight: '800' as const,
       color: colors.text,
       minWidth: 56,
       textAlign: 'right' as const,
     },
     statValueAccent: {
+      ...Type.stat,
       flex: 1,
-      fontSize: 30,
-      fontWeight: '800' as const,
       color: colors.primary,
       minWidth: 56,
       textAlign: 'right' as const,
@@ -1038,9 +1039,10 @@ const createStyles = (colors: AppColors) =>
       borderRadius: Radius.sm,
     },
     streakText: {
-      color: colors.primary,
+      ...Type.numeric,
       fontSize: 13,
-      fontWeight: '600' as const,
+      lineHeight: 17,
+      color: colors.primary,
     },
     macroDialCard: {
       padding: Spacing.lg,
@@ -1057,9 +1059,9 @@ const createStyles = (colors: AppColors) =>
       backgroundColor: colors.primary,
     },
     dayTypeChipText: {
-      color: colors.onPrimary ?? '#000000',
-      fontSize: 13,
+      ...Type.bodySm,
       fontWeight: '600' as const,
+      color: colors.onPrimary ?? '#000000',
     },
     macroInfoBtn: {
       position: 'absolute',
@@ -1075,9 +1077,9 @@ const createStyles = (colors: AppColors) =>
       gap: 8,
     },
     dietLineText: {
-      color: Colors.textTertiary,
-      fontSize: 12,
+      ...Type.caption,
       fontWeight: '500' as const,
+      color: colors.textTertiary,
       flexShrink: 1,
     },
     hydrationRowCard: {
@@ -1092,23 +1094,24 @@ const createStyles = (colors: AppColors) =>
       paddingVertical: 12,
     },
     hydrationRowText: {
+      ...Type.numeric,
+      fontSize: 14,
+      lineHeight: 18,
       flex: 1,
       color: colors.text,
-      fontSize: 14,
-      fontWeight: '700' as const,
-      fontVariant: ['tabular-nums'],
     },
     hydrationQuickAdd: {
       paddingHorizontal: 12,
       paddingVertical: 7,
       borderRadius: Radius.sm,
       borderWidth: 1,
-      borderColor: Colors.hydration,
+      borderColor: colors.hydration,
     },
     hydrationQuickAddText: {
-      color: Colors.hydration,
+      ...Type.numeric,
       fontSize: 13,
-      fontWeight: '700' as const,
+      lineHeight: 17,
+      color: colors.hydration,
     },
     hydrationGridWrap: {
       alignItems: 'center',

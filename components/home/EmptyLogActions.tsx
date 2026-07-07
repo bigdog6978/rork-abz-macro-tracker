@@ -7,8 +7,7 @@
 import React, { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { CopyPlus, Plus } from 'lucide-react-native';
-import Colors from '../../constants/colors';
-import { Radius, Spacing } from '../../theme/tokens';
+import { Radius, Spacing, Type } from '../../theme/tokens';
 import { formatNumber } from '../../utils/formatNumber';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 import PhysiqPressable from '../ui/PhysiqPressable';
@@ -78,7 +77,7 @@ function EmptyLogActions({
             accessibilityRole="button"
             accessibilityLabel="Open Add Food"
           >
-            <Plus size={12} color={Colors.textSecondary} />
+            <Plus size={12} color={colors.textSecondary} />
             <Text style={styles.moreChipText}>More</Text>
           </PhysiqPressable>
         </View>
@@ -104,9 +103,10 @@ const createStyles = (colors: AppColors) =>
       alignSelf: 'center',
     },
     copyYesterdayText: {
-      color: colors.primary,
+      ...Type.numeric,
       fontSize: 14,
-      fontWeight: '700' as const,
+      lineHeight: 18,
+      color: colors.primary,
     },
     chipWrap: {
       flexDirection: 'row',
@@ -122,22 +122,22 @@ const createStyles = (colors: AppColors) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: Radius.lg,
-      backgroundColor: Colors.card,
+      backgroundColor: colors.card,
       borderWidth: 1,
-      borderColor: Colors.cardBorder,
+      borderColor: colors.cardBorder,
     },
     chipText: {
-      color: Colors.text,
-      fontSize: 13,
+      ...Type.bodySm,
       fontWeight: '600' as const,
+      color: colors.text,
     },
     moreChip: {
       backgroundColor: 'transparent',
     },
     moreChipText: {
-      color: Colors.textSecondary,
-      fontSize: 13,
+      ...Type.bodySm,
       fontWeight: '600' as const,
+      color: colors.textSecondary,
     },
   });
 

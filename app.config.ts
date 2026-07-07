@@ -19,7 +19,9 @@ export default (): ExpoConfig => ({
   orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'rork-app',
-  userInterfaceStyle: 'automatic',
+  // Dark-only is a deliberate brand choice — declare it so system sheets,
+  // alerts, and the keyboard match instead of flashing light chrome.
+  userInterfaceStyle: 'dark',
   // New Architecture required by react-native-worklets (Expo SDK 54). react-native-health
   // uses legacy NativeModules; interop is supported but expo-doctor flags it as untested.
   newArchEnabled: true,
@@ -59,7 +61,18 @@ export default (): ExpoConfig => ({
   plugins: [
     ['expo-router', { origin: 'https://rork.com/' }],
     'expo-asset',
-    'expo-font',
+    [
+      'expo-font',
+      {
+        // Embedded at build (no runtime load/flash). Family names = the
+        // files' PostScript names — see theme/typography.ts Fonts.
+        fonts: [
+          './assets/fonts/Rajdhani-Medium.ttf',
+          './assets/fonts/Rajdhani-SemiBold.ttf',
+          './assets/fonts/Rajdhani-Bold.ttf',
+        ],
+      },
+    ],
     'expo-web-browser',
     [
       'expo-camera',

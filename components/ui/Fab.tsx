@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { Motion, Shadows } from '../../theme/tokens';
-import Colors from '../../constants/colors';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 import { playFeedback } from '../../utils/interactionFeedback';
 import PhysiqPressable from './PhysiqPressable';
@@ -155,11 +154,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     gap: 10,
   },
   actionLabel: {
-    color: Colors.text,
     fontSize: 13,
+    lineHeight: 17,
     fontWeight: '700' as const,
-    backgroundColor: Colors.cardElevated,
-    borderColor: Colors.cardBorder,
+    color: colors.text,
+    backgroundColor: colors.cardElevated,
+    borderColor: colors.cardBorder,
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -170,7 +170,7 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.cardElevated,
+    backgroundColor: colors.cardElevated,
     borderWidth: 1,
     borderColor: colors.primary,
     alignItems: 'center',

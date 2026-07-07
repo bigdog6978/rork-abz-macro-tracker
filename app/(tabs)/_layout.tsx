@@ -2,8 +2,8 @@ import { Tabs } from "expo-router";
 import { Home, UtensilsCrossed, TrendingUp, Settings } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { View, StyleSheet, Platform } from "react-native";
-import Colors from "../../constants/colors";
 import { useThemeColors } from "../../providers/ThemeProvider";
+import { Type } from "../../theme/tokens";
 import { playFeedback } from "../../utils/interactionFeedback";
 
 const tabPressListener = {
@@ -31,12 +31,12 @@ export default function TabLayout() {
   const colors = useThemeColors();
   const tabBarStyle = useMemo(
     () => ({
-      backgroundColor: Colors.tabBar,
-      borderTopColor: Colors.border,
+      backgroundColor: colors.tabBar,
+      borderTopColor: colors.border,
       borderTopWidth: 0.5,
       paddingTop: Platform.OS === 'ios' ? 8 : 4,
     }),
-    []
+    [colors.tabBar, colors.border]
   );
 
   return (
@@ -47,11 +47,11 @@ export default function TabLayout() {
           backgroundColor: 'transparent',
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: Colors.textTertiary,
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle,
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600' as const,
+          ...Type.caption,
+          lineHeight: undefined,
         },
       }}
     >
@@ -105,10 +105,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activeBar: {
+    // backgroundColor supplied per-tab via activeBarColor (themed primary).
     width: 20,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: Colors.primary,
     marginTop: 4,
   },
 });

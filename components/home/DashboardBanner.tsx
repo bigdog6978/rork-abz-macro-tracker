@@ -9,8 +9,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { Camera, Dumbbell, ChevronRight, Ruler, X } from 'lucide-react-native';
-import Colors from '../../constants/colors';
-import { Radius, Spacing } from '../../theme/tokens';
+import { Radius, Spacing, Type } from '../../theme/tokens';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
 import PhysiqPressable from '../ui/PhysiqPressable';
 import { useMeasurements } from '../../providers/MeasurementsProvider';
@@ -56,7 +55,7 @@ function DashboardBanner() {
       <View style={styles.banner}>
         <View style={styles.left}>
           <View style={[styles.iconBadge, { backgroundColor: 'rgba(52, 211, 153, 0.2)' }]}>
-            <Ruler size={16} color={Colors.success} />
+            <Ruler size={16} color={colors.success} />
           </View>
           <View style={styles.textCol}>
             <Text style={styles.title}>
@@ -72,7 +71,7 @@ function DashboardBanner() {
         <View style={styles.actions}>
           <PhysiqPressable
             feedback="confirm"
-            style={[styles.cta, { backgroundColor: Colors.success }]}
+            style={[styles.cta, { backgroundColor: colors.success }]}
             onPress={() => router.push('/add-measurement' as never)}
           >
             <Text style={styles.ctaText}>Go</Text>
@@ -84,7 +83,7 @@ function DashboardBanner() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Dismiss measurement prompt"
           >
-            <X size={14} color={Colors.textTertiary} />
+            <X size={14} color={colors.textTertiary} />
           </PhysiqPressable>
         </View>
       </View>
@@ -121,7 +120,7 @@ function DashboardBanner() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Dismiss photo prompt"
           >
-            <X size={14} color={Colors.textTertiary} />
+            <X size={14} color={colors.textTertiary} />
           </PhysiqPressable>
         </View>
       </View>
@@ -139,7 +138,7 @@ function DashboardBanner() {
         <Text style={styles.trainingNudgeText}>
           Set up Training Mode for sport & schedule-aware fueling
         </Text>
-        <ChevronRight size={16} color={Colors.textTertiary} />
+        <ChevronRight size={16} color={colors.textTertiary} />
       </PhysiqPressable>
     );
   }
@@ -177,14 +176,16 @@ const createStyles = (colors: AppColors) =>
       flex: 1,
     },
     title: {
+      ...Type.bodySm,
+      fontWeight: '700' as const,
       color: colors.text,
       fontSize: 14,
-      fontWeight: '700' as const,
     },
     subtitle: {
-      color: colors.textSecondary,
-      fontSize: 12,
+      ...Type.caption,
       fontWeight: '500' as const,
+      fontSize: 12,
+      color: colors.textSecondary,
       marginTop: 1,
     },
     actions: {
@@ -198,7 +199,7 @@ const createStyles = (colors: AppColors) =>
       borderRadius: Radius.sm,
     },
     ctaText: {
-      color: Colors.white,
+      color: colors.white,
       fontSize: 13,
       fontWeight: '700' as const,
     },

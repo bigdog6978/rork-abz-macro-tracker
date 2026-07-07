@@ -6,9 +6,9 @@
 import React, { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ChevronRight, Clock, Scan } from 'lucide-react-native';
-import Colors from '../../constants/colors';
 import { formatNumber } from '../../utils/formatNumber';
 import { useThemeColors, type AppColors } from '../../providers/ThemeProvider';
+import { Type } from '../../theme/tokens';
 import PhysiqPressable from '../ui/PhysiqPressable';
 import type { NormalizedFood } from '../../features/food/types';
 
@@ -30,7 +30,7 @@ function RecentsSection({ recentFoods, savedFoods, onSelectRecent, onSelectSaved
       {recentFoods.length > 0 && (
         <>
           <View style={styles.recentHeader}>
-            <Clock size={14} color={Colors.textSecondary} />
+            <Clock size={14} color={colors.textSecondary} />
             <Text style={styles.recentTitle}>Recent</Text>
           </View>
           {recentFoods.slice(0, 10).map((item) => (
@@ -53,7 +53,7 @@ function RecentsSection({ recentFoods, savedFoods, onSelectRecent, onSelectSaved
                   cal
                 </Text>
               </View>
-              <ChevronRight size={16} color={Colors.textTertiary} />
+              <ChevronRight size={16} color={colors.textTertiary} />
             </PhysiqPressable>
           ))}
         </>
@@ -61,7 +61,7 @@ function RecentsSection({ recentFoods, savedFoods, onSelectRecent, onSelectSaved
       {savedFoods.length > 0 && (
         <>
           <View style={[styles.recentHeader, { marginTop: recentFoods.length > 0 ? 20 : 0 }]}>
-            <Scan size={14} color={Colors.textSecondary} />
+            <Scan size={14} color={colors.textSecondary} />
             <Text style={styles.recentTitle}>Saved Foods</Text>
           </View>
           {savedFoods.slice(0, 10).map((food) => (
@@ -82,7 +82,7 @@ function RecentsSection({ recentFoods, savedFoods, onSelectRecent, onSelectSaved
                   {formatNumber(food.per100g.fat_g)}f per 100g
                 </Text>
               </View>
-              <ChevronRight size={16} color={Colors.textTertiary} />
+              <ChevronRight size={16} color={colors.textTertiary} />
             </PhysiqPressable>
           ))}
         </>
@@ -91,7 +91,7 @@ function RecentsSection({ recentFoods, savedFoods, onSelectRecent, onSelectSaved
   );
 }
 
-const createStyles = (_colors: AppColors) => StyleSheet.create({
+const createStyles = (colors: AppColors) => StyleSheet.create({
   recentsSection: {
     marginTop: 12,
   },
@@ -102,34 +102,33 @@ const createStyles = (_colors: AppColors) => StyleSheet.create({
     marginBottom: 12,
   },
   recentTitle: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700' as const,
+    ...Type.label,
+    color: colors.textSecondary,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
   },
   recentCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 14,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: colors.cardBorder,
   },
   recentInfo: {
     flex: 1,
   },
   recentName: {
-    color: Colors.text,
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600' as const,
   },
   recentMeta: {
-    color: Colors.textTertiary,
+    ...Type.numeric,
     fontSize: 12,
-    fontWeight: '500' as const,
+    lineHeight: 16,
+    color: colors.textTertiary,
     marginTop: 2,
   },
 });
