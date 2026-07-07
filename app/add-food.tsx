@@ -96,6 +96,7 @@ export default function AddFoodScreen() {
     fromBarcode?: string;
     dateKey?: string;
     sourceContext?: string;
+    autoStart?: string;
   }>();
   const dateKeyParam = typeof params.dateKey === 'string' ? params.dateKey : undefined;
   const isFromSavedFoods = params.sourceContext === 'saved-foods';
@@ -365,6 +366,20 @@ export default function AddFoodScreen() {
     loadFoodIntoForm(id);
   }, [loadFoodIntoForm, params.fromBarcode]);
 
+  // FAB quick actions deep-link straight into voice / scanner (fire once).
+  const autoStartFiredRef = useRef(false);
+  useEffect(() => {
+    if (autoStartFiredRef.current) return;
+    if (params.autoStart === 'voice') {
+      autoStartFiredRef.current = true;
+      void handleStartVoiceMeal();
+    } else if (params.autoStart === 'scanner') {
+      autoStartFiredRef.current = true;
+      handleScanBarcode();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.autoStart]);
+
   const handleScanBarcode = useCallback(() => {
     Keyboard.dismiss();
     setShowSuggestions(false);
@@ -585,11 +600,15 @@ export default function AddFoodScreen() {
           applyMacros(foodService.computeMacrosForServing(resolvedFood, gramsForFallback));
         }
       } else {
+        // Default to the user's last-logged portion of this food (recents),
+        // falling back to 100 g only for never-logged foods.
+        const lastGrams = lastGramsFromRecent(resolvedFood);
+        const grams = lastGrams != null && lastGrams > 0 ? Math.round(lastGrams) : 100;
         setUnitKind('mass');
         setUnitId('g');
-        setQuantityInput('100');
+        setQuantityInput(String(grams));
         applyScalingResult(
-          foodService.scaleMacrosFromQuantity(resolvedFood, 100, 'g', 'mass')
+          foodService.scaleMacrosFromQuantity(resolvedFood, grams, 'g', 'mass')
         );
       }
     },

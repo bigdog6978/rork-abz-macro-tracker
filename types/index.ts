@@ -134,6 +134,18 @@ export interface NutrientsPer100g {
   fat_g: number;
 }
 
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export const MEAL_TYPE_LABELS: Record<MealType, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  snack: 'Snacks',
+};
+
+/** Display order for grouped log sections. */
+export const MEAL_TYPE_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
 export interface FoodEntry {
   id: string;
   name: string;
@@ -142,6 +154,8 @@ export interface FoodEntry {
   fat_g: number;
   calories: number;
   timestamp: string;
+  /** Meal group; inferred from log time when absent (pre-1.4 entries). */
+  mealType?: MealType;
   providerId?: 'usda' | 'manual' | 'openfoodfacts' | 'cofid_uk';
   externalId?: string;
   servingGrams?: number;

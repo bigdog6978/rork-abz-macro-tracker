@@ -120,6 +120,7 @@ import { getQuantityInfo, scaleMacros, formatQuantityDisplay } from '../../../ut
 import EditQuantitySheet from '../../../components/ui/EditQuantitySheet';
 import DashboardBrandHeader from '../../../components/ui/DashboardBrandHeader';
 import TabScreenTitle from '../../../components/ui/TabScreenTitle';
+import PlanPreferencesGate from '../../../components/plan/PlanPreferencesGate';
 import PsmfDurationBanner from '../../../components/ui/PsmfDurationBanner';
 import ResponsiveContainer from '../../../components/ui/ResponsiveContainer';
 import MealPlanMethodologyCard from '../../../components/ui/MealPlanMethodologyCard';
@@ -1584,6 +1585,7 @@ export default function PlanScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <PlanPreferencesGate />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

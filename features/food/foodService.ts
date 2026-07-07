@@ -13,7 +13,8 @@ import * as foodRepo from '../../storage/foodRepo';
 import * as foodsRepo from '../../src/data/foodsRepo';
 import { openDb } from '../../src/data/db';
 import { ensureFoodCatalogReady } from '../../src/data/catalogInit';
-import { FoodEntry, NutrientsPer100g } from '../../types';
+import { FoodEntry, MealType, NutrientsPer100g } from '../../types';
+import { inferMealType } from './mealType';
 import {
   rankFoods,
   FoodItem,
@@ -453,6 +454,7 @@ export function createFoodEntry(
     measureMode?: 'qty' | 'grams' | 'ounces';
     quantity?: number;
     servingWeightG?: number;
+    mealType?: MealType;
   }
 ): FoodEntry {
   const entry: FoodEntry = {
@@ -463,6 +465,7 @@ export function createFoodEntry(
     fat_g: Math.round(macros.fat_g * 10) / 10,
     calories: Math.round(macros.calories),
     timestamp: new Date().toISOString(),
+    mealType: opts?.mealType ?? inferMealType(new Date()),
     providerId: food?.providerId ?? 'manual',
     externalId: food?.externalId,
     servingGrams,

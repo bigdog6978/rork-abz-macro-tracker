@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,11 +14,8 @@ import PhysiqPressable from '../components/ui/PhysiqPressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { ChevronLeft, ChevronRight, Info, Zap, Camera, ImageIcon } from 'lucide-react-native';
-import { Image } from 'expo-image';
+import { ChevronLeft, ChevronRight, Info, Zap } from 'lucide-react-native';
 import Colors from '../constants/colors';
-import { FOODS } from '../constants/foodDatabase';
-import { setDislikedFoods } from '../storage/dislikedFoodsRepo';
 import PlanDefinitionSheet from '../components/ui/PlanDefinitionSheet';
 import PsmfAcknowledgmentModal from '../components/ui/PsmfAcknowledgmentModal';
 import { useUser } from '../providers/UserProvider';
@@ -60,52 +56,20 @@ import {
 import { saveAthleteProfile } from '../storage/proRepo';
 import { useThemeColors, type AppColors } from '../providers/ThemeProvider';
 import ResponsiveContainer from '../components/ui/ResponsiveContainer';
-import ProInfoModal from '../components/ui/ProInfoModal';
-import { PRO_COPY } from '../src/content/proMicrocopy';
-import { captureProgressPhoto } from '../utils/photos/captureProgressPhoto';
-import { addPhoto as saveProgressPhoto } from '../storage/photosRepo';
 import { upsertMeasurement } from '../storage/measurementsRepo';
 import { getTodayDateKey } from '../utils/dateKey';
 import { buildPsmfProfileUpdates } from '../utils/psmfHelpers';
 import { Radius, Spacing } from '../theme/tokens';
 import { track } from '../services/analytics';
 
-const TOTAL_STEPS = 11;
+const TOTAL_STEPS = 6;
 const FOOTER_BUTTON_HEIGHT = 52;
-
-const PROTEIN_FOOD_IDS = [
-  'bacon', 'beef_jerky', 'beef_liver', 'black_beans', 'bone_broth',
-  'chicken_breast', 'chickpeas', 'cod', 'cottage_cheese', 'edamame',
-  'eggs', 'greek_yogurt', 'ground_beef_80', 'ground_beef_90',
-  'hard_boiled_eggs', 'lamb_chop', 'lentils', 'plant_protein',
-  'pork_loin', 'pork_rinds', 'ribeye', 'salmon', 'sea_bass',
-  'shrimp', 'tempeh', 'tofu', 'tuna_canned', 'turkey_breast',
-  'whey_protein',
-].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
-
-const CARB_FOOD_IDS = [
-  'apple', 'asparagus', 'banana', 'bell_pepper', 'berries',
-  'broccoli', 'brown_rice', 'cauliflower', 'corn_tortilla',
-  'couscous', 'cucumber', 'dates', 'green_beans', 'mixed_greens',
-  'oats_dry', 'pita', 'potato', 'quinoa', 'rice_cake',
-  'roasted_veggies', 'sauerkraut', 'spinach_cooked', 'sweet_potato',
-  'tabbouleh', 'tomato', 'tortilla', 'white_rice', 'ww_bread',
-  'ww_pasta', 'zucchini',
-].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
-
-const FAT_FOOD_IDS = [
-  'almond_butter', 'almonds', 'avocado', 'butter', 'cheddar',
-  'coconut_oil', 'cream_cheese', 'dark_chocolate', 'feta',
-  'hummus', 'macadamia', 'mixed_nuts', 'mozzarella', 'olive_oil',
-  'olives', 'peanut_butter', 'string_cheese', 'tahini',
-  'trail_mix', 'walnuts',
-].sort((a, b) => FOODS[a].name.localeCompare(FOODS[b].name));
 
 export default function OnboardingScreen() {
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const { height: viewportHeight, fontScale } = useWindowDimensions();
+
   const { completeOnboarding } = useUser();
   const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
 
@@ -129,14 +93,10 @@ export default function OnboardingScreen() {
   const [selectedActivities, setSelectedActivities] = useState<ActivityType[]>([]);
   const [sessionsPerWeek, setSessionsPerWeek] = useState('');
   const [dietModifiers, setDietModifiers] = useState<DietaryModifier[]>([]);
-  const [dietNotes, setDietNotes] = useState('');
-  const [dislikedFoodIds, setDislikedFoodIds] = useState<string[]>([]);
+  const [dietNotes] = useState(''); // collected in Settings now
   const [definitionSheetVisible, setDefinitionSheetVisible] = useState(false);
   const [definitionSheetTitle, setDefinitionSheetTitle] = useState('');
   const [definitionSheetSections, setDefinitionSheetSections] = useState<LearnMoreSection[]>([]);
-  const [proInfoVisible, setProInfoVisible] = useState(false);
-  const [baselinePhotoUri, setBaselinePhotoUri] = useState<string | null>(null);
-  const [baselinePhotoSaving, setBaselinePhotoSaving] = useState(false);
   const [psmfModalVisible, setPsmfModalVisible] = useState(false);
   const [psmfAcknowledgedAt, setPsmfAcknowledgedAt] = useState<string | undefined>(undefined);
 
@@ -167,14 +127,6 @@ export default function OnboardingScreen() {
     setStep(nextStep);
     animateProgress(nextStep);
   }, [animateProgress, step]);
-
-  const toggleDislikedFood = useCallback((foodId: string) => {
-    setDislikedFoodIds((prev) =>
-      prev.includes(foodId)
-        ? prev.filter((id) => id !== foodId)
-        : [...prev, foodId]
-    );
-  }, []);
 
   const toggleSport = useCallback((sport: string) => {
     setSelectedSports((prev) =>
@@ -250,19 +202,9 @@ export default function OnboardingScreen() {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    if (dislikedFoodIds.length > 0) {
-      await setDislikedFoods(
-        dislikedFoodIds.map((foodId) => ({
-          id: `dislike_${foodId}`,
-          foodId,
-          name: FOODS[foodId].name,
-          createdAt: Date.now(),
-        }))
-      );
-    }
-    if (baselinePhotoUri) {
-      await saveProgressPhoto('local_user', baselinePhotoUri, { isBaseline: true });
-    }
+    // Food dislikes/allergies are collected at first plan generation (Plan
+    // tab gate); the baseline photo is prompted contextually after a 3-day
+    // logging streak (DashboardBanner) — not during onboarding.
     await upsertMeasurement({
       id: `m_baseline_${Date.now()}`,
       userId: 'local_user',
@@ -300,8 +242,6 @@ export default function OnboardingScreen() {
   }, [
     completeOnboarding,
     draftProfile,
-    dislikedFoodIds,
-    baselinePhotoUri,
     psmfAcknowledgedAt,
     trainingPersona,
     selectedSports,
@@ -736,59 +676,7 @@ export default function OnboardingScreen() {
           );
         })}
       </View>
-    </View>
-  );
-
-  const renderFoodDislikeGrid = (title: string, subtitle: string, foodIds: string[]) => (
-    <View style={styles.stepContainer}>
-      {renderStepHeader(title, subtitle)}
-      <View style={styles.foodGrid}>
-        {foodIds.map((foodId) => {
-          const food = FOODS[foodId];
-          const active = dislikedFoodIds.includes(foodId);
-          return (
-            <PhysiqPressable
-              key={foodId}
-              feedback="select"
-              style={[styles.foodChip, active && styles.foodChipActive]}
-              onPress={() => toggleDislikedFood(foodId)}
-            >
-              <Text style={[styles.foodChipText, active && styles.foodChipTextActive]}>
-                {food.name}
-              </Text>
-            </PhysiqPressable>
-          );
-        })}
-      </View>
-      <Text style={styles.foodDislikeNote}>Tap to mark foods you{"'"}d rather avoid.</Text>
-    </View>
-  );
-
-  const renderProteinDislikesStep = () =>
-    renderFoodDislikeGrid(
-      'Proteins You Dislike',
-      "We'll avoid these when building your protein sources.",
-      PROTEIN_FOOD_IDS
-    );
-
-  const renderCarbDislikesStep = () =>
-    renderFoodDislikeGrid(
-      'Carbs You Dislike',
-      "We'll avoid these when building your carb sources.",
-      CARB_FOOD_IDS
-    );
-
-  const renderFatDislikesStep = () =>
-    renderFoodDislikeGrid(
-      'Fats You Dislike',
-      "We'll avoid these when building your fat sources.",
-      FAT_FOOD_IDS
-    );
-
-  const renderRestrictionStep = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Dietary Restrictions</Text>
-      <Text style={styles.stepSubtitle}>Select any restrictions or preferences that should shape your meal plan.</Text>
+      <Text style={styles.label}>Any dietary modifiers? (optional)</Text>
       <View style={styles.chipWrap}>
         {(Object.keys(DIETARY_MODIFIER_LABELS) as DietaryModifier[]).map((modifier) => {
           const active = dietModifiers.includes(modifier);
@@ -806,23 +694,20 @@ export default function OnboardingScreen() {
           );
         })}
       </View>
+    </View>
+  );
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Other dietary notes (optional)</Text>
-        <TextInput
-          style={[styles.input, styles.notesInput]}
-          multiline
-          value={dietNotes}
-          onChangeText={setDietNotes}
-          placeholder="Add any extra food preferences, dislikes, or notes."
-          placeholderTextColor={Colors.textTertiary}
-        />
-      </View>
-
+  /** Final step: the personalized plan, revealed — first value before the dashboard. */
+  const renderPlanRevealStep = () => (
+    <View style={styles.stepContainer}>
+      {renderStepHeader(
+        'Your plan is ready',
+        'Daily targets built from your stats, goal, and activity. They adapt as you train — and you can adjust them anytime.'
+      )}
       <View style={styles.previewCard}>
         <View style={styles.previewHeader}>
           <Zap size={16} color={colors.primary} />
-          <Text style={styles.previewTitle}>Estimated Daily Targets</Text>
+          <Text style={styles.previewTitle}>Daily Targets</Text>
         </View>
         <View style={styles.previewRow}>
           <PreviewMetric label="Calories" value={String(previewMacros.calories)} color={Colors.calories} styles={styles} />
@@ -831,143 +716,23 @@ export default function OnboardingScreen() {
           <PreviewMetric label="Fat" value={`${previewMacros.fat_g}g`} color={Colors.fat} styles={styles} />
         </View>
       </View>
-    </View>
-  );
-
-  const renderPremiumFeaturesStep = () => (
-    <View
-      style={[
-        styles.stepContainer,
-        styles.paywallStepContainer,
-        paywallCompact && styles.paywallStepContainerCompact,
-        paywallVeryCompact && styles.paywallStepContainerVeryCompact,
-      ]}
-    >
-      <View style={styles.stepHeaderRow}>
-        <Text
-          style={[
-            styles.stepTitle,
-            styles.paywallStepTitle,
-            paywallCompact && styles.paywallStepTitleCompact,
-            paywallVeryCompact && styles.paywallStepTitleVeryCompact,
-          ]}
-          numberOfLines={2}
-          adjustsFontSizeToFit
-          minimumFontScale={0.85}
-        >
-          {PRO_COPY.headline}
-        </Text>
-        <PhysiqPressable feedback="tap" style={styles.learnMoreButton} onPress={() => setProInfoVisible(true)}>
-          <Info size={14} color={colors.primary} />
-          <Text style={styles.learnMoreText}>Info</Text>
-        </PhysiqPressable>
-      </View>
-      <Text
-        style={[
-          styles.stepSubtitle,
-          styles.paywallSubtitle,
-          paywallCompact && styles.paywallSubtitleCompact,
-          paywallVeryCompact && styles.paywallSubtitleVeryCompact,
-        ]}
-      >
-        {PRO_COPY.subheadline}
+      <Text style={styles.planRevealNote}>
+        Log your first meal in seconds — type it, speak it, or scan a barcode. The full methodology
+        lives in Settings → Nutrition Science.
       </Text>
-
-      <View style={[styles.choiceList, paywallCompact && styles.choiceListCompact]}>
-        {PRO_COPY.featureBullets.map((line) => (
-          <View key={line} style={styles.proFeatureRow}>
-            <View style={styles.featureBullet} />
-            <Text
-              style={[
-                styles.proFeatureText,
-                paywallCompact && styles.proFeatureTextCompact,
-                paywallVeryCompact && styles.proFeatureTextVeryCompact,
-              ]}
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.9}
-            >
-              {line}
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={[styles.proTrialCard, paywallCompact && styles.proTrialCardCompact]}>
-        <Text style={styles.proTrialTitle}>{PRO_COPY.includedTitle}</Text>
-        <Text style={styles.proTrialLine}>{PRO_COPY.includedLine}</Text>
-      </View>
-    </View>
-  );
-
-  const handleBaselineCapture = useCallback(async (source: 'camera' | 'library') => {
-    setBaselinePhotoSaving(true);
-    try {
-      const uri = await captureProgressPhoto(source);
-      if (uri) setBaselinePhotoUri(uri);
-    } finally {
-      setBaselinePhotoSaving(false);
-    }
-  }, []);
-
-  const renderBaselinePhotoStep = () => (
-    <View style={styles.stepContainer}>
-      {renderStepHeader(
-        'Baseline photo',
-        'Take a full-body photo in swimwear or fitted clothing. This helps you see visual progress over time. Stored on your device only.'
-      )}
-      {baselinePhotoUri ? (
-        <Image source={{ uri: baselinePhotoUri }} style={styles.baselinePreview} contentFit="cover" />
-      ) : (
-        <View style={styles.baselinePlaceholder}>
-          <Camera size={32} color={Colors.textTertiary} />
-          <Text style={styles.baselinePlaceholderText}>No photo yet</Text>
-        </View>
-      )}
-      <View style={styles.baselineActions}>
-        <PhysiqPressable
-          feedback="confirm"
-          style={styles.baselinePrimaryBtn}
-          disabled={baselinePhotoSaving}
-          onPress={() => void handleBaselineCapture('camera')}
-        >
-          <Camera size={16} color={colors.onPrimary ?? Colors.white} />
-          <Text style={styles.baselinePrimaryBtnText}>{baselinePhotoSaving ? 'Opening…' : 'Take Photo'}</Text>
-        </PhysiqPressable>
-        <PhysiqPressable
-          feedback="tap"
-          style={styles.baselineSecondaryBtn}
-          disabled={baselinePhotoSaving}
-          onPress={() => void handleBaselineCapture('library')}
-        >
-          <ImageIcon size={16} color={colors.primary} />
-          <Text style={styles.baselineSecondaryBtnText}>Choose from Library</Text>
-        </PhysiqPressable>
-      </View>
-      <PhysiqPressable feedback="tap" onPress={goNext} style={styles.skipLink}>
-        <Text style={styles.skipLinkText}>Skip for now</Text>
-      </PhysiqPressable>
     </View>
   );
 
   const steps = [
     renderProfileStep,
-    renderBaselinePhotoStep,
     renderGoalStep,
     renderActivityStep,
     renderTrainingStep,
     renderEatingStyleStep,
-    renderProteinDislikesStep,
-    renderCarbDislikesStep,
-    renderFatDislikesStep,
-    renderRestrictionStep,
-    renderPremiumFeaturesStep,
+    renderPlanRevealStep,
   ];
 
   const isLastStep = step === TOTAL_STEPS - 1;
-  const paywallCompact = viewportHeight < 860 || fontScale > 1.05;
-  const paywallVeryCompact = viewportHeight < 780 || fontScale > 1.16;
-  const paywallNeedsScrollFallback = viewportHeight < 700 || fontScale > 1.24;
   const footerBottomInset = Math.max(insets.bottom, Spacing.md);
   const footerBarHeight = FOOTER_BUTTON_HEIGHT + Spacing.md + footerBottomInset + Spacing.md;
 
@@ -989,11 +754,8 @@ export default function OnboardingScreen() {
           style={styles.flex}
           contentContainerStyle={[
             styles.scrollContent,
-            isLastStep && styles.scrollContentPaywall,
-            { paddingBottom: (isLastStep ? footerBottomInset + Spacing.xxl : footerBarHeight) + Spacing.lg },
+            { paddingBottom: footerBarHeight + Spacing.lg },
           ]}
-          scrollEnabled={!isLastStep || paywallNeedsScrollFallback}
-          bounces={!isLastStep || paywallNeedsScrollFallback}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -1022,7 +784,7 @@ export default function OnboardingScreen() {
             </PhysiqPressable>
           ) : (
             <PhysiqPressable feedback="confirm" style={styles.footerContinueButton} onPress={finishOnboarding}>
-              <Text style={styles.footerContinueText}>Continue</Text>
+              <Text style={styles.footerContinueText}>Start logging</Text>
               <ChevronRight size={16} color={colors.onPrimary} />
             </PhysiqPressable>
           )}
@@ -1040,10 +802,6 @@ export default function OnboardingScreen() {
         profile={draftProfile}
         onClose={() => setPsmfModalVisible(false)}
         onAcknowledge={confirmPsmfSelection}
-      />
-      <ProInfoModal
-        visible={proInfoVisible}
-        onClose={() => setProInfoVisible(false)}
       />
     </View>
     </DismissKeyboard>
@@ -1554,6 +1312,12 @@ const createStyles = (colors: AppColors) => StyleSheet.create({
   skipLink: {
     alignItems: 'center',
     paddingVertical: 12,
+  },
+  planRevealNote: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: Spacing.lg,
   },
   skipLinkText: {
     color: Colors.textSecondary,
