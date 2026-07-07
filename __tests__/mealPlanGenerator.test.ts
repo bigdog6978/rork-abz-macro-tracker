@@ -253,10 +253,15 @@ describe('MealPlanGenerator', () => {
     });
 
     it('keto eating style supports higher protein targets while staying low carb', () => {
+      // 1900 declared kcal vs 1760 macro-derived — the engine normalizes to
+      // macro-consistent calories by documented design (see the
+      // normalizeMacroTargetsForPlanning tests), so compare against the
+      // normalized targets like the required-tolerance suite does.
       const targets: MacroTargets = { calories: 1900, protein_g: 140, carbs_g: 30, fat_g: 120 };
+      const normalized = normalizeMacroTargetsForPlanning(targets).normalizedTargets;
       const plan = generateMealPlan(targets, 'keto', [], 'us');
       const totals = sumPlanTotals(plan);
-      const ok = withinTolerance(totals, targets, { protein: 15, carbs: 10, fat: 12, calories: 120 });
+      const ok = withinTolerance(totals, normalized, { protein: 15, carbs: 10, fat: 12, calories: 120 });
       expect(ok).toBe(true);
     });
 
